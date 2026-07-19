@@ -1,0 +1,2012 @@
+openapi: 3.0.3
+info:
+  title: Adera API
+  version: 1.0.0
+  description: |
+    Trusted Ethiopian review platform backend (አደራ — "balance").
+
+    ## Conventions
+    - All endpoints live under `/api/v1`. Requests and responses are JSON (UTF-8);
+      user content may be Amharic, English, Afaan Oromo, Tigrinya, or Somali.
+    - Success bodies are `{"data": ..., "meta": {...}?}`; errors are
+      `{"error": {"code", "message", "details"?, "request_id"}}` with **stable
+      machine-readable codes** for client-side localization.
+    - Timestamps are RFC 3339 UTC. Public identifiers are UUIDs.
+    - Unknown JSON fields are **rejected** (400 `invalid_json`) as a
+      mass-assignment defense. Bodies are capped at 64 KiB (uploads bypass the
+      API via presigned POST).
+    - Cursor pagination: pass `meta.next_cursor` back as `?cursor=`; cursors are
+      opaque. `limit` defaults to 20, max 50.
+    - Sensitive endpoints are rate limited (429 + `Retry-After`).
+
+    ## Authentication
+    `Authorization: Bearer <access_token>` (15-minute JWT). Refresh tokens are
+    opaque, single-use, and rotate on every refresh; reusing a rotated token
+    revokes its whole session family. Roles: customer, business_owner
+    (granted only by an approved claim), moderator, admin (implies moderator).
+
+    ## Review submission flow
+    1. `GET /categories/{c}/criteria` → render category-specific questions.
+    2. `POST /reviews` with `Idempotency-Key` header (safe to retry on weak
+       connections; replays return the stored response).
+    3. Optional photos: `POST /reviews/{id}/media` → presigned POST → upload
+       directly to storage → `POST /media/uploads/{id}/finalize` (server
+       validates, re-encodes, strips EXIF/GPS, publishes).
+    4. Optional private evidence: `POST /reviews/{id}/evidence` → upload →
+       `POST /evidence/{id}/finalize`. Evidence is **never public**; moderator
+       acceptance upgrades the review's `verification_level`.
+
+    Formulas for stats/ranking/Reality Check: docs/rating-and-ranking.md.
+    Role rules: docs/authorization-matrix.md.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - {name: auth}
+  - {name: users}
+  - {name: categories}
+  - {name: locations}
+  - {name: targets}
+  - {name: businesses}
+  - {name: reviews}
+  - {name: ratings}
+  - {name: search}
+  - {name: media}
+  - {name: claims}
+  - {name: moderation, description: Requires the moderator role (admins inherit it).}
+  - {name: admin, description: Requires the admin role.}
+  - {name: ops}
+
+security: []
+
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [auth]
+      summary: Register (email or Ethiopian/international phone + password)
+      description: |
+        Ethiopian numbers normalize to E.164 (`0911234567` → `+251911234567`).
+        Registration returns an authenticated session; a verification code is
+        sent when a delivery provider is configured. Duplicate identifiers get
+        a deliberately vague 409 (no enumeration). Rate limited per IP and
+        identifier.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [display_name, password]
+              properties:
+                display_name: {type: string, minLength: 2, maxLength: 80, example: "Abebe Kebede"}
+                email: {type: string, format: email, nullable: true}
+                phone: {type: string, nullable: true, example: "0911234567"}
+                password: {type: string, minLength: 8, maxLength: 128}
+                preferred_language: {$ref: '#/components/schemas/Language'}
+      responses:
+        '201':
+          description: Account created and logged in.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthResponse'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      summary: Log in with email or phone + password
+      description: |
+        Errors are uniformly `invalid_credentials` (401) to prevent user
+        enumeration; suspended accounts get 403 `account_suspended`;
+        deactivated accounts reactivate on successful login. Rate limited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier, password]
+              properties:
+                identifier: {type: string, description: Email or phone in any accepted format.}
+                password: {type: string}
+      responses:
+        '200':
+          description: Authenticated.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [auth]
+      summary: Rotate the refresh token and get a new access token
+      description: |
+        Single-use rotation with theft detection: presenting an
+        already-rotated or revoked refresh token revokes the **entire session
+        family** and returns 401.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: {type: string}
+      responses:
+        '200':
+          description: New token pair.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/TokenPair'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      summary: Revoke the current session family
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/auth/logout-all:
+    post:
+      tags: [auth]
+      summary: Revoke every session of the caller
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/auth/sessions:
+    get:
+      tags: [auth]
+      summary: List active sessions (devices)
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Active sessions, newest first.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data:
+                        type: array
+                        items: {$ref: '#/components/schemas/Session'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/auth/sessions/{id}:
+    delete:
+      tags: [auth]
+      summary: Revoke one of the caller's sessions
+      description: Foreign session IDs return 404 (object-level authorization).
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /api/v1/auth/verify/request:
+    post:
+      tags: [auth]
+      summary: Request an email/phone verification code
+      description: |
+        6-digit code, 15-minute TTL, max 5 attempts. Returns 503
+        `verification_unavailable` when no delivery provider is configured
+        (the API never pretends to send). Rate limited per account.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel]
+              properties:
+                channel: {type: string, enum: [email, phone]}
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Error'}
+
+  /api/v1/auth/verify/confirm:
+    post:
+      tags: [auth]
+      summary: Confirm a verification code
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel, code]
+              properties:
+                channel: {type: string, enum: [email, phone]}
+                code: {type: string, example: "123456"}
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/auth/password-reset/request:
+    post:
+      tags: [auth]
+      summary: Request a password reset code
+      description: Always 200, whether or not the account exists (no enumeration).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier]
+              properties:
+                identifier: {type: string}
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+
+  /api/v1/auth/password-reset/confirm:
+    post:
+      tags: [auth]
+      summary: Complete a password reset
+      description: Consumes the code, sets the password, revokes all sessions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier, code, new_password]
+              properties:
+                identifier: {type: string}
+                code: {type: string}
+                new_password: {type: string, minLength: 8}
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+
+  /api/v1/users/me:
+    get:
+      tags: [users]
+      summary: Get own profile (includes email/phone; public views never do)
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Profile.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/Profile'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    patch:
+      tags: [users]
+      summary: Update display name and/or preferred language
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name: {type: string, minLength: 2, maxLength: 80}
+                preferred_language: {$ref: '#/components/schemas/Language'}
+      responses:
+        '200':
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/Profile'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [users]
+      summary: Deactivate the account
+      description: |
+        Revokes all sessions. Published reviews are retained (see
+        docs/moderation-policy.md retention); logging in again reactivates.
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/users/me/password:
+    post:
+      tags: [users]
+      summary: Change password (revokes all other sessions)
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password: {type: string}
+                new_password: {type: string, minLength: 8}
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+
+  /api/v1/users/me/reviews:
+    get:
+      tags: [users]
+      summary: List own reviews (all moderation states)
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Own reviews, newest first.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReviewPage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/users/me/reports:
+    get:
+      tags: [users]
+      summary: List own reports with their status
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Reports filed by the caller.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data:
+                        type: array
+                        items: {$ref: '#/components/schemas/Report'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/categories:
+    get:
+      tags: [categories]
+      summary: List active categories (with am/en label translations)
+      responses:
+        '200':
+          description: Categories ordered by sort_order.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data:
+                        type: array
+                        items: {$ref: '#/components/schemas/Category'}
+
+  /api/v1/categories/{idOrCode}:
+    get:
+      tags: [categories]
+      summary: Get one category by UUID or stable code
+      parameters: [{name: idOrCode, in: path, required: true, schema: {type: string}, example: restaurant_cafe}]
+      responses:
+        '200':
+          description: Category.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/Category'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /api/v1/categories/{idOrCode}/criteria:
+    get:
+      tags: [categories]
+      summary: Get the active review criteria for a category
+      description: |
+        Criteria are database-driven; render the review form from this
+        response. Scores for non-required criteria may be omitted (N/A).
+      parameters: [{name: idOrCode, in: path, required: true, schema: {type: string}}]
+      responses:
+        '200':
+          description: Criteria ordered by sort_order.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data:
+                        type: array
+                        items: {$ref: '#/components/schemas/Criterion'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /api/v1/locations/cities:
+    get:
+      tags: [locations]
+      summary: List cities
+      responses:
+        '200':
+          description: Active cities.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataEnvelope'}
+
+  /api/v1/locations/cities/{id}/areas:
+    get:
+      tags: [locations]
+      summary: List a city's areas/neighborhoods
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200':
+          description: Areas (e.g., Bole/ቦሌ, Piassa/ፒያሳ).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataEnvelope'}
+
+  /api/v1/targets:
+    post:
+      tags: [targets]
+      summary: Submit a review target (business location, online seller, product, ...)
+      description: |
+        Public submissions enter moderation (`pending`); moderator submissions
+        publish immediately. Aliases (Amharic spellings, transliterations)
+        power mixed-script search. `social_links` values must be https URLs on
+        the platform's own domain (tiktok/instagram/facebook/telegram/youtube).
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TargetCreate'}
+      responses:
+        '201':
+          description: Created (check `moderation_status`).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/Target'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    get:
+      tags: [targets]
+      summary: Browse published targets (filters + cursor pagination, newest first)
+      parameters:
+        - {$ref: '#/components/parameters/FilterCategory'}
+        - {$ref: '#/components/parameters/FilterCity'}
+        - {$ref: '#/components/parameters/FilterArea'}
+        - {$ref: '#/components/parameters/FilterType'}
+        - {$ref: '#/components/parameters/FilterMinRating'}
+        - {$ref: '#/components/parameters/FilterVerified'}
+        - {name: online_only, in: query, schema: {type: boolean}}
+        - {name: business, in: query, schema: {type: string, format: uuid}}
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Page of targets.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TargetPage'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/targets/top-rated:
+    get:
+      tags: [targets]
+      summary: Top-rated targets by the documented confidence-adjusted score
+      description: |
+        Ordered by `ranking_score = (10×3.5 + Σratings)/(10 + n)` — Bayesian
+        shrinkage so one 5★ review can't outrank hundreds of consistent
+        reviews. The raw average is returned unaltered alongside.
+      parameters:
+        - {$ref: '#/components/parameters/FilterCategory'}
+        - {$ref: '#/components/parameters/FilterCity'}
+        - {$ref: '#/components/parameters/FilterArea'}
+        - {$ref: '#/components/parameters/FilterType'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Ranked targets (includes `ranking_score`).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataEnvelope'}
+
+  /api/v1/targets/trending:
+    get:
+      tags: [targets]
+      summary: Trending targets (published-review volume, last 30 days)
+      parameters:
+        - {$ref: '#/components/parameters/FilterCategory'}
+        - {$ref: '#/components/parameters/FilterCity'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Targets with `recent_review_count` and `recent_average`.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataEnvelope'}
+
+  /api/v1/targets/{idOrSlug}:
+    get:
+      tags: [targets]
+      summary: Get one target by UUID or slug
+      description: Unpublished targets are 404 except for moderators.
+      parameters: [{$ref: '#/components/parameters/PathIDOrSlug'}]
+      responses:
+        '200':
+          description: Target with aliases and rating summary.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/Target'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    patch:
+      tags: [targets]
+      summary: Update a claimed target (business members or moderators)
+      description: |
+        Explicit field allowlist; name/category changes are moderator-only
+        (via edit suggestions) to prevent identity swaps.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathIDOrSlug'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TargetUpdate'}
+      responses:
+        '200':
+          description: Updated target.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataEnvelope'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/targets/{idOrSlug}/edit-suggestions:
+    post:
+      tags: [targets]
+      summary: Suggest a correction (any authenticated user; moderators apply)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathIDOrSlug'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [changes]
+              properties:
+                changes:
+                  type: object
+                  description: Allowlisted keys only (name, description, address_text, phone, website, city_id, area_id, online_only, social_links, aliases, category_id, target_type).
+                note: {type: string, maxLength: 1000}
+      responses:
+        '201': {$ref: '#/components/responses/StatusCreated'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/targets/{id}/reviews:
+    get:
+      tags: [reviews]
+      summary: List a target's published reviews
+      parameters:
+        - {$ref: '#/components/parameters/PathID'}
+        - name: sort
+          in: query
+          schema: {type: string, enum: [newest, oldest, highest, lowest, most_helpful, relevant], default: newest}
+        - {name: rating, in: query, schema: {type: integer, minimum: 1, maximum: 5}, description: Exact star filter (histogram tap).}
+        - {name: min_rating, in: query, schema: {type: integer, minimum: 1, maximum: 5}}
+        - {name: language, in: query, schema: {$ref: '#/components/schemas/Language'}}
+        - {name: verified, in: query, schema: {type: boolean}, description: Only verified-level reviews.}
+        - {name: discovery_source, in: query, schema: {$ref: '#/components/schemas/DiscoverySource'}}
+        - {name: expectation_match, in: query, schema: {$ref: '#/components/schemas/ExpectationMatch'}}
+        - {name: since, in: query, schema: {type: string, format: date}}
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Page of reviews with reviewer info, helpful counts, media, business response.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReviewPage'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/reviews:
+    post:
+      tags: [reviews]
+      summary: Submit a review
+      description: |
+        Policies: one review per user per target per 30 days (409
+        `cooldown_active` with `existing_review_id` — update instead); max 5
+        reviews per user per 24h (429). `expectation_match` is only accepted
+        when `discovery_source` is a social platform. Send `Idempotency-Key`
+        to make retries safe.
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: Idempotency-Key, in: header, schema: {type: string, maxLength: 200}, description: Client-generated key; replays return the stored response.}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReviewCreate'}
+            example:
+              target_id: "63efd238-5ced-4539-80e5-76b1b3afc432"
+              overall_rating: 4
+              title: "Better than the videos"
+              body: "የቲክቶክ ቪዲዮው ትክክል ነበር። ክትፎው በጣም ጣፋጭ ነው።"
+              language: am
+              experience_date: "2026-07-10"
+              price_paid: 850
+              currency: ETB
+              would_recommend: true
+              return_likelihood: 5
+              discovery_source: tiktok
+              expectation_match: better
+              social_media_url: "https://www.tiktok.com/@foodie/video/1"
+              criterion_scores: {taste: 5, portion_size: 4, social_media_accuracy: 5}
+      responses:
+        '201':
+          description: Review created and published.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/Review'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+
+  /api/v1/reviews/{id}:
+    get:
+      tags: [reviews]
+      summary: Get one review (with criterion scores)
+      description: Non-published reviews are visible only to their author and moderators.
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200':
+          description: Review.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/Review'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      tags: [reviews]
+      summary: Update own review (full replace, optimistic concurrency)
+      description: |
+        Author only. Send the current `version`; a stale version returns 412.
+        Aggregates rebalance in the same transaction.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ReviewCreate'
+                - type: object
+                  required: [version]
+                  properties:
+                    version: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Updated review (version incremented).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataEnvelope'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '412': {$ref: '#/components/responses/PreconditionFailed'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [reviews]
+      summary: Remove own review from public view (soft, idempotent)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/reviews/{id}/helpful:
+    put:
+      tags: [reviews]
+      summary: Mark a review helpful (idempotent; not on own reviews)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200':
+          description: '`{"data": {"helpful_count": n, "voted": true}}`'
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [reviews]
+      summary: Remove a helpful vote (idempotent)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200':
+          description: '`{"data": {"helpful_count": n, "voted": false}}`'
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/targets/{id}/stats:
+    get:
+      tags: [ratings]
+      summary: Full rating aggregate for a target
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200':
+          description: Aggregates (see docs/rating-and-ranking.md for formulas).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/TargetStats'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /api/v1/targets/{id}/reality-check:
+    get:
+      tags: [ratings]
+      summary: Reality Check — did the socially-hyped place match expectations?
+      description: |
+        Aggregate, neutral language only. Percentages require ≥5
+        social-discovery answers; counts are always included; trends require
+        minimum samples; confidence flags small samples.
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200':
+          description: Reality Check summary.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/RealityCheck'}
+              example:
+                data:
+                  target_id: "63efd238-5ced-4539-80e5-76b1b3afc432"
+                  review_count: 6
+                  raw_average: 3.33
+                  verified_count: 1
+                  verified_average: 4.0
+                  recent_count: 6
+                  recent_average: 3.33
+                  historical_average: 3.33
+                  recent_trend: 0.0
+                  trend_available: true
+                  social_review_count: 5
+                  expectation_distribution:
+                    better: 1
+                    as_expected: 2
+                    worse: 1
+                    very_different: 1
+                    percentages: {better: 20, as_expected: 40, worse: 20, very_different: 20, matched_or_better: 60}
+                  rating_distribution: [1, 1, 0, 2, 2]
+                  confidence: low
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /api/v1/search/targets:
+    get:
+      tags: [search]
+      summary: Search targets (Amharic/English, typo-tolerant, alias-aware)
+      description: |
+        Unicode-aware: Ethiopic homophones are folded (ሠላም finds ሰላም), aliases
+        cover transliterations (Bole ⇄ ቦሌ), pg_trgm covers typos. Rate limited
+        per IP. Returns a single relevance-ranked page (max 50).
+      parameters:
+        - {name: q, in: query, required: true, schema: {type: string, minLength: 2, maxLength: 120}, example: "ቶሞካ"}
+        - {$ref: '#/components/parameters/FilterCategory'}
+        - {$ref: '#/components/parameters/FilterCity'}
+        - {$ref: '#/components/parameters/FilterArea'}
+        - {$ref: '#/components/parameters/FilterType'}
+        - {$ref: '#/components/parameters/FilterMinRating'}
+        - {$ref: '#/components/parameters/FilterVerified'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Ranked matches with `score`.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataEnvelope'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+
+  /api/v1/reviews/{id}/media:
+    post:
+      tags: [media]
+      summary: Start a public photo upload (author only, max 5/review)
+      description: |
+        Returns a presigned POST (server-chosen key, exact content type, 1 KiB
+        – 10 MiB, 5-minute expiry). Upload the file directly to `upload.url`
+        with the given `upload.fields`, then call the finalize endpoint.
+        Accepted types: image/jpeg, image/png.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content_type]
+              properties:
+                content_type: {type: string, enum: [image/jpeg, image/png]}
+      responses:
+        '201':
+          description: Upload ticket.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/UploadTicket'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/Error'}
+
+  /api/v1/media/uploads/{id}/finalize:
+    post:
+      tags: [media]
+      summary: Finalize a public photo (validate, re-encode, strip EXIF/GPS, publish)
+      description: |
+        Server-side: magic-byte check against the declared type, decode with
+        decompression-bomb guard, re-encode (drops all metadata), copy to the
+        public bucket, delete staging, raise the review's verification level
+        to `media_attached`. 422 `upload_invalid` on any mismatch; 410 when
+        the upload window expired.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200':
+          description: '`{"data": {"id", "object_key", "status": "ready"}}`'
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '410': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/reviews/{id}/evidence:
+    post:
+      tags: [media]
+      summary: Start a PRIVATE verification-evidence upload (author only)
+      description: |
+        Evidence (receipts, order screenshots, service results, location QR)
+        often contains phone numbers, payment references, names — it stays in
+        the private bucket forever, is never displayed publicly, and is
+        readable only by the author and moderators via short-lived presigned
+        URLs. Accepted types: image/jpeg, image/png, image/webp.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, content_type]
+              properties:
+                kind: {type: string, enum: [receipt, order_screenshot, product_photo, service_result, location_qr]}
+                content_type: {type: string, enum: [image/jpeg, image/png, image/webp]}
+      responses:
+        '201':
+          description: Upload ticket (private bucket).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/UploadTicket'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    get:
+      tags: [media]
+      summary: List own review's evidence with status and access URLs (author only)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200':
+          description: Evidence items.
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/evidence/{id}/finalize:
+    post:
+      tags: [media]
+      summary: Submit uploaded evidence for moderator verification
+      description: |
+        Validates signature and size (the original is preserved unmodified).
+        Status becomes `submitted`; a review is **never** labeled verified
+        until a moderator accepts the evidence.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/businesses:
+    post:
+      tags: [businesses]
+      summary: Register a business profile (grants NO control — claim it)
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: {type: string, minLength: 2, maxLength: 160}
+                description: {type: string, maxLength: 2000}
+      responses:
+        '201':
+          description: Business created.
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/businesses/{id}:
+    get:
+      tags: [businesses]
+      summary: Get a business profile
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200':
+          description: Business.
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+    patch:
+      tags: [businesses]
+      summary: Update the business description (members/moderators)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: Updated business., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/businesses/{id}/stats:
+    get:
+      tags: [businesses]
+      summary: Owner dashboard stats (members/moderators only)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200': {description: Review statistics across the business's targets., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/reviews/{id}/response:
+    post:
+      tags: [businesses]
+      summary: Post the single public business response to a review
+      description: |
+        Members of the business owning the review's target only. One response
+        per review (409 afterwards — edit instead). A business can never
+        delete or alter the review itself.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: {type: string, minLength: 1, maxLength: 2000}
+      responses:
+        '201': {description: Response posted., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /api/v1/responses/{id}:
+    put:
+      tags: [businesses]
+      summary: Edit a business response (previous text kept in an audit table)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: {type: string, minLength: 1, maxLength: 2000}
+      responses:
+        '200': {description: Updated response., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /api/v1/businesses/{id}/claims:
+    post:
+      tags: [claims]
+      summary: Request ownership of a business
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method]
+              properties:
+                method: {type: string, enum: [document, phone, email, other]}
+                message: {type: string, maxLength: 2000}
+      responses:
+        '201':
+          description: Claim submitted (pending moderator review).
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /api/v1/claims/mine:
+    get:
+      tags: [claims]
+      summary: List own claims with status
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Claims newest first., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/reviews/{id}/reports:
+    post:
+      tags: [moderation]
+      summary: Report a review (any authenticated user or business)
+      description: One open report per user per review. Reports never auto-hide content.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReportCreate'}
+      responses:
+        '201': {description: Report filed., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+
+  /api/v1/targets/{id}/reports:
+    post:
+      tags: [moderation]
+      summary: Report a target (duplicates, wrong info, ...)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReportCreate'}
+      responses:
+        '201': {description: Report filed., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/moderation/reports:
+    get:
+      tags: [moderation]
+      summary: Moderation queue (oldest first — 24h takedown SLA)
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: status, in: query, schema: {type: string, enum: [open, in_review, resolved, dismissed], default: open}}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200': {description: Reports., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/moderation/reports/{id}:
+    get:
+      tags: [moderation]
+      summary: Report detail
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200': {description: Report., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /api/v1/moderation/reports/{id}/resolve:
+    post:
+      tags: [moderation]
+      summary: Transition a report (in_review / resolved / dismissed)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: {type: string, enum: [in_review, resolved, dismissed]}
+                note: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: Updated report (audited)., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/moderation/reviews/{id}/decision:
+    post:
+      tags: [moderation]
+      summary: Decide a review (approve/restore/under_review/hide/reject/remove)
+      description: Status change + aggregate adjustment happen in one transaction; every decision is audited.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: {type: string, enum: [approve, restore, under_review, hide, reject, remove]}
+                note: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: '`{"data": {"moderation_status": "..."}}`', content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /api/v1/moderation/targets/{id}/decision:
+    post:
+      tags: [moderation]
+      summary: Decide a target submission (approve/restore/hide/remove)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: {type: string, enum: [approve, restore, hide, remove]}
+                note: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: New status., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/moderation/reviews/{id}/evidence:
+    get:
+      tags: [moderation]
+      summary: List a review's private evidence with presigned access URLs
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200': {description: Evidence items (access URLs valid 10 minutes)., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/moderation/evidence/{id}/decision:
+    post:
+      tags: [moderation]
+      summary: Accept or reject submitted evidence
+      description: Acceptance upgrades the review's verification level (receipt kinds → receipt_submitted, location_qr → location_verified) and adjusts verified aggregates transactionally.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: {type: string, enum: [accepted, rejected]}
+                note: {type: string, maxLength: 2000}
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /api/v1/moderation/claims/{id}/decision:
+    post:
+      tags: [moderation]
+      summary: Approve or reject a business claim
+      description: Approval atomically grants membership + business_owner role and marks the business claimed. Claiming never grants moderation permissions.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: {type: string, enum: [approved, rejected]}
+                note: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: Decided claim., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /api/v1/moderation/claims/{id}/revoke:
+    post:
+      tags: [moderation]
+      summary: Revoke an approved claim (removes business control)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: Revoked claim., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /api/v1/moderation/notes:
+    post:
+      tags: [moderation]
+      summary: Attach a moderation note to any subject (audit trail entry)
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject_type, subject_id, note]
+              properties:
+                subject_type: {type: string, enum: [review, target, claim, user, report, response, evidence]}
+                subject_id: {type: string, format: uuid}
+                note: {type: string, minLength: 1, maxLength: 2000}
+      responses:
+        '201': {$ref: '#/components/responses/StatusCreated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/moderation/audit:
+    get:
+      tags: [moderation]
+      summary: Read the append-only audit trail for a subject
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: subject_type, in: query, required: true, schema: {type: string}}
+        - {name: subject_id, in: query, required: true, schema: {type: string, format: uuid}}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200': {description: "Audit entries, newest first.", content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/admin/users/{id}/suspend:
+    post:
+      tags: [admin]
+      summary: Suspend an account (revokes all sessions; not self)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        content: {application/json: {schema: {type: object, properties: {note: {type: string}}}}}
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /api/v1/admin/users/{id}/reinstate:
+    post:
+      tags: [admin]
+      summary: Lift a suspension
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        content: {application/json: {schema: {type: object, properties: {note: {type: string}}}}}
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/admin/users/{id}/roles:
+    post:
+      tags: [admin]
+      summary: Grant a role (moderator/admin/business_owner)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: {type: string, enum: [moderator, admin, business_owner]}
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/admin/categories:
+    post:
+      tags: [admin]
+      summary: Create a category
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CategoryInput'}
+      responses:
+        '201': {$ref: '#/components/responses/StatusCreated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/admin/categories/{id}:
+    patch:
+      tags: [admin]
+      summary: Update a category (name, translations, sort, active)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CategoryInput'}
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /api/v1/admin/categories/{id}/criteria:
+    post:
+      tags: [admin]
+      summary: Add a review criterion to a category
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CriterionInput'}
+      responses:
+        '201': {$ref: '#/components/responses/StatusCreated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/admin/criteria/{id}:
+    patch:
+      tags: [admin]
+      summary: Update a criterion (labels, required, scale, active)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CriterionInput'}
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /api/v1/admin/targets/{id}/merge:
+    post:
+      tags: [admin]
+      summary: Merge a duplicate target into another
+      description: One transaction — reviews/aliases/open reports move, the source's name becomes an alias, both stats rows are recomputed from ground truth, the source is marked merged. Audited.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [into_id]
+              properties:
+                into_id: {type: string, format: uuid}
+                note: {type: string, maxLength: 2000}
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /health:
+    get:
+      tags: [ops]
+      summary: Liveness probe
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+  /ready:
+    get:
+      tags: [ops]
+      summary: Readiness probe (checks database connectivity)
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '503': {$ref: '#/components/responses/Error'}
+  /metrics:
+    get:
+      tags: [ops]
+      summary: Prometheus metrics (restrict at the network layer in production)
+      responses:
+        '200': {description: Prometheus exposition format., content: {text/plain: {schema: {type: string}}}}
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PathID:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    PathIDOrSlug:
+      name: idOrSlug
+      in: path
+      required: true
+      schema: {type: string}
+      description: Target UUID or slug.
+    Cursor:
+      name: cursor
+      in: query
+      schema: {type: string}
+      description: Opaque cursor from a previous page's `meta.next_cursor`.
+    Limit:
+      name: limit
+      in: query
+      schema: {type: integer, default: 20, minimum: 1, maximum: 50}
+    FilterCategory:
+      name: category
+      in: query
+      schema: {type: string, format: uuid}
+    FilterCity:
+      name: city
+      in: query
+      schema: {type: string, format: uuid}
+    FilterArea:
+      name: area
+      in: query
+      schema: {type: string, format: uuid}
+    FilterType:
+      name: type
+      in: query
+      schema: {$ref: '#/components/schemas/TargetType'}
+    FilterMinRating:
+      name: min_rating
+      in: query
+      schema: {type: number, minimum: 1, maximum: 5}
+    FilterVerified:
+      name: verified
+      in: query
+      schema: {type: boolean}
+      description: Only targets with verified status.
+
+  responses:
+    StatusOK:
+      description: 'Success: `{"data": {"status": "..."}}`'
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/DataEnvelope'}
+    StatusCreated:
+      description: 'Created: `{"data": {"id": "...", "status": "..."}}`'
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/DataEnvelope'}
+    Error:
+      description: Error with a stable machine-readable code.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    ValidationError:
+      description: Validation failed (code `validation_failed`, per-field `details`).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+          example:
+            error:
+              code: validation_failed
+              message: invalid review
+              details: {overall_rating: must be 1-5}
+              request_id: 4f33f9884ec53c39
+    Unauthorized:
+      description: Missing/invalid credentials (codes `unauthorized`, `invalid_credentials`).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    Forbidden:
+      description: Authenticated but not allowed (code `forbidden`, or `account_suspended` on login).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    NotFound:
+      description: Not found — also used instead of 403 where existence itself is private.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    Conflict:
+      description: Conflict (codes `conflict`, `cooldown_active`).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    PreconditionFailed:
+      description: Optimistic-concurrency version mismatch (code `precondition_failed`).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    RateLimited:
+      description: Too many requests (code `rate_limited`, `Retry-After` header).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+
+  schemas:
+    DataEnvelope:
+      type: object
+      properties:
+        data: {}
+        meta: {$ref: '#/components/schemas/PageMeta'}
+    PageMeta:
+      type: object
+      properties:
+        next_cursor: {type: string}
+        has_more: {type: boolean}
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Stable machine code for localization.
+              enum: [validation_failed, invalid_json, unauthorized, invalid_credentials,
+                     forbidden, not_found, conflict, gone, rate_limited, payload_too_large,
+                     internal_error, account_suspended, cooldown_active, upload_invalid,
+                     precondition_failed, verification_unavailable, storage_unavailable, not_ready]
+            message: {type: string}
+            details:
+              type: object
+              additionalProperties: {type: string}
+            request_id: {type: string}
+
+    Language:
+      type: string
+      enum: [am, en, om, ti, so]
+    TargetType:
+      type: string
+      enum: [business, location, online_seller, product, service, repair_provider, restaurant, cafe]
+    DiscoverySource:
+      type: string
+      enum: [tiktok, instagram, youtube, facebook, telegram, friend, google_maps, walk_in, other]
+    ExpectationMatch:
+      type: string
+      enum: [better, as_expected, worse, very_different]
+    VerificationLevel:
+      type: string
+      description: See docs/verification-model.md. Only receipt_submitted+ count as "verified".
+      enum: [unverified, media_attached, receipt_submitted, location_verified, partner_verified]
+    ReviewModerationStatus:
+      type: string
+      enum: [pending, published, under_review, rejected, hidden, removed]
+
+    TokenPair:
+      type: object
+      properties:
+        access_token: {type: string, description: 15-minute JWT.}
+        refresh_token: {type: string, description: "Opaque, single-use, rotates on refresh."}
+        token_type: {type: string, example: Bearer}
+        expires_in: {type: integer, example: 900}
+    AuthResponse:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: object
+              properties:
+                user:
+                  type: object
+                  properties:
+                    id: {type: string, format: uuid}
+                    display_name: {type: string}
+                tokens: {$ref: '#/components/schemas/TokenPair'}
+    Session:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        device_info: {type: string}
+        created_at: {type: string, format: date-time}
+        last_used_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+        current: {type: boolean}
+    Profile:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        display_name: {type: string}
+        email: {type: string}
+        phone: {type: string, description: E.164.}
+        status: {type: string, enum: [active, suspended, deactivated]}
+        email_verified: {type: boolean}
+        phone_verified: {type: boolean}
+        preferred_language: {$ref: '#/components/schemas/Language'}
+        roles: {type: array, items: {type: string}}
+        review_count: {type: integer}
+        created_at: {type: string, format: date-time}
+
+    Category:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string, example: restaurant_cafe}
+        name: {type: string}
+        name_translations:
+          type: object
+          additionalProperties: {type: string}
+          example: {am: "ምግብ ቤቶች እና ካፌዎች", en: "Restaurants & Cafés"}
+        description: {type: string}
+        description_translations: {type: object, additionalProperties: {type: string}}
+        sort_order: {type: integer}
+        active: {type: boolean}
+    Criterion:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        category_id: {type: string, format: uuid}
+        code: {type: string, example: taste}
+        name: {type: string}
+        label_translations: {type: object, additionalProperties: {type: string}, example: {am: "ጣዕም", en: "Taste"}}
+        description: {type: string}
+        required: {type: boolean, description: Optional criteria may be skipped (N/A).}
+        scale_min: {type: integer, example: 1}
+        scale_max: {type: integer, example: 5}
+        sort_order: {type: integer}
+        active: {type: boolean}
+    CategoryInput:
+      type: object
+      properties:
+        code: {type: string, pattern: '^[a-z0-9_]{2,40}$', description: Create only.}
+        name: {type: string}
+        name_translations: {type: object, additionalProperties: {type: string}}
+        description: {type: string}
+        sort_order: {type: integer}
+        active: {type: boolean}
+    CriterionInput:
+      type: object
+      properties:
+        code: {type: string, pattern: '^[a-z0-9_]{2,40}$', description: Create only.}
+        name: {type: string}
+        label_translations: {type: object, additionalProperties: {type: string}}
+        description: {type: string}
+        required: {type: boolean}
+        scale_min: {type: integer}
+        scale_max: {type: integer}
+        sort_order: {type: integer}
+        active: {type: boolean}
+
+    Target:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        target_type: {$ref: '#/components/schemas/TargetType'}
+        category_id: {type: string, format: uuid}
+        business_id: {type: string, format: uuid, nullable: true}
+        name: {type: string}
+        slug: {type: string, example: tomoca-coffee-piassa-a1b2c3d4}
+        description: {type: string}
+        city_id: {type: string, format: uuid, nullable: true}
+        area_id: {type: string, format: uuid, nullable: true}
+        address_text: {type: string, description: Landmark-relative free text ("behind Edna Mall").}
+        latitude: {type: number, nullable: true}
+        longitude: {type: number, nullable: true}
+        online_only: {type: boolean}
+        phone: {type: string}
+        website: {type: string}
+        social_links:
+          type: object
+          additionalProperties: {type: string}
+          example: {telegram: "https://t.me/selamstore"}
+        aliases:
+          type: array
+          items: {type: string}
+          example: ["ቶሞካ ቡና", "Tomoca"]
+        verification_status: {type: string, enum: [unverified, verified]}
+        moderation_status: {type: string, enum: [pending, published, hidden, removed, merged]}
+        review_count: {type: integer}
+        average_rating: {type: number, nullable: true, description: "Raw mean, 2 decimals, never adjusted."}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    TargetCreate:
+      type: object
+      required: [target_type, category_id, name]
+      properties:
+        target_type: {$ref: '#/components/schemas/TargetType'}
+        category_id: {type: string, format: uuid}
+        business_id: {type: string, format: uuid, nullable: true}
+        name: {type: string, minLength: 2, maxLength: 160}
+        description: {type: string, maxLength: 2000}
+        city_id: {type: string, format: uuid, nullable: true}
+        area_id: {type: string, format: uuid, nullable: true}
+        address_text: {type: string, maxLength: 300}
+        latitude: {type: number, nullable: true}
+        longitude: {type: number, nullable: true}
+        online_only: {type: boolean}
+        phone: {type: string}
+        website: {type: string}
+        social_links: {type: object, additionalProperties: {type: string}}
+        aliases: {type: array, maxItems: 5, items: {type: string}}
+    TargetUpdate:
+      type: object
+      description: Allowlisted fields only.
+      properties:
+        description: {type: string}
+        address_text: {type: string}
+        phone: {type: string}
+        website: {type: string}
+        city_id: {type: string, format: uuid}
+        area_id: {type: string, format: uuid}
+        online_only: {type: boolean}
+        social_links: {type: object, additionalProperties: {type: string}}
+    TargetPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/Target'}
+
+    ReviewCreate:
+      type: object
+      required: [target_id, overall_rating, body]
+      properties:
+        target_id: {type: string, format: uuid}
+        overall_rating: {type: integer, minimum: 1, maximum: 5}
+        title: {type: string, maxLength: 120}
+        body: {type: string, minLength: 20, maxLength: 5000}
+        language: {$ref: '#/components/schemas/Language'}
+        experience_date: {type: string, format: date}
+        price_paid: {type: number, nullable: true, description: Voluntary.}
+        currency: {type: string, default: ETB}
+        would_recommend: {type: boolean, nullable: true}
+        return_likelihood: {type: integer, minimum: 1, maximum: 5, nullable: true}
+        discovery_source: {$ref: '#/components/schemas/DiscoverySource'}
+        expectation_match:
+          allOf: [{$ref: '#/components/schemas/ExpectationMatch'}]
+          description: Only valid when discovery_source is a social platform.
+        social_media_url: {type: string, description: "https URL on a supported social domain; stored, never fetched."}
+        criterion_scores:
+          type: object
+          additionalProperties: {type: integer}
+          description: Keyed by criterion code from GET /categories/{c}/criteria; optional criteria may be omitted.
+    Review:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        target_id: {type: string, format: uuid}
+        user_id: {type: string, format: uuid}
+        overall_rating: {type: integer}
+        title: {type: string}
+        body: {type: string}
+        language: {type: string}
+        experience_date: {type: string, format: date-time, nullable: true}
+        price_paid: {type: number, nullable: true}
+        currency: {type: string}
+        would_recommend: {type: boolean, nullable: true}
+        return_likelihood: {type: integer, nullable: true}
+        discovery_source: {type: string}
+        expectation_match: {type: string}
+        social_media_url: {type: string}
+        verification_level: {$ref: '#/components/schemas/VerificationLevel'}
+        moderation_status: {$ref: '#/components/schemas/ReviewModerationStatus'}
+        edit_count: {type: integer}
+        edited_at: {type: string, format: date-time, nullable: true}
+        version: {type: integer, description: Send back on PUT (optimistic concurrency).}
+        criterion_scores: {type: object, additionalProperties: {type: integer}}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    ListedReview:
+      allOf:
+        - $ref: '#/components/schemas/Review'
+        - type: object
+          properties:
+            reviewer_name: {type: string}
+            reviewer_review_count: {type: integer}
+            helpful_count: {type: integer}
+            viewer_voted: {type: boolean}
+            media:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: {type: string, format: uuid}
+                  url: {type: string}
+            business_response:
+              type: object
+              nullable: true
+              properties:
+                id: {type: string, format: uuid}
+                body: {type: string}
+                created_at: {type: string, format: date-time}
+                updated_at: {type: string, format: date-time}
+    ReviewPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/ListedReview'}
+
+    TargetStats:
+      type: object
+      properties:
+        target_id: {type: string, format: uuid}
+        review_count: {type: integer}
+        average: {type: number, nullable: true, description: Raw mean — never adjusted.}
+        distribution:
+          type: array
+          items: {type: integer}
+          minItems: 5
+          maxItems: 5
+          description: Counts for 1★..5★.
+        verified_count: {type: integer}
+        verified_average: {type: number, nullable: true}
+        recent_count: {type: integer, description: Published reviews in the last 90 days.}
+        recent_average: {type: number, nullable: true}
+        recommend_percent: {type: number, nullable: true, description: Null below 5 answers.}
+        recommend_sample_size: {type: integer}
+        return_intent_average: {type: number, nullable: true}
+        return_intent_sample_size: {type: integer}
+        criterion_averages:
+          type: array
+          items:
+            type: object
+            properties:
+              code: {type: string}
+              name: {type: string}
+              average: {type: number}
+              count: {type: integer}
+        ranking_score: {type: number, description: "Bayesian (C=10, m=3.5); for ordering only."}
+        confidence: {type: string, enum: [none, low, medium, high]}
+        updated_at: {type: string, format: date-time}
+    RealityCheck:
+      type: object
+      properties:
+        target_id: {type: string, format: uuid}
+        review_count: {type: integer}
+        raw_average: {type: number, nullable: true}
+        verified_count: {type: integer}
+        verified_average: {type: number, nullable: true}
+        recent_count: {type: integer}
+        recent_average: {type: number, nullable: true}
+        historical_average: {type: number, nullable: true}
+        recent_trend: {type: number, nullable: true, description: recent − historical; only above minimum samples.}
+        trend_available: {type: boolean}
+        social_review_count: {type: integer}
+        expectation_distribution:
+          type: object
+          properties:
+            better: {type: integer}
+            as_expected: {type: integer}
+            worse: {type: integer}
+            very_different: {type: integer}
+            percentages:
+              type: object
+              nullable: true
+              description: Present only when social_review_count ≥ 5.
+              properties:
+                better: {type: number}
+                as_expected: {type: number}
+                worse: {type: number}
+                very_different: {type: number}
+                matched_or_better: {type: number}
+        rating_distribution:
+          type: array
+          items: {type: integer}
+        confidence: {type: string, enum: [none, low, medium, high]}
+        note: {type: string, description: Present when samples are too small for percentages.}
+
+    UploadTicket:
+      type: object
+      properties:
+        upload_id: {type: string, format: uuid, description: Use in the finalize call.}
+        upload:
+          type: object
+          properties:
+            url: {type: string, description: POST the file here as multipart/form-data.}
+            fields:
+              type: object
+              additionalProperties: {type: string}
+              description: Include these fields in the form, then the file as `file`.
+            key: {type: string}
+            expires_at: {type: string, format: date-time}
+
+    ReportCreate:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          enum: [spam, fake_experience, conflict_of_interest, harassment, hate_speech,
+                 personal_information, unsupported_accusation, irrelevant, duplicate,
+                 manipulated_evidence]
+        details: {type: string, maxLength: 2000}
+    Report:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        reporter_id: {type: string, format: uuid}
+        review_id: {type: string, format: uuid, nullable: true}
+        target_id: {type: string, format: uuid, nullable: true}
+        reason: {type: string}
+        details: {type: string}
+        status: {type: string, enum: [open, in_review, resolved, dismissed]}
+        resolution_note: {type: string}
+        resolved_at: {type: string, format: date-time, nullable: true}
+        created_at: {type: string, format: date-time}
