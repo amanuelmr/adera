@@ -1,0 +1,74 @@
+# Local development environment. Start everything with:
+#   docker compose up -d
+# then apply migrations + development seed data:
+#   docker compose run --rm api seed
+#
+# Development credentials only — never reuse these values in production, and
+# never put production secrets in this file.
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: adera
+      POSTGRES_PASSWORD: adera
+      POSTGRES_DB: adera
+    ports:
+      - "55432:5432"
+    volumes:
+      # postgres:18+ images keep data under /var/lib/postgresql (not .../data).
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adera -d adera"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: adera-dev
+      MINIO_ROOT_PASSWORD: adera-dev-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: postgres://adera:adera@postgres:5432/adera?sslmode=disable
+      JWT_SECRET: dev-only-secret-change-me-32-bytes!!
+      STORAGE_ENABLED: "true"
+      # NOTE: presigned upload URLs embed this endpoint. Clients inside the
+      # compose network can use it as-is; a browser on the host cannot
+      # resolve "minio". For host-side upload testing, run the API natively
+      # with STORAGE_ENDPOINT=localhost:9000 (see .env.example), or add a
+      # "127.0.0.1 minio" hosts entry.
+      STORAGE_ENDPOINT: minio:9000
+      STORAGE_ACCESS_KEY: adera-dev
+      STORAGE_SECRET_KEY: adera-dev-secret
+      STORAGE_PUBLIC_BUCKET: adera-public
+      STORAGE_PRIVATE_BUCKET: adera-private
+      STORAGE_PUBLIC_BASE_URL: http://localhost:9000/adera-public
+      SEED_ADMIN_EMAIL: admin@adera.local
+      SEED_ADMIN_PASSWORD: admin12345!
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
+  miniodata:
