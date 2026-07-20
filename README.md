@@ -1,16 +1,43 @@
-# Adera (አደራ) — Trusted Ethiopian Review Platform, Backend
+# Adera (አደራ) — Trusted Ethiopian Review Platform (Backend)
 
 Adera helps Ethiopian consumers make better decisions before spending money —
 on electronics and phone repair, salons and barbers, online sellers and
-delivery, and restaurants/cafés discovered through TikTok and Instagram. It
-focuses on **trustworthy, structured, locally relevant reviews**: category-
-specific criteria, evidence-graded verification, Amharic-first search, a
-social-media "Reality Check", and transparent moderation.
+delivery, and restaurants and cafés discovered through TikTok and Instagram.
 
 **This repository is the backend only** (Go + PostgreSQL modular monolith).
-Frontend/UX research for the next phase lives in `docs/frontend-handoff.md`.
+Frontend/UX research for the next phase lives in
+[`docs/frontend-handoff.md`](docs/frontend-handoff.md).
 
-## Quick start
+## Motivation
+
+In Ethiopia, deciding where to spend money is largely an act of faith. Reviews
+live in scattered TikTok and Telegram posts, business directories are shallow
+contact-info dumps, Google Maps coverage is thin and often wrong outside a few
+landmarks, and social-media hype has no accountability loop when the viral café
+disappoints. No existing platform combines verified experiences, Amharic-first
+discovery, resident-oriented categories, public business accountability, and a
+way to compare online hype against real experience.
+
+Adera is that missing layer. It is built around **trustworthy, structured,
+locally relevant reviews** rather than a single star rating:
+
+- **Category-specific criteria** stored in the database (electronics
+  authenticity and warranty, salon punctuality, delivery refund handling,
+  restaurant taste and value) instead of one generic score.
+- **Evidence-graded verification** — a review is only labeled verified after a
+  moderator accepts receipt or location evidence, which stays private.
+- **Amharic-first Unicode search** with homophone folding and transliteration
+  aliases, so "Bole Cafe" and "ቦሌ ካፌ" find the same place.
+- **A restaurant "Reality Check"** that aggregates whether a socially-hyped
+  spot matched expectations — in neutral, aggregate language, never accusing a
+  creator.
+- **Transparent moderation**: published-first, reports never auto-hide, and
+  every decision is written to an append-only audit trail.
+
+The name *Adera* (አደራ) is Amharic for a sacred trust — something entrusted to
+you to safeguard.
+
+## Quick Start
 
 Requirements: Docker + Docker Compose (Go 1.26 only if running outside Docker).
 
@@ -22,7 +49,7 @@ curl localhost:8080/api/v1/categories
 curl "localhost:8080/api/v1/search/targets?q=ቶሞካ"
 ```
 
-Or natively against the compose services:
+Or run the API natively against the Compose services:
 
 ```bash
 docker compose up -d postgres minio
@@ -35,14 +62,20 @@ go run ./cmd/api serve
 
 | Account | Identifier | Password |
 |---|---|---|
-| Admin (admin+moderator) | `admin@adera.local` | `admin12345!` (or `SEED_ADMIN_PASSWORD`) |
-| Customers | `abebe@` `tigist@` `dawit@` `sara@` `yonas@example.com` | `password123` |
+| Admin (admin + moderator) | `admin@adera.local` | `admin12345!` (or `SEED_ADMIN_PASSWORD`) |
+| Customers | `abebe@example.com` … `yonas@example.com` | `password123` |
 | Business owner (claimed "Kategna") | `owner@kategna.example.com` | `password123` |
 
 Seeding refuses to run when `APP_ENV=production`, and startup validation
 rejects `SEED_ADMIN_PASSWORD` in production.
 
-### Try a flow
+## Usage
+
+The API is versioned under `/api/v1`, uses bearer access tokens, and returns a
+uniform `{"data": …}` / `{"error": {"code", "message"}}` envelope. The full
+contract is in [`api/openapi.yaml`](api/openapi.yaml).
+
+### Example: log in, search, review, read aggregates
 
 ```bash
 TOKEN=$(curl -s localhost:8080/api/v1/auth/login \
@@ -53,67 +86,74 @@ TARGET=$(curl -s "localhost:8080/api/v1/search/targets?q=sheger" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"][0]["id"])')
 
 curl -s localhost:8080/api/v1/reviews \
-  -H "Authorization: Bearer $TOKEN" -H "Idempotency-Key: demo-1" \
-  -d "{\"target_id\":\"$TARGET\",\"overall_rating\":5,
-       \"body\":\"Fast honest repair, showed me the original part packaging.\",
-       \"discovery_source\":\"friend\",
-       \"criterion_scores\":{\"repair_quality\":5,\"seller_honesty\":5}}"
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Idempotency-Key: demo-1" \
+  -d "{\"target_id\":\"$TARGET\",\"overall_rating\":5,\"body\":\"Fast honest repair, showed me the original part packaging.\",\"discovery_source\":\"friend\",\"criterion_scores\":{\"repair_quality\":5,\"seller_honesty\":5}}"
 
 curl -s "localhost:8080/api/v1/targets/$TARGET/stats"
 ```
 
-## Tests and checks
+### Operational endpoints
 
-```bash
-go test ./...        # unit + integration (integration needs the compose postgres;
-                     # skipped automatically when unreachable)
-go test -race ./...
-go vet ./...
-govulncheck ./...
-make check           # all of the above
-```
+- `GET /health` — liveness
+- `GET /ready` — readiness (checks database connectivity)
+- `GET /metrics` — Prometheus metrics (restrict at the network layer in production)
 
-Integration tests create a **disposable database per test** via
-`TEST_DATABASE_ADMIN_URL` (default matches docker-compose) — real PostgreSQL,
-no mocks.
+### Environment variables
 
-## Documentation map
+See [`.env.example`](.env.example) for the full annotated list. Required in
+production: `DATABASE_URL` and `JWT_SECRET` (≥ 32 bytes). Argon2id parameters
+are validated against the OWASP minimum at startup. Secrets are read from the
+environment only — nothing secret is committed.
+
+### Documentation map
 
 | Document | Contents |
 |---|---|
-| `api/openapi.yaml` | Full API contract (auth, schemas, errors, pagination, examples) |
-| `docs/architecture.md` | System design, module map, mermaid flows, ER diagram |
-| `docs/authorization-matrix.md` | Role × endpoint matrix, object-level rules |
-| `docs/rating-and-ranking.md` | Every aggregate formula, rounding, sample rules, Bayesian ranking |
-| `docs/verification-model.md` | Evidence levels, private-evidence guarantees, upload pipeline |
-| `docs/moderation-policy.md` | Review states, report reasons, anti-manipulation, retention |
-| `docs/frontend-handoff.md` | Screens, flows, API mapping, low-bandwidth/a11y/l10n guidance |
-| `docs/research/` | Market research, UI inspiration, tech-stack decisions, security & legal risks |
-| `CONTRIBUTING.md`, `SECURITY.md` | Workflow and security policy |
+| [`api/openapi.yaml`](api/openapi.yaml) | Full API contract (auth, schemas, errors, pagination, examples) |
+| [`docs/architecture.md`](docs/architecture.md) | System design, module map, Mermaid flows, ER diagram |
+| [`docs/authorization-matrix.md`](docs/authorization-matrix.md) | Role × endpoint matrix, object-level rules |
+| [`docs/rating-and-ranking.md`](docs/rating-and-ranking.md) | Aggregate formulas, rounding, sample rules, Bayesian ranking |
+| [`docs/verification-model.md`](docs/verification-model.md) | Evidence levels, private-evidence guarantees, upload pipeline |
+| [`docs/moderation-policy.md`](docs/moderation-policy.md) | Review states, report reasons, anti-manipulation, retention |
+| [`docs/frontend-handoff.md`](docs/frontend-handoff.md) | Screens, flows, API mapping, low-bandwidth / a11y / l10n guidance |
+| [`docs/research/`](docs/research/) | Market research, UI inspiration, tech-stack decisions, security & legal risks |
 
-## Environment variables
+## Contributing
 
-See `.env.example` for the full annotated list. Required in production:
-`DATABASE_URL`, `JWT_SECRET` (≥32 bytes). Argon2id parameters are validated
-against the OWASP minimum at startup. Secrets come from the environment only —
-nothing secret is committed.
+Contributions are welcome. Before opening a pull request, run the full check
+suite (unit + integration tests, race detector, and vulnerability scan):
 
-## Operational endpoints
+```bash
+go test ./...       # integration tests need the Compose Postgres; skipped when unreachable
+go test -race ./...
+go vet ./...
+govulncheck ./...
+make check          # all of the above
+```
 
-`GET /health` (liveness) · `GET /ready` (DB ping) · `GET /metrics`
-(Prometheus; restrict at the network layer in production).
+Integration tests create a **disposable database per test** via
+`TEST_DATABASE_ADMIN_URL` (the default matches Docker Compose) — real
+PostgreSQL, no mocks.
 
-## Known limitations (honest list)
+Please keep the module-by-capability layout, write parameterized SQL only, add
+an authorization test for any endpoint that loads an object by ID, and update
+the relevant document when behavior changes. Full guidelines are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md); security policy is in
+[`SECURITY.md`](SECURITY.md).
+
+## Known limitations
 
 - SMS/email delivery is a console provider in development and reports
-  `503 verification_unavailable` in production until a real provider is
-  wired (`internal/auth/provider.go` is the integration point).
+  `503 verification_unavailable` in production until a real provider is wired
+  (`internal/auth/provider.go` is the integration point).
 - Rate limiting is per-process; multi-replica deployments need the documented
   Redis-backed `Limiter` implementation.
 - Image derivatives (thumbnails) and WebP re-encoding are deferred; public
   media is stored as one sanitized original.
-- Search relevance thresholds were tuned on seed data; a native-speaker
-  Amharic query test set is needed before launch.
-- Legal compliance items in `docs/research/security-and-legal-risks.md` §7
-  need professional review (data protection registration, takedown SLAs,
+- Search relevance thresholds were tuned on seed data; a native-speaker Amharic
+  query test set is needed before launch.
+- Legal compliance items in
+  [`docs/research/security-and-legal-risks.md`](docs/research/security-and-legal-risks.md)
+  §7 need professional review (data-protection registration, takedown SLAs,
   retention/erasure workflows).
