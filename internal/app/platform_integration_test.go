@@ -286,6 +286,44 @@ func TestSearchAmharicAndFilters(t *testing.T) {
 	assert.Equal(t, http.StatusUnprocessableEntity, status)
 }
 
+func TestTargetReferenceValidation(t *testing.T) {
+	a := newTestAPI(t)
+	mod := a.register("targetrefs")
+	a.grantRoles(&mod, "moderator")
+
+	status, _ := a.do("POST", "/api/v1/targets", map[string]any{
+		"target_type": "restaurant",
+		"category_id": "11111111-1111-4111-8111-000000000000",
+		"name":        "Bad Category Cafe",
+	}, mod.Access)
+	assert.Equal(t, http.StatusNotFound, status)
+
+	status, _ = a.do("POST", "/api/v1/targets", map[string]any{
+		"target_type": "restaurant",
+		"category_id": catRestaurantID,
+		"name":        "Bad Website Cafe",
+		"website":     "http://example.com",
+	}, mod.Access)
+	assert.Equal(t, http.StatusUnprocessableEntity, status)
+
+	otherCity := "33333333-3333-4333-8333-333333333301"
+	otherArea := "33333333-3333-4333-8333-333333333302"
+	_, err := a.pool.Exec(context.Background(), `
+		INSERT INTO cities (id, name, name_am, country, active) VALUES ($1, 'Hawassa', 'ሀዋሳ', 'ET', true);
+		INSERT INTO areas (id, city_id, name, name_am, active) VALUES ($2, $1, 'Piazza', 'ፒያሳ', true)`,
+		otherCity, otherArea)
+	require.NoError(t, err)
+
+	status, _ = a.do("POST", "/api/v1/targets", map[string]any{
+		"target_type": "restaurant",
+		"category_id": catRestaurantID,
+		"name":        "Mismatched Area Cafe",
+		"city_id":     addisCityID,
+		"area_id":     otherArea,
+	}, mod.Access)
+	assert.Equal(t, http.StatusUnprocessableEntity, status)
+}
+
 func TestClaimsResponsesAndModeration(t *testing.T) {
 	a := newTestAPI(t)
 	mod := a.register("mod")
@@ -465,6 +503,8 @@ func TestAdminUserSuspension(t *testing.T) {
 	// Refresh dead immediately; login blocked with a distinct code.
 	status, _ = a.do("POST", "/api/v1/auth/refresh", map[string]any{"refresh_token": victim.Refresh}, "")
 	assert.Equal(t, http.StatusUnauthorized, status)
+	status, _ = a.do("GET", "/api/v1/users/me", nil, victim.Access)
+	assert.Equal(t, http.StatusUnauthorized, status, "suspended user's existing access token must stop working immediately")
 	status, res := a.do("POST", "/api/v1/auth/login",
 		map[string]any{"identifier": victim.Email, "password": "password123"}, "")
 	assert.Equal(t, http.StatusForbidden, status)

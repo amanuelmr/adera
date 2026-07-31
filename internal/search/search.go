@@ -132,12 +132,13 @@ func (r *Repo) Search(ctx context.Context, q string, f targets.BrowseFilter, lim
 
 // Handler serves the search endpoint.
 type Handler struct {
-	repo    *Repo
-	limiter interface{ Allow(string) bool }
+	repo       *Repo
+	limiter    interface{ Allow(string) bool }
+	trustProxy bool
 }
 
-func NewHandler(repo *Repo, limiter interface{ Allow(string) bool }) *Handler {
-	return &Handler{repo: repo, limiter: limiter}
+func NewHandler(repo *Repo, limiter interface{ Allow(string) bool }, trustProxy bool) *Handler {
+	return &Handler{repo: repo, limiter: limiter, trustProxy: trustProxy}
 }
 
 func (h *Handler) Routes(mux *http.ServeMux) {
@@ -145,7 +146,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 }
 
 func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
-	if !h.limiter.Allow("search:" + web.ClientIP(r, false)) {
+	if !h.limiter.Allow("search:" + web.ClientIP(r, h.trustProxy)) {
 		web.RespondError(w, r, web.ErrRateLimited())
 		return
 	}

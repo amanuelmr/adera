@@ -54,6 +54,7 @@ type Config struct {
 	StoragePublicBaseURL string
 
 	CORSAllowedOrigins []string
+	TrustProxyHeaders  bool
 
 	RateLimitEnabled bool
 
@@ -96,6 +97,7 @@ func Load() (Config, error) {
 		StoragePublicBaseURL: getEnv("STORAGE_PUBLIC_BASE_URL", "http://localhost:9000/adera-public"),
 
 		CORSAllowedOrigins: splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")),
+		TrustProxyHeaders:  getEnvBool("TRUST_PROXY_HEADERS", false),
 
 		RateLimitEnabled: getEnvBool("RATE_LIMIT_ENABLED", true),
 

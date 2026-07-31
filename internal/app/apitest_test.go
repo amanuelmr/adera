@@ -55,6 +55,7 @@ func testConfig() config.Config {
 		JWTSecret:            "integration-test-secret-key-32-bytes!!",
 		AccessTokenTTL:       15 * time.Minute,
 		RefreshTokenTTL:      30 * 24 * time.Hour,
+		DatabaseQueryTimeout: 30 * time.Second,
 		ArgonMemoryKiB:       19456,
 		ArgonIterations:      2,
 		ArgonParallelism:     1,

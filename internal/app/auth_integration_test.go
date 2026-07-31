@@ -53,7 +53,9 @@ func TestAuthLifecycle(t *testing.T) {
 		// Second session from another "device".
 		status, res := a.do("POST", "/api/v1/auth/login", map[string]any{"identifier": u.Email, "password": "password123"}, "")
 		require.Equal(t, http.StatusOK, status)
-		otherRefresh := data(res)["tokens"].(map[string]any)["refresh_token"].(string)
+		otherTokens := data(res)["tokens"].(map[string]any)
+		otherAccess := otherTokens["access_token"].(string)
+		otherRefresh := otherTokens["refresh_token"].(string)
 
 		status, res = a.do("GET", "/api/v1/auth/sessions", nil, u.Access)
 		require.Equal(t, http.StatusOK, status)
@@ -81,6 +83,8 @@ func TestAuthLifecycle(t *testing.T) {
 		// The revoked family's refresh no longer works.
 		status, _ = a.do("POST", "/api/v1/auth/refresh", map[string]any{"refresh_token": otherRefresh}, "")
 		assert.Equal(t, http.StatusUnauthorized, status)
+		status, _ = a.do("GET", "/api/v1/users/me", nil, otherAccess)
+		assert.Equal(t, http.StatusUnauthorized, status, "revoked session access token must stop working immediately")
 	})
 
 	t.Run("change password revokes other sessions", func(t *testing.T) {
@@ -134,6 +138,8 @@ func TestAuthLifecycle(t *testing.T) {
 		require.Equal(t, http.StatusOK, status)
 		status, _ = a.do("POST", "/api/v1/auth/refresh", map[string]any{"refresh_token": refresh}, "")
 		assert.Equal(t, http.StatusUnauthorized, status)
+		status, _ = a.do("GET", "/api/v1/users/me", nil, access)
+		assert.Equal(t, http.StatusUnauthorized, status, "logout-all must revoke existing access token")
 	})
 }
 

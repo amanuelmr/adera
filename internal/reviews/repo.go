@@ -405,29 +405,37 @@ func (r *Repo) Get(ctx context.Context, reviewID uuid.UUID) (Review, error) {
 func (r *Repo) SetModerationStatus(ctx context.Context, reviewID uuid.UUID, newStatus string) (string, error) {
 	var oldStatus string
 	err := database.InTx(ctx, r.pool, func(tx pgx.Tx) error {
-		rv, err := scanReview(tx.QueryRow(ctx, `
-			SELECT `+reviewColumns+` FROM reviews WHERE id = $1 FOR UPDATE`, reviewID))
-		if err != nil {
-			return err
-		}
-		oldStatus = rv.ModerationStatus
-		if oldStatus == newStatus {
-			return nil
-		}
-		if _, err := tx.Exec(ctx, `
-			UPDATE reviews SET moderation_status = $2 WHERE id = $1`, reviewID, newStatus); err != nil {
-			return fmt.Errorf("setting moderation status: %w", err)
-		}
-		if oldStatus == StatusPublished && newStatus != StatusPublished {
-			return statsDelta(ctx, tx, rv, -1)
-		}
-		if oldStatus != StatusPublished && newStatus == StatusPublished {
-			return statsDelta(ctx, tx, rv, +1)
-		}
-		return nil
+		var err error
+		oldStatus, err = r.SetModerationStatusTx(ctx, tx, reviewID, newStatus)
+		return err
 	})
 	if err != nil {
 		return "", err
+	}
+	return oldStatus, nil
+}
+
+// SetModerationStatusTx is the transaction-scoped form used by moderation
+// flows that must commit the decision and audit row atomically.
+func (r *Repo) SetModerationStatusTx(ctx context.Context, tx pgx.Tx, reviewID uuid.UUID, newStatus string) (string, error) {
+	rv, err := scanReview(tx.QueryRow(ctx, `
+		SELECT `+reviewColumns+` FROM reviews WHERE id = $1 FOR UPDATE`, reviewID))
+	if err != nil {
+		return "", err
+	}
+	oldStatus := rv.ModerationStatus
+	if oldStatus == newStatus {
+		return oldStatus, nil
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE reviews SET moderation_status = $2 WHERE id = $1`, reviewID, newStatus); err != nil {
+		return "", fmt.Errorf("setting moderation status: %w", err)
+	}
+	if oldStatus == StatusPublished && newStatus != StatusPublished {
+		return oldStatus, statsDelta(ctx, tx, rv, -1)
+	}
+	if oldStatus != StatusPublished && newStatus == StatusPublished {
+		return oldStatus, statsDelta(ctx, tx, rv, +1)
 	}
 	return oldStatus, nil
 }
@@ -444,29 +452,38 @@ func (r *Repo) UpgradeVerification(ctx context.Context, reviewID uuid.UUID, newL
 		return fmt.Errorf("unknown verification level %q", newLevel)
 	}
 	return database.InTx(ctx, r.pool, func(tx pgx.Tx) error {
-		rv, err := scanReview(tx.QueryRow(ctx, `
-			SELECT `+reviewColumns+` FROM reviews WHERE id = $1 FOR UPDATE`, reviewID))
-		if err != nil {
-			return err
-		}
-		if levelRank[newLevel] <= levelRank[rv.VerificationLevel] {
-			return nil // idempotent; never downgrade
-		}
-		if _, err := tx.Exec(ctx, `
-			UPDATE reviews SET verification_level = $2 WHERE id = $1`, reviewID, newLevel); err != nil {
-			return fmt.Errorf("upgrading verification level: %w", err)
-		}
-		crossedIntoVerified := !VerifiedLevels[rv.VerificationLevel] && VerifiedLevels[newLevel]
-		if crossedIntoVerified && rv.ModerationStatus == StatusPublished {
-			if _, err := tx.Exec(ctx, `
-				UPDATE target_rating_stats SET
-					verified_count = verified_count + 1,
-					verified_sum = verified_sum + $2,
-					updated_at = now()
-				WHERE target_id = $1`, rv.TargetID, rv.OverallRating); err != nil {
-				return fmt.Errorf("updating verified aggregates: %w", err)
-			}
-		}
-		return nil
+		return r.UpgradeVerificationTx(ctx, tx, reviewID, newLevel)
 	})
+}
+
+// UpgradeVerificationTx raises a review's verification level inside an existing
+// transaction.
+func (r *Repo) UpgradeVerificationTx(ctx context.Context, tx pgx.Tx, reviewID uuid.UUID, newLevel string) error {
+	if _, ok := levelRank[newLevel]; !ok {
+		return fmt.Errorf("unknown verification level %q", newLevel)
+	}
+	rv, err := scanReview(tx.QueryRow(ctx, `
+		SELECT `+reviewColumns+` FROM reviews WHERE id = $1 FOR UPDATE`, reviewID))
+	if err != nil {
+		return err
+	}
+	if levelRank[newLevel] <= levelRank[rv.VerificationLevel] {
+		return nil // idempotent; never downgrade
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE reviews SET verification_level = $2 WHERE id = $1`, reviewID, newLevel); err != nil {
+		return fmt.Errorf("upgrading verification level: %w", err)
+	}
+	crossedIntoVerified := !VerifiedLevels[rv.VerificationLevel] && VerifiedLevels[newLevel]
+	if crossedIntoVerified && rv.ModerationStatus == StatusPublished {
+		if _, err := tx.Exec(ctx, `
+			UPDATE target_rating_stats SET
+				verified_count = verified_count + 1,
+				verified_sum = verified_sum + $2,
+				updated_at = now()
+			WHERE target_id = $1`, rv.TargetID, rv.OverallRating); err != nil {
+			return fmt.Errorf("updating verified aggregates: %w", err)
+		}
+	}
+	return nil
 }

@@ -53,6 +53,64 @@ func scanTarget(row pgx.Row) (Target, error) {
 	return t, nil
 }
 
+func validateCreateRefs(ctx context.Context, tx pgx.Tx, in CreateInput) error {
+	var categoryActive bool
+	if err := tx.QueryRow(ctx, `SELECT active FROM categories WHERE id = $1`, in.CategoryID).Scan(&categoryActive); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return web.ErrNotFound("category")
+		}
+		return fmt.Errorf("checking category: %w", err)
+	}
+	if !categoryActive {
+		return web.ErrNotFound("category")
+	}
+	if in.BusinessID != nil {
+		var active bool
+		if err := tx.QueryRow(ctx, `SELECT status = 'active' FROM businesses WHERE id = $1`, *in.BusinessID).Scan(&active); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return web.ErrNotFound("business")
+			}
+			return fmt.Errorf("checking business: %w", err)
+		}
+		if !active {
+			return web.ErrConflict("business is not active")
+		}
+	}
+	return validateLocationRefs(ctx, tx, in.CityID, in.AreaID)
+}
+
+func validateLocationRefs(ctx context.Context, tx pgx.Tx, cityID, areaID *uuid.UUID) error {
+	if areaID != nil && cityID == nil {
+		return web.ErrValidation("invalid target").WithDetail("city_id", "required when area_id is provided")
+	}
+	if cityID != nil {
+		var active bool
+		if err := tx.QueryRow(ctx, `SELECT active FROM cities WHERE id = $1`, *cityID).Scan(&active); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return web.ErrNotFound("city")
+			}
+			return fmt.Errorf("checking city: %w", err)
+		}
+		if !active {
+			return web.ErrNotFound("city")
+		}
+	}
+	if areaID != nil {
+		var belongs bool
+		if err := tx.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1 FROM areas
+				WHERE id = $1 AND city_id = $2 AND active
+			)`, *areaID, *cityID).Scan(&belongs); err != nil {
+			return fmt.Errorf("checking area: %w", err)
+		}
+		if !belongs {
+			return web.ErrValidation("invalid target").WithDetail("area_id", "must be an active area in the selected city")
+		}
+	}
+	return nil
+}
+
 // CreateInput is the validated payload for a new target.
 type CreateInput struct {
 	TargetType  string
@@ -88,6 +146,9 @@ func (r *Repo) Create(ctx context.Context, in CreateInput) (Target, error) {
 	}
 	var t Target
 	err := database.InTx(ctx, r.pool, func(tx pgx.Tx) error {
+		if err := validateCreateRefs(ctx, tx, in); err != nil {
+			return err
+		}
 		row := tx.QueryRow(ctx, `
 			WITH ins AS (
 				INSERT INTO review_targets
@@ -207,10 +268,39 @@ func (r *Repo) Update(ctx context.Context, id uuid.UUID, in UpdateInput) (Target
 	if len(sets) == 0 {
 		return r.GetByIDOrSlug(ctx, id.String())
 	}
-	_, err := r.pool.Exec(ctx,
-		`UPDATE review_targets SET `+strings.Join(sets, ", ")+` WHERE id = $1`, args...)
+	err := database.InTx(ctx, r.pool, func(tx pgx.Tx) error {
+		if in.CityID != nil || in.AreaID != nil {
+			var currentCity, currentArea *uuid.UUID
+			if err := tx.QueryRow(ctx, `SELECT city_id, area_id FROM review_targets WHERE id = $1 FOR UPDATE`, id).
+				Scan(&currentCity, &currentArea); err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					return web.ErrNotFound("target")
+				}
+				return fmt.Errorf("loading target location: %w", err)
+			}
+			cityID, areaID := currentCity, currentArea
+			if in.CityID != nil {
+				cityID = in.CityID
+			}
+			if in.AreaID != nil {
+				areaID = in.AreaID
+			}
+			if err := validateLocationRefs(ctx, tx, cityID, areaID); err != nil {
+				return err
+			}
+		}
+		tag, err := tx.Exec(ctx,
+			`UPDATE review_targets SET `+strings.Join(sets, ", ")+` WHERE id = $1`, args...)
+		if err != nil {
+			return fmt.Errorf("updating target: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return web.ErrNotFound("target")
+		}
+		return nil
+	})
 	if err != nil {
-		return Target{}, fmt.Errorf("updating target: %w", err)
+		return Target{}, err
 	}
 	return r.GetByIDOrSlug(ctx, id.String())
 }
@@ -420,7 +510,15 @@ func (r *Repo) CreateEditSuggestion(ctx context.Context, targetID, userID uuid.U
 
 // touchUpdated is used by moderation flows that adjust status.
 func (r *Repo) SetModerationStatus(ctx context.Context, id uuid.UUID, status string, mergedInto *uuid.UUID) error {
-	tag, err := r.pool.Exec(ctx, `
+	return database.InTx(ctx, r.pool, func(tx pgx.Tx) error {
+		return r.SetModerationStatusTx(ctx, tx, id, status, mergedInto)
+	})
+}
+
+// SetModerationStatusTx is the transaction-scoped form used when the status
+// decision must commit atomically with an audit row.
+func (r *Repo) SetModerationStatusTx(ctx context.Context, tx pgx.Tx, id uuid.UUID, status string, mergedInto *uuid.UUID) error {
+	tag, err := tx.Exec(ctx, `
 		UPDATE review_targets SET moderation_status = $2, merged_into_id = $3 WHERE id = $1`,
 		id, status, mergedInto)
 	if err != nil {

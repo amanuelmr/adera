@@ -68,7 +68,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	adminSvc := admin.NewService(pool, usersRepo)
 
 	mux := http.NewServeMux()
-	auth.NewHandler(authSvc, loginLimiter, otpLimiter).Routes(mux)
+	auth.NewHandler(authSvc, loginLimiter, otpLimiter, cfg.TrustProxyHeaders).Routes(mux)
 	users.NewHandler(usersRepo).Routes(mux)
 	categories.NewHandler(categoriesRepo).Routes(mux)
 	locations.NewHandler(locationsRepo).Routes(mux)
@@ -76,7 +76,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	targets.NewHandler(targetsRepo, bizRepo, usersRepo).Routes(mux)
 	reviews.NewHandler(reviewsRepo, reviewLimiter).Routes(mux)
 	ratings.NewHandler(ratingsRepo).Routes(mux)
-	search.NewHandler(searchRepo, searchLimiter).Routes(mux)
+	search.NewHandler(searchRepo, searchLimiter, cfg.TrustProxyHeaders).Routes(mux)
 	media.NewHandler(mediaSvc, presignLimiter).Routes(mux)
 	claims.NewHandler(claimsSvc).Routes(mux)
 	moderation.NewHandler(moderationSvc, mediaSvc, reportLimiter).Routes(mux)
@@ -106,7 +106,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 		web.Logging,
 		web.SecureHeaders,
 		web.CORS(cfg.CORSAllowedOrigins),
-		timeoutMiddleware(30*time.Second),
+		timeoutMiddleware(cfg.DatabaseQueryTimeout),
 		web.Authenticate(authSvc.VerifyAccess),
 	)
 }

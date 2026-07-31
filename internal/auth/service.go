@@ -50,11 +50,31 @@ type TokenPair struct {
 	ExpiresInSeconds int    `json:"expires_in"`
 }
 
-// VerifyAccess adapts token verification for the HTTP middleware.
-func (s *Service) VerifyAccess(_ context.Context, token string) (web.Principal, error) {
+// VerifyAccess adapts token verification for the HTTP middleware. Access tokens
+// are short-lived JWTs, but every request still checks the backing session and
+// account status so logout, password reset, and suspension take effect
+// immediately.
+func (s *Service) VerifyAccess(ctx context.Context, token string) (web.Principal, error) {
 	userID, sessionID, roles, err := s.tokens.Verify(token)
 	if err != nil {
 		return web.Principal{}, err
+	}
+	var active bool
+	if err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM auth_sessions s
+			JOIN users u ON u.id = s.user_id
+			WHERE s.id = $1
+			  AND s.user_id = $2
+			  AND s.revoked_at IS NULL
+			  AND s.expires_at > now()
+			  AND u.status = 'active'
+		)`, sessionID, userID).Scan(&active); err != nil {
+		return web.Principal{}, fmt.Errorf("checking access session: %w", err)
+	}
+	if !active {
+		return web.Principal{}, security.ErrInvalidToken
 	}
 	return web.Principal{UserID: userID, SessionID: sessionID, Roles: roles}, nil
 }
@@ -228,8 +248,8 @@ func (s *Service) insertSession(ctx context.Context, userID, familyID uuid.UUID,
 func (s *Service) Refresh(ctx context.Context, refreshToken, deviceInfo string) (TokenPair, error) {
 	hash := security.HashToken(refreshToken)
 	var (
-		pair       TokenPair
-		reuse      bool
+		pair         TokenPair
+		reuse        bool
 		unauthorized = web.ErrUnauthorized("invalid or expired refresh token")
 	)
 	err := database.InTx(ctx, s.pool, func(tx pgx.Tx) error {

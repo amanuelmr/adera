@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/adera-platform/backend/internal/platform/database"
 	"github.com/adera-platform/backend/internal/platform/web"
 	"github.com/adera-platform/backend/internal/reviews"
 	"github.com/adera-platform/backend/internal/targets"
@@ -194,17 +195,22 @@ func (s *Service) ResolveReport(ctx context.Context, reportID, actorID uuid.UUID
 	default:
 		return Report{}, web.ErrValidation("invalid decision").WithDetail("status", "must be in_review, resolved, or dismissed")
 	}
-	row := s.pool.QueryRow(ctx, `
-		UPDATE reports SET status = $2, resolved_by = $3,
-			resolved_at = CASE WHEN $2 IN ('resolved', 'dismissed') THEN now() END,
-			resolution_note = $4
-		WHERE id = $1
-		RETURNING `+reportColumns, reportID, status, actorID, strings.TrimSpace(note))
-	rp, err := scanReport(row)
+	var rp Report
+	err := database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		row := tx.QueryRow(ctx, `
+			UPDATE reports SET status = $2, resolved_by = $3,
+				resolved_at = CASE WHEN $2 IN ('resolved', 'dismissed') THEN now() END,
+				resolution_note = $4
+			WHERE id = $1
+			RETURNING `+reportColumns, reportID, status, actorID, strings.TrimSpace(note))
+		var err error
+		rp, err = scanReport(row)
+		if err != nil {
+			return err
+		}
+		return auditTx(ctx, tx, actorID, "report", reportID, "report_"+status, note, nil)
+	})
 	if err != nil {
-		return Report{}, err
-	}
-	if err := s.audit(ctx, actorID, "report", reportID, "report_"+status, note, nil); err != nil {
 		return Report{}, err
 	}
 	return rp, nil
@@ -228,12 +234,15 @@ func (s *Service) DecideReview(ctx context.Context, reviewID, actorID uuid.UUID,
 		return "", web.ErrValidation("invalid decision").
 			WithDetail("action", "must be approve, restore, under_review, hide, reject, or remove")
 	}
-	oldStatus, err := s.reviewsRepo.SetModerationStatus(ctx, reviewID, newStatus)
+	err := database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		oldStatus, err := s.reviewsRepo.SetModerationStatusTx(ctx, tx, reviewID, newStatus)
+		if err != nil {
+			return err
+		}
+		return auditTx(ctx, tx, actorID, "review", reviewID, "review_"+action, note,
+			map[string]string{"from": oldStatus, "to": newStatus})
+	})
 	if err != nil {
-		return "", err
-	}
-	if err := s.audit(ctx, actorID, "review", reviewID, "review_"+action, note,
-		map[string]string{"from": oldStatus, "to": newStatus}); err != nil {
 		return "", err
 	}
 	return newStatus, nil
@@ -254,10 +263,13 @@ func (s *Service) DecideTarget(ctx context.Context, targetID, actorID uuid.UUID,
 		return "", web.ErrValidation("invalid decision").
 			WithDetail("action", "must be approve, restore, hide, or remove")
 	}
-	if err := s.targetsRepo.SetModerationStatus(ctx, targetID, newStatus, nil); err != nil {
-		return "", err
-	}
-	if err := s.audit(ctx, actorID, "target", targetID, "target_"+action, note, nil); err != nil {
+	err := database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := s.targetsRepo.SetModerationStatusTx(ctx, tx, targetID, newStatus, nil); err != nil {
+			return err
+		}
+		return auditTx(ctx, tx, actorID, "target", targetID, "target_"+action, note, nil)
+	})
+	if err != nil {
 		return "", err
 	}
 	return newStatus, nil
@@ -280,32 +292,34 @@ func (s *Service) DecideEvidence(ctx context.Context, evidenceID, actorID uuid.U
 	if decision != "accepted" && decision != "rejected" {
 		return web.ErrValidation("invalid decision").WithDetail("decision", "must be accepted or rejected")
 	}
-	var reviewID uuid.UUID
-	var kind, status string
-	err := s.pool.QueryRow(ctx, `
-		SELECT review_id, kind, status FROM review_evidence WHERE id = $1`, evidenceID).
-		Scan(&reviewID, &kind, &status)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return web.ErrNotFound("evidence")
-	}
-	if err != nil {
-		return fmt.Errorf("loading evidence: %w", err)
-	}
-	if status != "submitted" {
-		return web.ErrConflict("this evidence is already decided")
-	}
-	if _, err := s.pool.Exec(ctx, `
-		UPDATE review_evidence SET status = $2, reviewed_by = $3, reviewed_at = now(), note = $4
-		WHERE id = $1`, evidenceID, decision, actorID, strings.TrimSpace(note)); err != nil {
-		return fmt.Errorf("updating evidence: %w", err)
-	}
-	if decision == "accepted" {
-		if err := s.reviewsRepo.UpgradeVerification(ctx, reviewID, evidenceLevelByKind[kind]); err != nil {
-			return err
+	return database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		var reviewID uuid.UUID
+		var kind, status string
+		err := tx.QueryRow(ctx, `
+			SELECT review_id, kind, status FROM review_evidence WHERE id = $1 FOR UPDATE`, evidenceID).
+			Scan(&reviewID, &kind, &status)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return web.ErrNotFound("evidence")
 		}
-	}
-	return s.audit(ctx, actorID, "evidence", evidenceID, "evidence_"+decision, note,
-		map[string]string{"review_id": reviewID.String(), "kind": kind})
+		if err != nil {
+			return fmt.Errorf("loading evidence: %w", err)
+		}
+		if status != "submitted" {
+			return web.ErrConflict("this evidence is already decided")
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE review_evidence SET status = $2, reviewed_by = $3, reviewed_at = now(), note = $4
+			WHERE id = $1`, evidenceID, decision, actorID, strings.TrimSpace(note)); err != nil {
+			return fmt.Errorf("updating evidence: %w", err)
+		}
+		if decision == "accepted" {
+			if err := s.reviewsRepo.UpgradeVerificationTx(ctx, tx, reviewID, evidenceLevelByKind[kind]); err != nil {
+				return err
+			}
+		}
+		return auditTx(ctx, tx, actorID, "evidence", evidenceID, "evidence_"+decision, note,
+			map[string]string{"review_id": reviewID.String(), "kind": kind})
+	})
 }
 
 // AddNote records a free-form moderation note on any subject.
@@ -346,15 +360,21 @@ func (s *Service) Audit(ctx context.Context, subjectType string, subjectID uuid.
 	return out, nil
 }
 
-func (s *Service) audit(ctx context.Context, actorID uuid.UUID, subjectType string, subjectID uuid.UUID, action, note string, metadata map[string]string) error {
+func auditTx(ctx context.Context, tx pgx.Tx, actorID uuid.UUID, subjectType string, subjectID uuid.UUID, action, note string, metadata map[string]string) error {
 	if metadata == nil {
 		metadata = map[string]string{}
 	}
-	if _, err := s.pool.Exec(ctx, `
+	if _, err := tx.Exec(ctx, `
 		INSERT INTO moderation_actions (id, actor_id, subject_type, subject_id, action, note, metadata)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		uuid.New(), actorID, subjectType, subjectID, action, strings.TrimSpace(note), metadata); err != nil {
 		return fmt.Errorf("recording audit action: %w", err)
 	}
 	return nil
+}
+
+func (s *Service) audit(ctx context.Context, actorID uuid.UUID, subjectType string, subjectID uuid.UUID, action, note string, metadata map[string]string) error {
+	return database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		return auditTx(ctx, tx, actorID, subjectType, subjectID, action, note, metadata)
+	})
 }

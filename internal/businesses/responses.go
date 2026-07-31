@@ -139,6 +139,13 @@ type BusinessStats struct {
 // Stats aggregates published-review statistics for the business dashboard.
 func (r *Repo) Stats(ctx context.Context, businessID uuid.UUID) (BusinessStats, error) {
 	var s BusinessStats
+	var exists bool
+	if err := r.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM businesses WHERE id = $1)`, businessID).Scan(&exists); err != nil {
+		return BusinessStats{}, fmt.Errorf("checking business: %w", err)
+	}
+	if !exists {
+		return BusinessStats{}, web.ErrNotFound("business")
+	}
 	err := r.pool.QueryRow(ctx, `
 		SELECT
 			(SELECT count(*) FROM review_targets t WHERE t.business_id = $1 AND t.moderation_status = 'published'),
@@ -155,6 +162,16 @@ func (r *Repo) Stats(ctx context.Context, businessID uuid.UUID) (BusinessStats, 
 	if err := r.pool.QueryRow(ctx, `
 		SELECT count(*) FROM business_responses WHERE business_id = $1`, businessID).Scan(&s.ResponseCount); err != nil {
 		return BusinessStats{}, fmt.Errorf("counting responses: %w", err)
+	}
+	if err := r.pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM reports rp
+		LEFT JOIN reviews rv ON rv.id = rp.review_id
+		LEFT JOIN review_targets direct_t ON direct_t.id = rp.target_id
+		LEFT JOIN review_targets review_t ON review_t.id = rv.target_id
+		WHERE rp.status IN ('open', 'in_review')
+		  AND coalesce(direct_t.business_id, review_t.business_id) = $1`, businessID).Scan(&s.OpenReports); err != nil {
+		return BusinessStats{}, fmt.Errorf("counting open reports: %w", err)
 	}
 	return s, nil
 }

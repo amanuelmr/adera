@@ -2,6 +2,7 @@ package targets
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -62,6 +63,21 @@ func parseOptionalUUID(s *string, field string) (*uuid.UUID, error) {
 	return &id, nil
 }
 
+func validateWebsite(raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	if len(raw) > 300 {
+		return web.ErrValidation("invalid target").WithDetail("website", "URL too long")
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" || u.Host == "" {
+		return web.ErrValidation("invalid target").WithDetail("website", "must be a valid https URL")
+	}
+	return nil
+}
+
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	p, _ := web.PrincipalFromContext(r.Context())
 	var req createTargetRequest
@@ -99,6 +115,10 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.Phone = normalized
+	}
+	if err := validateWebsite(req.Website); err != nil {
+		web.RespondError(w, r, err)
+		return
 	}
 	if len(req.Aliases) > 5 {
 		web.RespondError(w, r, web.ErrValidation("invalid target").WithDetail("aliases", "at most 5 aliases"))
@@ -232,6 +252,14 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.Phone = &normalized
+	}
+	if req.Website != nil {
+		if err := validateWebsite(*req.Website); err != nil {
+			web.RespondError(w, r, err)
+			return
+		}
+		trimmed := strings.TrimSpace(*req.Website)
+		req.Website = &trimmed
 	}
 	cityID, err := parseOptionalUUID(req.CityID, "city_id")
 	if err != nil {

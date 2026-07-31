@@ -18,8 +18,8 @@ type Handler struct {
 	trustProxy   bool
 }
 
-func NewHandler(svc *Service, loginLimiter, otpLimiter ratelimit.Limiter) *Handler {
-	return &Handler{svc: svc, loginLimiter: loginLimiter, otpLimiter: otpLimiter}
+func NewHandler(svc *Service, loginLimiter, otpLimiter ratelimit.Limiter, trustProxy bool) *Handler {
+	return &Handler{svc: svc, loginLimiter: loginLimiter, otpLimiter: otpLimiter, trustProxy: trustProxy}
 }
 
 func (h *Handler) Routes(mux *http.ServeMux) {
