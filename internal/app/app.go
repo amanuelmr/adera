@@ -107,6 +107,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 		web.Logging,
 		web.SecureHeaders,
 		web.CORS(cfg.CORSAllowedOrigins),
+		web.PublicCache,
 		timeoutMiddleware(cfg.DatabaseQueryTimeout),
 		web.Authenticate(authSvc.VerifyAccess),
 	)

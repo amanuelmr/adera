@@ -609,6 +609,35 @@ func TestIdempotentReviewCreation(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, status)
 }
 
+func TestPublicReadCaching(t *testing.T) {
+	a := newTestAPI(t)
+	resp, err := a.srv.Client().Get(a.srv.URL + "/api/v1/categories")
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Contains(t, resp.Header.Get("Cache-Control"), "public")
+	etag := resp.Header.Get("ETag")
+	require.NotEmpty(t, etag)
+
+	req, err := http.NewRequest(http.MethodGet, a.srv.URL+"/api/v1/categories", nil)
+	require.NoError(t, err)
+	req.Header.Set("If-None-Match", etag)
+	resp, err = a.srv.Client().Do(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusNotModified, resp.StatusCode)
+
+	u := a.register("cache-auth")
+	req, err = http.NewRequest(http.MethodGet, a.srv.URL+"/api/v1/categories", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+u.Access)
+	resp, err = a.srv.Client().Do(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
+	require.Empty(t, resp.Header.Get("ETag"))
+}
+
 func TestListingSortsAndPagination(t *testing.T) {
 	a := newTestAPI(t)
 	mod := a.register("mod")

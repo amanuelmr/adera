@@ -153,6 +153,37 @@ func TestRecoverMiddleware(t *testing.T) {
 	assert.NotContains(t, rec.Body.String(), "boom", "panic details must not leak to clients")
 }
 
+func TestPublicCache(t *testing.T) {
+	handler := PublicCache(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		Respond(w, http.StatusOK, map[string]string{"name": "Adera"})
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/categories", nil)
+	req.Pattern = "GET /api/v1/categories"
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Header().Get("Cache-Control"), "public")
+	etag := rec.Header().Get("ETag")
+	require.NotEmpty(t, etag)
+	require.Contains(t, rec.Header().Values("Vary"), "Authorization")
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/categories", nil)
+	req.Pattern = "GET /api/v1/categories"
+	req.Header.Set("If-None-Match", etag)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusNotModified, rec.Code)
+	require.Empty(t, rec.Body.String())
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/categories", nil)
+	req.Pattern = "GET /api/v1/categories"
+	req.Header.Set("Authorization", "Bearer token")
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Empty(t, rec.Header().Get("ETag"))
+}
+
 func TestRespondErrorHidesInternals(t *testing.T) {
 	rec := httptest.NewRecorder()
 	RespondError(rec, httptest.NewRequest("GET", "/", nil), ErrInternal(assertAnError))

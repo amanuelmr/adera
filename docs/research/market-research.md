@@ -208,7 +208,7 @@ No incumbent combines: verified experiences + Amharic-first + resident categorie
 9. **Online-seller entities distinct from physical venues.** *(Implemented: `online_seller` target type, online_only flag, social handles, no address required.)*
 10. **Menu-item / offering-level records with prices in Birr.** *(Deferred; reviews capture voluntary price_paid in ETB as the first step.)*
 11. **Moderation pipeline before growth features.** Rate limits per identity, review cooldowns, daily caps, report reasons incl. manipulated evidence, human queues with append-only audit logs. *(Implemented. Device fingerprinting and collusion heuristics deferred.)*
-12. **Low-bandwidth API design as a hard requirement.** Small JSON payloads, cursor pagination (default 20/max 50), idempotent writes for flaky connections. *(Implemented. ETag caching and image derivatives deferred.)*
+12. **Low-bandwidth API design as a hard requirement.** Small JSON payloads, cursor pagination (default 20/max 50), idempotent writes for flaky connections, and short-lived ETag caching for anonymous public reads. *(Implemented. Image derivatives deferred.)*
 13. **Telegram bot as a second client surface.** *(Deferred; the JSON API is channel-agnostic by design.)*
 14. **SEO-renderable content layer.** *(Frontend-phase requirement; recorded in docs/frontend-handoff.md — SSR strongly preferred.)*
 15. **Incentives with fraud brakes, not cash-per-review.** *(Deferred entirely; documented as a risk if ever added. Cold-start plan: seed listings, concentrate on 2-3 neighborhoods and categories.)*
