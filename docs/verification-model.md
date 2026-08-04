@@ -70,6 +70,9 @@ sequenceDiagram
 Staged media and evidence tickets expire after ten minutes. Expired private
 objects and their staged database rows are removed before another ticket is
 issued, so abandoned uploads do not consume a review's upload allowance.
+Public-media finalization uses a recoverable processing claim; publishing the
+database row and raising the review's verification level happen in one
+transaction, and retrying an already completed finalization is idempotent.
 
 ## Business claims (identity verification for owners)
 

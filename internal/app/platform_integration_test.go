@@ -146,6 +146,9 @@ func TestMediaPipeline(t *testing.T) {
 		status, res = a.do("POST", "/api/v1/media/uploads/"+uploadID+"/finalize", nil, author.Access)
 		require.Equal(t, http.StatusOK, status, "%v", res)
 		finalKey := data(res)["object_key"].(string)
+		status, res = a.do("POST", "/api/v1/media/uploads/"+uploadID+"/finalize", nil, author.Access)
+		require.Equal(t, http.StatusOK, status, "%v", res)
+		assert.Equal(t, finalKey, data(res)["object_key"], "finalization must be idempotent")
 
 		obj, err := a.store.Get(ctx, a.cfg.StoragePublicBucket, finalKey)
 		require.NoError(t, err)

@@ -33,6 +33,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/adera-platform/backend/internal/platform/database"
 	"github.com/adera-platform/backend/internal/platform/storage"
 	"github.com/adera-platform/backend/internal/platform/web"
 	"github.com/adera-platform/backend/internal/reviews"
@@ -119,10 +120,15 @@ func (s *Service) cleanupStaleUploads(ctx context.Context, reviewID uuid.UUID) e
 	cutoff := time.Now().UTC().Add(-FinalizeWindow)
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, object_key, 'review_media' FROM review_media
-		WHERE review_id = $1 AND status = 'staged' AND created_at < $2
+		WHERE review_id = $1
+		  AND ((status = 'staged' AND created_at < $2)
+		       OR (status = 'processing' AND processing_started_at < $2))
 		UNION ALL
 		SELECT id, object_key, 'review_evidence' FROM review_evidence
-		WHERE review_id = $1 AND status = 'staged' AND created_at < $2`, reviewID, cutoff)
+		WHERE review_id = $1 AND status = 'staged' AND created_at < $2
+		UNION ALL
+		SELECT id, staging_key, 'review_media_staging' FROM review_media
+		WHERE review_id = $1 AND status = 'ready' AND staging_key IS NOT NULL`, reviewID, cutoff)
 	if err != nil {
 		return fmt.Errorf("querying stale uploads: %w", err)
 	}
@@ -143,6 +149,11 @@ func (s *Service) cleanupStaleUploads(ctx context.Context, reviewID uuid.UUID) e
 
 	for _, item := range stale {
 		if err := s.store.Remove(ctx, s.privateBucket, item.key); err != nil {
+			if item.table == "review_media_staging" {
+				slog.WarnContext(ctx, "failed to retry finalized staging cleanup",
+					"upload_id", item.id, "object_key", item.key, "error", err)
+				continue
+			}
 			return fmt.Errorf("removing stale upload object: %w", err)
 		}
 		var affected int64
@@ -150,13 +161,21 @@ func (s *Service) cleanupStaleUploads(ctx context.Context, reviewID uuid.UUID) e
 		case "review_media":
 			tag, execErr := s.pool.Exec(ctx, `
 				DELETE FROM review_media
-				WHERE id = $1 AND status = 'staged' AND created_at < $2`, item.id, cutoff)
+				WHERE id = $1
+				  AND ((status = 'staged' AND created_at < $2)
+				       OR (status = 'processing' AND processing_started_at < $2))`, item.id, cutoff)
 			err = execErr
 			affected = tag.RowsAffected()
 		case "review_evidence":
 			tag, execErr := s.pool.Exec(ctx, `
 				DELETE FROM review_evidence
 				WHERE id = $1 AND status = 'staged' AND created_at < $2`, item.id, cutoff)
+			err = execErr
+			affected = tag.RowsAffected()
+		case "review_media_staging":
+			tag, execErr := s.pool.Exec(ctx, `
+				UPDATE review_media SET staging_key = NULL
+				WHERE id = $1 AND status = 'ready' AND staging_key = $2`, item.id, item.key)
 			err = execErr
 			affected = tag.RowsAffected()
 		default:
@@ -210,8 +229,8 @@ func (s *Service) PresignReviewMedia(ctx context.Context, reviewID, userID uuid.
 		return UploadTicket{}, fmt.Errorf("presigning media upload: %w", err)
 	}
 	if _, err := s.pool.Exec(ctx, `
-		INSERT INTO review_media (id, review_id, object_key, content_type, status)
-		VALUES ($1, $2, $3, $4, 'staged')`, id, reviewID, stagingKey, contentType); err != nil {
+		INSERT INTO review_media (id, review_id, object_key, staging_key, content_type, status)
+		VALUES ($1, $2, $3, $3, $4, 'staged')`, id, reviewID, stagingKey, contentType); err != nil {
 		return UploadTicket{}, fmt.Errorf("recording staged media: %w", err)
 	}
 	return UploadTicket{UploadID: id, Upload: post}, nil
@@ -219,23 +238,26 @@ func (s *Service) PresignReviewMedia(ctx context.Context, reviewID, userID uuid.
 
 // FinalizeReviewMedia validates and sanitizes a staged public photo:
 // signature check, decode with bomb guard, re-encode (drops EXIF/GPS), copy
-// to the public bucket, delete staging, mark ready, and raise the review's
-// verification level to media_attached.
+// to the public bucket, atomically mark ready with the verification upgrade,
+// and finally remove the private staging object.
 func (s *Service) FinalizeReviewMedia(ctx context.Context, uploadID, userID uuid.UUID) (uuid.UUID, string, error) {
 	if s.store == nil {
 		return uuid.Nil, "", errStorageDisabled
 	}
 	var (
-		reviewID    uuid.UUID
-		stagingKey  string
-		contentType string
-		status      string
-		createdAt   time.Time
+		reviewID     uuid.UUID
+		objectKey    string
+		stagingKey   string
+		contentType  string
+		status       string
+		createdAt    time.Time
+		processingAt *time.Time
 	)
 	err := s.pool.QueryRow(ctx, `
-		SELECT review_id, object_key, content_type, status, created_at
+		SELECT review_id, object_key, coalesce(staging_key, object_key), content_type,
+			status, created_at, processing_started_at
 		FROM review_media WHERE id = $1`, uploadID).
-		Scan(&reviewID, &stagingKey, &contentType, &status, &createdAt)
+		Scan(&reviewID, &objectKey, &stagingKey, &contentType, &status, &createdAt, &processingAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, "", web.ErrNotFound("upload")
 	}
@@ -244,6 +266,25 @@ func (s *Service) FinalizeReviewMedia(ctx context.Context, uploadID, userID uuid
 	}
 	if err := s.requireOwnReview(ctx, reviewID, userID); err != nil {
 		return uuid.Nil, "", err
+	}
+	if status == "ready" {
+		return uploadID, objectKey, nil
+	}
+	if status == "processing" {
+		if processingAt != nil && time.Since(*processingAt) <= FinalizeWindow {
+			return uuid.Nil, "", web.ErrConflict("this upload is being finalized")
+		}
+		tag, err := s.pool.Exec(ctx, `
+			UPDATE review_media SET status = 'staged', processing_started_at = NULL
+			WHERE id = $1 AND status = 'processing' AND processing_started_at < $2`,
+			uploadID, time.Now().UTC().Add(-FinalizeWindow))
+		if err != nil {
+			return uuid.Nil, "", fmt.Errorf("recovering interrupted media finalization: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return uuid.Nil, "", web.ErrConflict("this upload is being finalized")
+		}
+		status = "staged"
 	}
 	if status != "staged" {
 		return uuid.Nil, "", web.ErrConflict("this upload is already finalized")
@@ -254,6 +295,28 @@ func (s *Service) FinalizeReviewMedia(ctx context.Context, uploadID, userID uuid
 		}
 		return uuid.Nil, "", &web.Error{Status: 410, Code: web.CodeGone, Message: "upload window expired; request a new upload"}
 	}
+	claimed, err := s.pool.Exec(ctx, `
+		UPDATE review_media SET status = 'processing', processing_started_at = now()
+		WHERE id = $1 AND status = 'staged'`, uploadID)
+	if err != nil {
+		return uuid.Nil, "", fmt.Errorf("claiming media finalization: %w", err)
+	}
+	if claimed.RowsAffected() == 0 {
+		return uuid.Nil, "", web.ErrConflict("this upload is being finalized")
+	}
+	resetClaim := true
+	defer func() {
+		if !resetClaim {
+			return
+		}
+		resetCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+		defer cancel()
+		if _, err := s.pool.Exec(resetCtx, `
+			UPDATE review_media SET status = 'staged', processing_started_at = NULL
+			WHERE id = $1 AND status = 'processing'`, uploadID); err != nil {
+			slog.ErrorContext(resetCtx, "failed to release media finalization claim", "upload_id", uploadID, "error", err)
+		}
+	}()
 
 	clean, format, err := s.sanitizeImage(ctx, stagingKey, contentType)
 	if err != nil {
@@ -264,16 +327,35 @@ func (s *Service) FinalizeReviewMedia(ctx context.Context, uploadID, userID uuid
 	if err := s.store.Put(ctx, s.publicBucket, finalKey, bytes.NewReader(clean), int64(len(clean)), finalType); err != nil {
 		return uuid.Nil, "", fmt.Errorf("writing public media: %w", err)
 	}
-	if err := s.store.Remove(ctx, s.privateBucket, stagingKey); err != nil {
-		return uuid.Nil, "", fmt.Errorf("removing staged object: %w", err)
-	}
-	if _, err := s.pool.Exec(ctx, `
-		UPDATE review_media SET object_key = $2, content_type = $3, size_bytes = $4, status = 'ready'
-		WHERE id = $1`, uploadID, finalKey, finalType, len(clean)); err != nil {
-		return uuid.Nil, "", fmt.Errorf("marking media ready: %w", err)
-	}
-	if err := s.reviewsRepo.UpgradeVerification(ctx, reviewID, reviews.VerifyMedia); err != nil {
+	if err := database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `
+			UPDATE review_media SET object_key = $2, content_type = $3, size_bytes = $4,
+				status = 'ready', processing_started_at = NULL
+			WHERE id = $1 AND status = 'processing'`, uploadID, finalKey, finalType, len(clean))
+		if err != nil {
+			return fmt.Errorf("marking media ready: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return web.ErrConflict("media finalization state changed; retry")
+		}
+		return s.reviewsRepo.UpgradeVerificationTx(ctx, tx, reviewID, reviews.VerifyMedia)
+	}); err != nil {
 		return uuid.Nil, "", err
+	}
+	resetClaim = false
+
+	removeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := s.store.Remove(removeCtx, s.privateBucket, stagingKey); err != nil {
+		// The ready row retains staging_key so a later presign can retry this
+		// cleanup without affecting the valid public object.
+		slog.WarnContext(removeCtx, "failed to remove finalized staging object",
+			"upload_id", uploadID, "object_key", stagingKey, "error", err)
+	} else if _, err := s.pool.Exec(removeCtx, `
+		UPDATE review_media SET staging_key = NULL
+		WHERE id = $1 AND status = 'ready' AND staging_key = $2`, uploadID, stagingKey); err != nil {
+		slog.WarnContext(removeCtx, "failed to record staging object cleanup",
+			"upload_id", uploadID, "object_key", stagingKey, "error", err)
 	}
 	return uploadID, finalKey, nil
 }
