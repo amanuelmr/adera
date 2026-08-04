@@ -32,7 +32,7 @@ func TestReviewAggregatesLifecycle(t *testing.T) {
 		"criterion_scores": map[string]any{"taste": 5, "hygiene": 4},
 	})
 	a.review(u2, target, 3, map[string]any{
-		"would_recommend": false,
+		"would_recommend":  false,
 		"criterion_scores": map[string]any{"taste": 3},
 	})
 	r3 := a.review(u3, target, 1, map[string]any{"would_recommend": false})
@@ -235,6 +235,43 @@ func TestConcurrentReviewSubmissions(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, dbCount, stCount, "stats row must equal recount after concurrent writes")
 	assert.Equal(t, dbSum, stSum)
+}
+
+func TestConcurrentReviewCooldownForSameUser(t *testing.T) {
+	a := newTestAPI(t)
+	mod := a.register("cooldown-mod")
+	a.grantRoles(&mod, "moderator")
+	target := a.createTarget(mod, "Concurrent Cooldown Restaurant", catRestaurantID, "restaurant")
+	u := a.register("cooldown-author")
+	body := map[string]any{
+		"target_id": target, "overall_rating": 4,
+		"body": "A concurrent cooldown review body that is long enough.",
+	}
+
+	start := make(chan struct{})
+	statuses := make(chan int, 2)
+	var wg sync.WaitGroup
+	for i := range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			status, _ := a.do("POST", "/api/v1/reviews", body, u.Access,
+				"Idempotency-Key", fmt.Sprintf("concurrent-cooldown-%d", i))
+			statuses <- status
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(statuses)
+
+	counts := map[int]int{}
+	for status := range statuses {
+		counts[status]++
+	}
+	assert.Equal(t, 1, counts[http.StatusCreated])
+	assert.Equal(t, 1, counts[http.StatusConflict])
+	assert.EqualValues(t, 1, a.stats(target)["review_count"])
 }
 
 func TestRealityCheckCalculation(t *testing.T) {

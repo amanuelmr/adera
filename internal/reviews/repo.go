@@ -186,6 +186,17 @@ func (r *Repo) Create(ctx context.Context, userID uuid.UUID, in Input) (Review, 
 	}
 	var rv Review
 	err := database.InTx(ctx, r.pool, func(tx pgx.Tx) error {
+		// Serialize review creation for this user so the cooldown and daily
+		// cap remain authoritative under concurrent requests with different
+		// idempotency keys. Different users still proceed independently.
+		var lockedUserID uuid.UUID
+		if err := tx.QueryRow(ctx, `SELECT id FROM users WHERE id = $1 FOR UPDATE`, userID).Scan(&lockedUserID); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return web.ErrUnauthorized("")
+			}
+			return fmt.Errorf("locking reviewer policy checks: %w", err)
+		}
+
 		var categoryID uuid.UUID
 		var targetStatus string
 		err := tx.QueryRow(ctx, `
