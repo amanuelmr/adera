@@ -26,6 +26,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -38,9 +39,10 @@ import (
 )
 
 const (
-	MinUploadBytes = 1 << 10  // 1 KiB
-	MaxUploadBytes = 10 << 20 // 10 MiB
-	PresignTTL     = 5 * time.Minute
+	MinUploadBytes       = 1 << 10  // 1 KiB
+	MaxUploadBytes       = 10 << 20 // 10 MiB
+	PresignTTL           = 5 * time.Minute
+	FinalizeWindow       = 2 * PresignTTL
 	MaxMediaPerReview    = 5
 	MaxEvidencePerReview = 5
 	// Decompression-bomb guard.
@@ -104,6 +106,73 @@ func (s *Service) requireOwnReview(ctx context.Context, reviewID, userID uuid.UU
 	return nil
 }
 
+type stagedObject struct {
+	id    uuid.UUID
+	key   string
+	table string
+}
+
+// cleanupStaleUploads removes expired staged objects before they can consume
+// a review's upload allowance indefinitely. Database rows are deleted only
+// after object removal succeeds so cleanup can be retried safely.
+func (s *Service) cleanupStaleUploads(ctx context.Context, reviewID uuid.UUID) error {
+	cutoff := time.Now().UTC().Add(-FinalizeWindow)
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, object_key, 'review_media' FROM review_media
+		WHERE review_id = $1 AND status = 'staged' AND created_at < $2
+		UNION ALL
+		SELECT id, object_key, 'review_evidence' FROM review_evidence
+		WHERE review_id = $1 AND status = 'staged' AND created_at < $2`, reviewID, cutoff)
+	if err != nil {
+		return fmt.Errorf("querying stale uploads: %w", err)
+	}
+	var stale []stagedObject
+	for rows.Next() {
+		var item stagedObject
+		if err := rows.Scan(&item.id, &item.key, &item.table); err != nil {
+			rows.Close()
+			return fmt.Errorf("scanning stale upload: %w", err)
+		}
+		stale = append(stale, item)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("iterating stale uploads: %w", err)
+	}
+	rows.Close()
+
+	for _, item := range stale {
+		if err := s.store.Remove(ctx, s.privateBucket, item.key); err != nil {
+			return fmt.Errorf("removing stale upload object: %w", err)
+		}
+		var affected int64
+		switch item.table {
+		case "review_media":
+			tag, execErr := s.pool.Exec(ctx, `
+				DELETE FROM review_media
+				WHERE id = $1 AND status = 'staged' AND created_at < $2`, item.id, cutoff)
+			err = execErr
+			affected = tag.RowsAffected()
+		case "review_evidence":
+			tag, execErr := s.pool.Exec(ctx, `
+				DELETE FROM review_evidence
+				WHERE id = $1 AND status = 'staged' AND created_at < $2`, item.id, cutoff)
+			err = execErr
+			affected = tag.RowsAffected()
+		default:
+			slog.ErrorContext(ctx, "unexpected stale upload table", "table", item.table)
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("deleting stale upload row: %w", err)
+		}
+		if affected == 0 {
+			slog.InfoContext(ctx, "stale upload changed during cleanup", "upload_id", item.id)
+		}
+	}
+	return nil
+}
+
 // UploadTicket is returned by presign operations.
 type UploadTicket struct {
 	UploadID uuid.UUID             `json:"upload_id"`
@@ -120,6 +189,9 @@ func (s *Service) PresignReviewMedia(ctx context.Context, reviewID, userID uuid.
 			WithDetail("content_type", "must be image/jpeg or image/png")
 	}
 	if err := s.requireOwnReview(ctx, reviewID, userID); err != nil {
+		return UploadTicket{}, err
+	}
+	if err := s.cleanupStaleUploads(ctx, reviewID); err != nil {
 		return UploadTicket{}, err
 	}
 	var count int
@@ -176,7 +248,10 @@ func (s *Service) FinalizeReviewMedia(ctx context.Context, uploadID, userID uuid
 	if status != "staged" {
 		return uuid.Nil, "", web.ErrConflict("this upload is already finalized")
 	}
-	if time.Since(createdAt) > 2*PresignTTL {
+	if time.Since(createdAt) > FinalizeWindow {
+		if err := s.cleanupStaleUploads(ctx, reviewID); err != nil {
+			return uuid.Nil, "", err
+		}
 		return uuid.Nil, "", &web.Error{Status: 410, Code: web.CodeGone, Message: "upload window expired; request a new upload"}
 	}
 
@@ -287,9 +362,13 @@ func (s *Service) PresignEvidence(ctx context.Context, reviewID, userID uuid.UUI
 	if err := s.requireOwnReview(ctx, reviewID, userID); err != nil {
 		return UploadTicket{}, err
 	}
+	if err := s.cleanupStaleUploads(ctx, reviewID); err != nil {
+		return UploadTicket{}, err
+	}
 	var count int
 	if err := s.pool.QueryRow(ctx, `
-		SELECT count(*) FROM review_evidence WHERE review_id = $1`, reviewID).Scan(&count); err != nil {
+		SELECT count(*) FROM review_evidence
+		WHERE review_id = $1 AND status <> 'rejected'`, reviewID).Scan(&count); err != nil {
 		return UploadTicket{}, fmt.Errorf("counting evidence: %w", err)
 	}
 	if count >= MaxEvidencePerReview {
@@ -322,10 +401,12 @@ func (s *Service) FinalizeEvidence(ctx context.Context, evidenceID, userID uuid.
 		key         string
 		contentType string
 		status      string
+		createdAt   time.Time
 	)
 	err := s.pool.QueryRow(ctx, `
-		SELECT review_id, object_key, content_type, status FROM review_evidence WHERE id = $1`, evidenceID).
-		Scan(&reviewID, &key, &contentType, &status)
+		SELECT review_id, object_key, content_type, status, created_at
+		FROM review_evidence WHERE id = $1`, evidenceID).
+		Scan(&reviewID, &key, &contentType, &status, &createdAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return web.ErrNotFound("evidence")
 	}
@@ -337,6 +418,12 @@ func (s *Service) FinalizeEvidence(ctx context.Context, evidenceID, userID uuid.
 	}
 	if status != "staged" {
 		return web.ErrConflict("this evidence is already submitted")
+	}
+	if time.Since(createdAt) > FinalizeWindow {
+		if err := s.cleanupStaleUploads(ctx, reviewID); err != nil {
+			return err
+		}
+		return &web.Error{Status: 410, Code: web.CodeGone, Message: "upload window expired; request new evidence upload"}
 	}
 
 	obj, err := s.store.Get(ctx, s.privateBucket, key)

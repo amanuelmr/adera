@@ -250,6 +250,61 @@ func TestMediaPipeline(t *testing.T) {
 	})
 }
 
+func TestStaleUploadTicketsDoNotConsumeSlots(t *testing.T) {
+	a := newTestAPI(t)
+	mod := a.register("stale-mod")
+	a.grantRoles(&mod, "moderator")
+	target := a.createTarget(mod, "Stale Upload Restaurant", catRestaurantID, "restaurant")
+	author := a.register("stale-uploader")
+	review := a.review(author, target, 4, nil)
+
+	for range 5 {
+		status, res := a.do("POST", "/api/v1/reviews/"+review+"/media",
+			map[string]any{"content_type": "image/jpeg"}, author.Access)
+		require.Equal(t, http.StatusCreated, status, "%v", res)
+	}
+	status, _ := a.do("POST", "/api/v1/reviews/"+review+"/media",
+		map[string]any{"content_type": "image/jpeg"}, author.Access)
+	require.Equal(t, http.StatusConflict, status)
+
+	_, err := a.pool.Exec(context.Background(), `
+		UPDATE review_media SET created_at = now() - interval '1 hour'
+		WHERE review_id = $1 AND status = 'staged'`, review)
+	require.NoError(t, err)
+	status, res := a.do("POST", "/api/v1/reviews/"+review+"/media",
+		map[string]any{"content_type": "image/jpeg"}, author.Access)
+	require.Equal(t, http.StatusCreated, status, "%v", res)
+
+	var mediaRows int
+	err = a.pool.QueryRow(context.Background(), `
+		SELECT count(*) FROM review_media WHERE review_id = $1`, review).Scan(&mediaRows)
+	require.NoError(t, err)
+	assert.Equal(t, 1, mediaRows, "expired staged media rows should be removed")
+
+	for range 5 {
+		status, res = a.do("POST", "/api/v1/reviews/"+review+"/evidence",
+			map[string]any{"kind": "receipt", "content_type": "image/jpeg"}, author.Access)
+		require.Equal(t, http.StatusCreated, status, "%v", res)
+	}
+	status, _ = a.do("POST", "/api/v1/reviews/"+review+"/evidence",
+		map[string]any{"kind": "receipt", "content_type": "image/jpeg"}, author.Access)
+	require.Equal(t, http.StatusConflict, status)
+
+	_, err = a.pool.Exec(context.Background(), `
+		UPDATE review_evidence SET created_at = now() - interval '1 hour'
+		WHERE review_id = $1 AND status = 'staged'`, review)
+	require.NoError(t, err)
+	status, res = a.do("POST", "/api/v1/reviews/"+review+"/evidence",
+		map[string]any{"kind": "receipt", "content_type": "image/jpeg"}, author.Access)
+	require.Equal(t, http.StatusCreated, status, "%v", res)
+
+	var evidenceRows int
+	err = a.pool.QueryRow(context.Background(), `
+		SELECT count(*) FROM review_evidence WHERE review_id = $1`, review).Scan(&evidenceRows)
+	require.NoError(t, err)
+	assert.Equal(t, 1, evidenceRows, "expired staged evidence rows should be removed")
+}
+
 func TestSearchAmharicAndFilters(t *testing.T) {
 	a := newTestAPI(t)
 	mod := a.register("mod")

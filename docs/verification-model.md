@@ -67,6 +67,10 @@ sequenceDiagram
     API->>API: append moderation_actions audit row
 ```
 
+Staged media and evidence tickets expire after ten minutes. Expired private
+objects and their staged database rows are removed before another ticket is
+issued, so abandoned uploads do not consume a review's upload allowance.
+
 ## Business claims (identity verification for owners)
 
 Claims are a separate verification track (`internal/claims`): request with
