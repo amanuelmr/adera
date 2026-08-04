@@ -24,6 +24,8 @@ func TestDocsRoutes(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Contains(t, resp.Header.Get("Content-Type"), "application/yaml")
 	require.Contains(t, string(raw), "openapi: 3.0.3")
+	require.Contains(t, string(raw), "  - url: /\n")
+	require.NotContains(t, string(raw), "url: http://localhost")
 
 	resp, err = srv.Client().Get(srv.URL + "/docs")
 	require.NoError(t, err)

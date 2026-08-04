@@ -39,8 +39,8 @@ info:
     Formulas for stats/ranking/Reality Check: docs/rating-and-ranking.md.
     Role rules: docs/authorization-matrix.md.
 servers:
-  - url: http://localhost:8080
-    description: Local development
+  - url: /
+    description: Server hosting this API contract
 tags:
   - {name: auth}
   - {name: users}
