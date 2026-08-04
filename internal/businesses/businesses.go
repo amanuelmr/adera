@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/adera-platform/backend/internal/notifications"
 	"github.com/adera-platform/backend/internal/platform/web"
 )
 
@@ -42,10 +43,13 @@ type Response struct {
 
 // Repo provides business persistence and the membership authority.
 type Repo struct {
-	pool *pgxpool.Pool
+	pool          *pgxpool.Pool
+	notifications *notifications.Service
 }
 
-func NewRepo(pool *pgxpool.Pool) *Repo { return &Repo{pool: pool} }
+func NewRepo(pool *pgxpool.Pool, notificationService *notifications.Service) *Repo {
+	return &Repo{pool: pool, notifications: notificationService}
+}
 
 // Pool exposes the underlying pool to sibling modules composing transactions
 // (claims approval grants membership atomically).

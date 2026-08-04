@@ -62,12 +62,25 @@ func (r *Repo) CreateResponse(ctx context.Context, reviewID, userID uuid.UUID, b
 		return Response{}, web.ErrForbidden("only the claimed business can respond to this review")
 	}
 	resp := Response{ID: uuid.New(), ReviewID: reviewID, BusinessID: businessID, AuthorUserID: userID, Body: body}
-	err = r.pool.QueryRow(ctx, `
-		INSERT INTO business_responses (id, review_id, business_id, author_user_id, body)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING created_at, updated_at`,
-		resp.ID, resp.ReviewID, resp.BusinessID, resp.AuthorUserID, resp.Body).
-		Scan(&resp.CreatedAt, &resp.UpdatedAt)
+	err = database.InTx(ctx, r.pool, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO business_responses (id, review_id, business_id, author_user_id, body)
+			VALUES ($1, $2, $3, $4, $5)
+			RETURNING created_at, updated_at`,
+			resp.ID, resp.ReviewID, resp.BusinessID, resp.AuthorUserID, resp.Body).
+			Scan(&resp.CreatedAt, &resp.UpdatedAt); err != nil {
+			return err
+		}
+		var reviewerID uuid.UUID
+		if err := tx.QueryRow(ctx, `SELECT user_id FROM reviews WHERE id = $1`, reviewID).Scan(&reviewerID); err != nil {
+			return fmt.Errorf("loading reviewer for notification: %w", err)
+		}
+		return r.notifications.EnqueueTx(ctx, tx, reviewerID, "response.created", "response", resp.ID,
+			map[string]string{
+				"review_id":   reviewID.String(),
+				"business_id": businessID.String(),
+			}, "response:"+resp.ID.String()+":created")
+	})
 	if err != nil {
 		if isUnique(err) {
 			return Response{}, web.ErrConflict("this review already has a response; edit it instead")

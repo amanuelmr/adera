@@ -34,6 +34,10 @@ func TestAuthorizationMatrix(t *testing.T) {
 		{"DELETE", "/api/v1/users/me"},
 		{"GET", "/api/v1/users/me/reviews"},
 		{"GET", "/api/v1/users/me/reports"},
+		{"GET", "/api/v1/users/me/notifications"},
+		{"GET", "/api/v1/users/me/notifications/unread-count"},
+		{"PUT", "/api/v1/users/me/notifications/read-all"},
+		{"PUT", "/api/v1/users/me/notifications/" + someID + "/read"},
 		{"POST", "/api/v1/auth/logout"},
 		{"POST", "/api/v1/auth/logout-all"},
 		{"GET", "/api/v1/auth/sessions"},
@@ -509,6 +513,58 @@ func TestClaimsResponsesAndModeration(t *testing.T) {
 
 		status, _ = a.do("GET", "/api/v1/businesses/"+businessID+"/stats", nil, owner.Access)
 		assert.Equal(t, http.StatusForbidden, status)
+	})
+
+	t.Run("activity inbox and outbox", func(t *testing.T) {
+		status, res := a.do("GET", "/api/v1/users/me/notifications", nil, owner.Access)
+		require.Equal(t, http.StatusOK, status)
+		ownerItems := dataList(res)
+		require.Len(t, ownerItems, 3)
+
+		eventTypes := make(map[string]bool, len(ownerItems))
+		for _, raw := range ownerItems {
+			item := raw.(map[string]any)
+			eventTypes[item["event_type"].(string)] = true
+			assert.Nil(t, item["read_at"])
+		}
+		assert.True(t, eventTypes["claim.approved"])
+		assert.True(t, eventTypes["report.dismissed"])
+		assert.True(t, eventTypes["claim.revoked"])
+
+		status, res = a.do("GET", "/api/v1/users/me/notifications/unread-count", nil, owner.Access)
+		require.Equal(t, http.StatusOK, status)
+		assert.EqualValues(t, 3, data(res)["unread_count"])
+
+		status, res = a.do("GET", "/api/v1/users/me/notifications", nil, reviewer.Access)
+		require.Equal(t, http.StatusOK, status)
+		reviewerItems := dataList(res)
+		require.Len(t, reviewerItems, 1)
+		assert.Equal(t, "response.created", reviewerItems[0].(map[string]any)["event_type"])
+
+		ownerNotificationID := ownerItems[0].(map[string]any)["id"].(string)
+		status, _ = a.do("PUT", "/api/v1/users/me/notifications/"+ownerNotificationID+"/read", nil, reviewer.Access)
+		assert.Equal(t, http.StatusNotFound, status, "users must not mutate another user's inbox")
+
+		status, _ = a.do("PUT", "/api/v1/users/me/notifications/"+ownerNotificationID+"/read", nil, owner.Access)
+		require.Equal(t, http.StatusOK, status)
+		status, res = a.do("GET", "/api/v1/users/me/notifications?unread=true", nil, owner.Access)
+		require.Equal(t, http.StatusOK, status)
+		assert.Len(t, dataList(res), 2)
+
+		status, res = a.do("PUT", "/api/v1/users/me/notifications/read-all", nil, owner.Access)
+		require.Equal(t, http.StatusOK, status)
+		assert.EqualValues(t, 2, data(res)["updated"])
+		status, res = a.do("GET", "/api/v1/users/me/notifications/unread-count", nil, owner.Access)
+		require.Equal(t, http.StatusOK, status)
+		assert.EqualValues(t, 0, data(res)["unread_count"])
+
+		var notifications, pendingOutbox int
+		err := a.pool.QueryRow(context.Background(), `SELECT count(*) FROM notifications`).Scan(&notifications)
+		require.NoError(t, err)
+		err = a.pool.QueryRow(context.Background(), `SELECT count(*) FROM notification_outbox WHERE processed_at IS NULL`).Scan(&pendingOutbox)
+		require.NoError(t, err)
+		assert.Equal(t, 4, notifications)
+		assert.Equal(t, notifications, pendingOutbox, "every inbox item needs a durable outbox event")
 	})
 }
 

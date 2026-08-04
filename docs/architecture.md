@@ -2,8 +2,9 @@
 
 Adera is a **modular monolith**: one deployable Go service, PostgreSQL for
 data + search + aggregation, S3-compatible object storage for media. No Redis,
-no Elasticsearch, no queues — PostgreSQL demonstrably covers MVP search,
-filtering, transactions, and aggregation needs (see
+no Elasticsearch, and no external message broker — PostgreSQL demonstrably
+covers MVP search, filtering, transactions, aggregation, and a transactional
+notification outbox (see
 docs/research/tech-stack-decisions.md for the reasoning and measured
 trade-offs).
 
@@ -16,7 +17,7 @@ flowchart LR
     subgraph API[Go service — modular monolith]
         direction TB
         MW[middleware: recover, request-id,\nmetrics, logging, headers, CORS,\ntimeout, authenticate]
-        MODS[auth · users · categories · locations\ntargets · businesses · claims · reviews\nratings · search · media · moderation · admin]
+        MODS[auth · users · categories · locations\ntargets · businesses · claims · reviews\nratings · search · media · notifications\nmoderation · admin]
         PLAT[platform: config · web · security\ndatabase · ratelimit · storage · logging]
         MW --> MODS --> PLAT
     end
@@ -37,7 +38,7 @@ internal/platform/      config, web (errors/JSON/middleware/pagination/metrics),
                         ratelimit, storage (minio + memory), logging, testdb
 internal/<capability>/  auth, users, categories, locations, businesses,
                         targets, reviews, ratings, search, media, claims,
-                        moderation, admin
+                        notifications, moderation, admin
 migrations/             embedded, versioned, up-only SQL
 ```
 
@@ -65,6 +66,7 @@ uniformly with request IDs.
 | Aggregates as transactional deltas | `target_rating_stats` updated in the same tx as every review mutation; CHECK constraints + recount tests guard drift |
 | JWT (HS256) access + opaque rotating refresh tokens | Single verifier service; token families with reuse detection (see below) |
 | Everything stages to the private bucket | No user upload is ever directly public; public media is re-encoded (EXIF stripped) before promotion |
+| Transactional notification outbox | Domain change, inbox item, and durable external-delivery event commit together; provider outages cannot lose events |
 | In-process rate limiting | Correct for single instance; `Limiter` interface is the Redis swap-point at scale-out |
 
 ## Review submission flow
@@ -137,6 +139,28 @@ flowchart TD
     T --> A
 ```
 
+## Activity notification flow
+
+```mermaid
+sequenceDiagram
+    participant D as Domain service
+    participant DB as PostgreSQL
+    participant C as Client
+    participant X as Future delivery adapter
+
+    D->>DB: BEGIN domain decision
+    D->>DB: INSERT notification + outbox event
+    D->>DB: COMMIT atomically
+    C->>DB: GET own inbox / mark read
+    X->>DB: claim pending outbox event
+    X-->>DB: mark delivered or schedule retry
+```
+
+Inbox records store stable event keys and structured identifiers, not rendered
+sentences, so clients localize them. The outbox deliberately has no external
+dispatcher in this phase; adding email, SMS, or push does not change domain
+transactions.
+
 ## Entity relationships (core)
 
 ```mermaid
@@ -147,6 +171,8 @@ erDiagram
     users ||--o{ helpful_votes : casts
     users ||--o{ reports : files
     users ||--o{ business_claims : submits
+    users ||--o{ notifications : receives
+    notifications ||--|| notification_outbox : emits
     businesses ||--o{ business_members : "authorizes (via claims)"
     businesses ||--o{ review_targets : owns
     businesses ||--o{ business_responses : posts

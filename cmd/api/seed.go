@@ -45,7 +45,7 @@ func seed(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 	usersRepo := users.NewRepo(pool)
 	targetsRepo := targets.NewRepo(pool)
 	reviewsRepo := reviews.NewRepo(pool, cfg.StoragePublicBaseURL)
-	bizRepo := businesses.NewRepo(pool)
+	bizRepo := businesses.NewRepo(pool, nil)
 
 	newUser := func(name, email, password string) (uuid.UUID, error) {
 		hash, err := hasher.Hash(password)

@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/adera-platform/backend/internal/notifications"
 	"github.com/adera-platform/backend/internal/platform/database"
 	"github.com/adera-platform/backend/internal/platform/web"
 )
@@ -46,10 +47,13 @@ type Claim struct {
 
 // Service persists claims.
 type Service struct {
-	pool *pgxpool.Pool
+	pool          *pgxpool.Pool
+	notifications *notifications.Service
 }
 
-func NewService(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
+func NewService(pool *pgxpool.Pool, notificationService *notifications.Service) *Service {
+	return &Service{pool: pool, notifications: notificationService}
+}
 
 const claimColumns = `id, business_id, user_id, method, message, status, decided_at, decision_note, created_at`
 
@@ -184,7 +188,11 @@ func (s *Service) Decide(ctx context.Context, claimID, actorID uuid.UUID, decisi
 			map[string]string{"business_id": c.BusinessID.String(), "user_id": c.UserID.String()}); err != nil {
 			return fmt.Errorf("recording audit action: %w", err)
 		}
-		return nil
+		return s.notifications.EnqueueTx(ctx, tx, c.UserID, "claim."+decision, "claim", c.ID,
+			map[string]string{
+				"business_id": c.BusinessID.String(),
+				"status":      decision,
+			}, "claim:"+c.ID.String()+":"+decision)
 	})
 	if err != nil {
 		return Claim{}, err
@@ -236,7 +244,11 @@ func (s *Service) Revoke(ctx context.Context, claimID, actorID uuid.UUID, note s
 			return fmt.Errorf("recording audit action: %w", err)
 		}
 		c.Status = StatusRevoked
-		return nil
+		return s.notifications.EnqueueTx(ctx, tx, c.UserID, "claim.revoked", "claim", c.ID,
+			map[string]string{
+				"business_id": c.BusinessID.String(),
+				"status":      StatusRevoked,
+			}, "claim:"+c.ID.String()+":"+StatusRevoked)
 	})
 	if err != nil {
 		return Claim{}, err

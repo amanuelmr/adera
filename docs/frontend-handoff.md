@@ -24,9 +24,10 @@ Ordered roughly by user-journey priority.
 11. **Business claim flow** — find business → claim with method + evidence → track claim status.
 12. **Business-owner dashboard (web-first is fine)** — respond to reviews (one response per review, editable with history), see review stats.
 13. **Moderator dashboard** — report queue, review/evidence detail, approve/hide/reject/restore actions, claim approvals, audit history.
-14. **Trust Center (static but essential)** — how ratings are computed, what "verified" means, moderation policy. Amharic and English from day one.
-15. **Empty states** — designed, not defaulted: target with 0 reviews ("Be the first to review"), search with 0 results (suggest wider area / different spelling — important given Amharic/Latin transliteration variance), user with 0 reviews.
-16. **Offline / error states** — cached-content banner, retry queue indicator for pending review submissions.
+14. **Activity inbox** — unread badge and localized claim, report, moderation, evidence, and owner-response updates; each item deep-links to its subject.
+15. **Trust Center (static but essential)** — how ratings are computed, what "verified" means, moderation policy. Amharic and English from day one.
+16. **Empty states** — designed, not defaulted: target with 0 reviews ("Be the first to review"), search with 0 results (suggest wider area / different spelling — important given Amharic/Latin transliteration variance), user with 0 reviews.
+17. **Offline / error states** — cached-content banner, retry queue indicator for pending review submissions.
 
 Later-phase screens the design system should anticipate: dish/item-level ratings, tag-chip analytics, AI summaries with evidence links, monthly award pages per neighborhood.
 
@@ -62,6 +63,7 @@ Later-phase screens the design system should anticipate: dish/item-level ratings
 | Evidence submission | `POST /reviews/{id}/evidence` (presign, private bucket) + finalize |
 | Review permalink | `GET /reviews/{id}` · `PUT /reviews/{id}/helpful` · `DELETE /reviews/{id}/helpful` · `POST /reviews/{id}/reports` |
 | Reviewer profile (self) | `GET /users/me` · `PATCH /users/me` · `GET /users/me/reviews` · `GET /users/me/reports` |
+| Activity inbox | `GET /users/me/notifications?unread=` · `GET /users/me/notifications/unread-count` · `PUT /users/me/notifications/{id}/read` · `PUT /users/me/notifications/read-all` |
 | Onboarding & auth | `POST /auth/register` · `POST /auth/login` · `POST /auth/refresh` · `POST /auth/logout` · `POST /auth/logout-all` · `POST /auth/verify/request` · `POST /auth/verify/confirm` · `POST /auth/password-reset/request` · `POST /auth/password-reset/confirm` · `GET /auth/sessions` · `DELETE /auth/sessions/{id}` |
 | Business claim | `POST /businesses/{id}/claims` · `GET /claims/mine` |
 | Owner dashboard | `GET /businesses/{id}/stats` · `POST /reviews/{id}/response` · `PUT /responses/{id}` · `POST /reviews/{id}/reports` |
@@ -69,7 +71,7 @@ Later-phase screens the design system should anticipate: dish/item-level ratings
 | Admin | `POST/PATCH /admin/categories…` · `POST /admin/users/{id}/suspend` · `POST /admin/targets/{id}/merge` |
 | Trust Center | static content + `GET /targets/{id}/stats` formulas documented in docs/rating-and-ranking.md |
 
-**Intentionally deferred frontend needs** (backend hooks exist or are documented): review-language filter UI beyond code filter, topic chips/keyword extraction, dish-level ratings, notifications (no push/SMS notification service yet — poll "my reports"/claim status), map view (coordinates are stored; no tile/geo-radius endpoint yet), machine translation of reviews, moderation-stats public page (counters derivable from audit table; no public endpoint yet).
+**Intentionally deferred frontend needs** (backend hooks exist or are documented): review-language filter UI beyond code filter, topic chips/keyword extraction, dish-level ratings, external push/SMS delivery (the durable notification outbox is ready for a provider adapter), map view (coordinates are stored; no tile/geo-radius endpoint yet), machine translation of reviews, moderation-stats public page (counters derivable from audit table; no public endpoint yet).
 
 ## 4. Mobile-first recommendations
 

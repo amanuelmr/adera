@@ -18,6 +18,7 @@ import (
 	"github.com/adera-platform/backend/internal/locations"
 	"github.com/adera-platform/backend/internal/media"
 	"github.com/adera-platform/backend/internal/moderation"
+	"github.com/adera-platform/backend/internal/notifications"
 	"github.com/adera-platform/backend/internal/platform/config"
 	"github.com/adera-platform/backend/internal/platform/ratelimit"
 	"github.com/adera-platform/backend/internal/platform/security"
@@ -54,22 +55,24 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	searchLimiter := limiter(ratelimit.NewKeyed(2, 10))
 
 	usersRepo := users.NewRepo(pool)
+	notificationSvc := notifications.NewService(pool)
 	authSvc := auth.NewService(pool, usersRepo, hasher, tokens, provider, cfg.RefreshTokenTTL)
 	categoriesRepo := categories.NewRepo(pool)
 	locationsRepo := locations.NewRepo(pool)
-	bizRepo := businesses.NewRepo(pool)
+	bizRepo := businesses.NewRepo(pool, notificationSvc)
 	targetsRepo := targets.NewRepo(pool)
 	reviewsRepo := reviews.NewRepo(pool, cfg.StoragePublicBaseURL)
 	ratingsRepo := ratings.NewRepo(pool)
 	searchRepo := search.NewRepo(pool)
 	mediaSvc := media.NewService(pool, store, reviewsRepo, cfg.StoragePrivateBucket, cfg.StoragePublicBucket)
-	claimsSvc := claims.NewService(pool)
-	moderationSvc := moderation.NewService(pool, reviewsRepo, targetsRepo)
+	claimsSvc := claims.NewService(pool, notificationSvc)
+	moderationSvc := moderation.NewService(pool, reviewsRepo, targetsRepo, notificationSvc)
 	adminSvc := admin.NewService(pool, usersRepo)
 
 	mux := http.NewServeMux()
 	auth.NewHandler(authSvc, loginLimiter, otpLimiter, cfg.TrustProxyHeaders).Routes(mux)
 	users.NewHandler(usersRepo).Routes(mux)
+	notifications.NewHandler(notificationSvc).Routes(mux)
 	categories.NewHandler(categoriesRepo).Routes(mux)
 	locations.NewHandler(locationsRepo).Routes(mux)
 	businesses.NewHandler(bizRepo).Routes(mux)

@@ -53,6 +53,7 @@ tags:
   - {name: search}
   - {name: media}
   - {name: claims}
+  - {name: notifications}
   - {name: moderation, description: Requires the moderator role (admins inherit it).}
   - {name: admin, description: Requires the admin role.}
   - {name: ops}
@@ -389,6 +390,73 @@ paths:
                         type: array
                         items: {$ref: '#/components/schemas/Report'}
         '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/users/me/notifications:
+    get:
+      tags: [notifications]
+      summary: List the caller's activity inbox
+      description: Event keys and structured data are returned for client-side localization.
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: unread
+          in: query
+          schema: {type: boolean, default: false}
+          description: When true, return only unread items.
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Activity items, newest first.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NotificationPage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/users/me/notifications/unread-count:
+    get:
+      tags: [notifications]
+      summary: Count unread activity items
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Current unread count.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data:
+                        type: object
+                        required: [unread_count]
+                        properties:
+                          unread_count: {type: integer, minimum: 0}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/users/me/notifications/read-all:
+    put:
+      tags: [notifications]
+      summary: Mark all activity items read
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Number of items updated.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataEnvelope'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/users/me/notifications/{id}/read:
+    put:
+      tags: [notifications]
+      summary: Mark one owned activity item read
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/ID'}]
+      responses:
+        '200': {$ref: '#/components/responses/StatusOK'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
 
   /api/v1/categories:
     get:
@@ -2010,3 +2078,31 @@ components:
         resolution_note: {type: string}
         resolved_at: {type: string, format: date-time, nullable: true}
         created_at: {type: string, format: date-time}
+
+    Notification:
+      type: object
+      required: [id, event_type, subject_type, subject_id, data, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        event_type:
+          type: string
+          example: claim.approved
+          description: Stable localization key describing the activity.
+        subject_type:
+          type: string
+          enum: [account, claim, report, review, target, evidence, response]
+        subject_id: {type: string, format: uuid}
+        data:
+          type: object
+          additionalProperties: {type: string}
+          description: Identifiers and state values used to render the localized message and destination.
+        read_at: {type: string, format: date-time, nullable: true}
+        created_at: {type: string, format: date-time}
+
+    NotificationPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/Notification'}

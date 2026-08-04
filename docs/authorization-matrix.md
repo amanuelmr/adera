@@ -25,6 +25,7 @@ Legend: ✅ allowed · Ⓞ allowed with object-level check · ❌ forbidden
 | **Current user** |
 | GET/PATCH /users/me · POST /users/me/password · DELETE /users/me | ❌ | ✅ self only | ✅ | ✅ | ✅ |
 | GET /users/me/reviews · /users/me/reports | ❌ | ✅ own only | ✅ | ✅ | ✅ |
+| GET/PUT /users/me/notifications* | ❌ | Ⓞ own inbox only | Ⓞ | Ⓞ | Ⓞ |
 | **Catalog (public reads)** |
 | GET /categories*, /locations/*, /targets*, /targets/{id}/stats, /reality-check, /reviews/{id}, /targets/{id}/reviews, /search/targets | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Unpublished target/review visibility | ❌ 404 | Ⓞ author of the review | Ⓞ | ✅ | ✅ |
@@ -67,4 +68,5 @@ and friends): every protected endpoint 401s anonymously; every
 moderator/admin endpoint 403s for customers; moderators cannot reach admin
 endpoints; cross-user review edits 403; foreign sessions look nonexistent;
 non-members can't read business stats or edit responses; strangers can't list
-evidence; suspension is immediate (all sessions revoked).
+evidence or mutate another user's activity inbox; suspension is immediate
+(all sessions revoked).
