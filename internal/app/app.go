@@ -81,6 +81,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	claims.NewHandler(claimsSvc).Routes(mux)
 	moderation.NewHandler(moderationSvc, mediaSvc, reportLimiter).Routes(mux)
 	admin.NewHandler(adminSvc).Routes(mux)
+	registerDocs(mux)
 
 	// Operational endpoints (no auth; restrict /metrics at the network layer
 	// in production deployments).

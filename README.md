@@ -95,6 +95,8 @@ curl -s "localhost:8080/api/v1/targets/$TARGET/stats"
 
 ### Operational endpoints
 
+- `GET /docs` — Swagger UI for the API contract
+- `GET /openapi.yaml` — raw OpenAPI contract for tooling/imports
 - `GET /health` — liveness
 - `GET /ready` — readiness (checks database connectivity)
 - `GET /metrics` — Prometheus metrics (restrict at the network layer in production)
