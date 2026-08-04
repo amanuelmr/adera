@@ -143,6 +143,24 @@ func TestAuthLifecycle(t *testing.T) {
 	})
 }
 
+func TestOTPAttemptLimit(t *testing.T) {
+	a := newTestAPI(t)
+	u := a.register("otp-limit")
+	code := a.codes.last(u.Email)
+	require.NotEmpty(t, code)
+
+	for range 5 {
+		status, _ := a.do("POST", "/api/v1/auth/verify/confirm",
+			map[string]any{"channel": "email", "code": "000000"}, u.Access)
+		require.Equal(t, http.StatusUnprocessableEntity, status)
+	}
+
+	status, _ := a.do("POST", "/api/v1/auth/verify/confirm",
+		map[string]any{"channel": "email", "code": code}, u.Access)
+	assert.Equal(t, http.StatusUnprocessableEntity, status,
+		"the real code must be rejected after the attempt budget is exhausted")
+}
+
 func TestRegistrationValidation(t *testing.T) {
 	a := newTestAPI(t)
 

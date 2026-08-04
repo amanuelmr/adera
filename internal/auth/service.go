@@ -504,7 +504,8 @@ func (s *Service) RequestVerification(ctx context.Context, userID uuid.UUID, cha
 // limits, and consumes it on success.
 func (s *Service) consumeCode(ctx context.Context, userID uuid.UUID, purpose, code string) error {
 	invalid := web.ErrValidation("invalid or expired code").WithDetail("code", "invalid or expired")
-	return database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+	var rejected bool
+	err := database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
 		var (
 			id       uuid.UUID
 			codeHash []byte
@@ -528,13 +529,23 @@ func (s *Service) consumeCode(ctx context.Context, userID uuid.UUID, purpose, co
 			if _, err := tx.Exec(ctx, `UPDATE verification_tokens SET attempts = attempts + 1 WHERE id = $1`, id); err != nil {
 				return fmt.Errorf("recording failed attempt: %w", err)
 			}
-			return invalid
+			// Commit the failed-attempt counter before returning the generic
+			// validation error to the caller.
+			rejected = true
+			return nil
 		}
 		if _, err := tx.Exec(ctx, `UPDATE verification_tokens SET consumed_at = now() WHERE id = $1`, id); err != nil {
 			return fmt.Errorf("consuming code: %w", err)
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	if rejected {
+		return invalid
+	}
+	return nil
 }
 
 // ConfirmVerification validates the OTP and marks the channel verified.
