@@ -188,6 +188,70 @@ func TestReviewPolicies(t *testing.T) {
 	})
 }
 
+func TestReviewDisclosures(t *testing.T) {
+	a := newTestAPI(t)
+	mod := a.register("disclosure-mod")
+	a.grantRoles(&mod, "moderator")
+	target := a.createTarget(mod, "Disclosure Restaurant", catRestaurantID, "restaurant")
+	author := a.register("disclosure-author")
+
+	status, res := a.do("POST", "/api/v1/reviews", map[string]any{
+		"target_id": target, "overall_rating": 4,
+		"body":                "The discounted meal was good and the service was attentive.",
+		"incentive_type":      "discount",
+		"material_connection": "family_or_friend",
+		"disclosure_details":  "A family member works at this restaurant.",
+	}, author.Access)
+	require.Equal(t, http.StatusCreated, status, "%v", res)
+	review := data(res)
+	reviewID := review["id"].(string)
+	assert.Equal(t, "discount", review["incentive_type"])
+	assert.Equal(t, "family_or_friend", review["material_connection"])
+	assert.Equal(t, "A family member works at this restaurant.", review["disclosure_details"])
+
+	status, res = a.do("GET", "/api/v1/targets/"+target+"/reviews", nil, "")
+	require.Equal(t, http.StatusOK, status)
+	require.Len(t, dataList(res), 1)
+	listed := dataList(res)[0].(map[string]any)
+	assert.Equal(t, "discount", listed["incentive_type"])
+	assert.Equal(t, "family_or_friend", listed["material_connection"])
+
+	status, res = a.do("PUT", "/api/v1/reviews/"+reviewID, map[string]any{
+		"overall_rating":     4,
+		"body":               "The discounted meal was good and this disclosure is now corrected.",
+		"version":            int(review["version"].(float64)),
+		"incentive_type":     "payment",
+		"disclosure_details": "The restaurant reimbursed the cost after the visit.",
+	}, author.Access)
+	require.Equal(t, http.StatusOK, status, "%v", res)
+	assert.Equal(t, "payment", data(res)["incentive_type"])
+	assert.Equal(t, "none", data(res)["material_connection"])
+	assert.EqualValues(t, 1, data(res)["edit_count"])
+
+	status, res = a.do("POST", "/api/v1/reviews", map[string]any{
+		"target_id": target, "overall_rating": 4,
+		"body":           "This review has an invalid disclosure type and must be rejected.",
+		"incentive_type": "gift_card",
+	}, a.register("invalid-disclosure").Access)
+	assert.Equal(t, http.StatusUnprocessableEntity, status)
+	assert.Contains(t, res["error"].(map[string]any)["details"].(map[string]any), "incentive_type")
+
+	status, res = a.do("POST", "/api/v1/reviews", map[string]any{
+		"target_id": target, "overall_rating": 4,
+		"body":                "This review selects another connection without explaining it.",
+		"material_connection": "other",
+	}, a.register("other-disclosure").Access)
+	assert.Equal(t, http.StatusUnprocessableEntity, status)
+	assert.Contains(t, res["error"].(map[string]any)["details"].(map[string]any), "disclosure_details")
+
+	defaultTarget := a.createTarget(mod, "Default Disclosure Cafe", catRestaurantID, "cafe")
+	defaultReviewID := a.review(a.register("default-disclosure"), defaultTarget, 5, nil)
+	status, res = a.do("GET", "/api/v1/reviews/"+defaultReviewID, nil, "")
+	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, "none", data(res)["incentive_type"])
+	assert.Equal(t, "none", data(res)["material_connection"])
+}
+
 func TestConcurrentReviewSubmissions(t *testing.T) {
 	a := newTestAPI(t)
 	mod := a.register("mod")

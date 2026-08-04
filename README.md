@@ -33,6 +33,8 @@ locally relevant reviews** rather than a single star rating:
   creator.
 - **Transparent moderation**: published-first, reports never auto-hide, and
   every decision is written to an append-only audit trail.
+- **Visible review disclosures** for discounts, free products/services,
+  payments, and material relationships, returned on every review surface.
 
 The name *Adera* (አደራ) is Amharic for a sacred trust — something entrusted to
 you to safeguard.

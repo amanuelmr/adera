@@ -41,8 +41,9 @@ Later-phase screens the design system should anticipate: dish/item-level ratings
 3. Step 2: category criteria stars (fetched from `GET /categories/{id}/criteria`, each skippable unless required).
 4. Step 3: text box with a prompt question, photo add (client-side compression before presigned upload).
 5. Step 4: context — experience date, discovery source; if discovery source is social media, the expectation-match question appears; optional price paid.
-6. Submit with an `Idempotency-Key` header (backend deduplicates weak-connection retries).
-7. Confirmation: what happens next, share card.
+6. Step 5: disclosure — ask whether the reviewer received a discount, free item/service, payment, contest entry, or points, and whether they have a material relationship. Show a public label whenever either answer is not `none`.
+7. Submit with an `Idempotency-Key` header (backend deduplicates weak-connection retries).
+8. Confirmation: what happens next, share card.
 
 **Flow C — Business owner:** search own business → claim (method + evidence) → moderator approves → get access to respond → response published with "Owner" label and timestamps.
 

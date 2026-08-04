@@ -119,3 +119,34 @@ func TestInputValidateMisc(t *testing.T) {
 	in.Language = "xx"
 	require.Error(t, in.Validate())
 }
+
+func TestInputValidateDisclosures(t *testing.T) {
+	in := validInput()
+	assert.NoError(t, in.Validate())
+	assert.Equal(t, IncentiveNone, in.IncentiveType)
+	assert.Equal(t, ConnectionNone, in.MaterialConnection)
+
+	in = validInput()
+	in.IncentiveType = "discount"
+	in.MaterialConnection = "family_or_friend"
+	in.DisclosureDetails = "Invited by the owner's family."
+	assert.NoError(t, in.Validate())
+
+	in = validInput()
+	in.IncentiveType = "gift_card"
+	err := in.Validate()
+	require.Error(t, err)
+	assert.Contains(t, detailOf(t, err), "incentive_type")
+
+	in = validInput()
+	in.MaterialConnection = ConnectionOther
+	err = in.Validate()
+	require.Error(t, err)
+	assert.Contains(t, detailOf(t, err), "disclosure_details")
+
+	in = validInput()
+	in.DisclosureDetails = "orphaned details"
+	err = in.Validate()
+	require.Error(t, err)
+	assert.Contains(t, detailOf(t, err), "disclosure_details")
+}

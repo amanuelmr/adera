@@ -163,18 +163,19 @@ func (r *Repo) ListForTarget(ctx context.Context, targetID uuid.UUID, viewer uui
 	var out []ListedReview
 	for rows.Next() {
 		var (
-			lr        ListedReview
-			expDate   *time.Time
-			src       *string
-			match     *string
-			respID    *uuid.UUID
-			respBody  *string
-			respCAt   *time.Time
-			respUAt   *time.Time
+			lr       ListedReview
+			expDate  *time.Time
+			src      *string
+			match    *string
+			respID   *uuid.UUID
+			respBody *string
+			respCAt  *time.Time
+			respUAt  *time.Time
 		)
 		err := rows.Scan(&lr.ID, &lr.TargetID, &lr.UserID, &lr.OverallRating, &lr.Title, &lr.Body, &lr.Language,
 			&expDate, &lr.PricePaid, &lr.Currency, &lr.WouldRecommend, &lr.ReturnLikelihood,
-			&src, &match, &lr.SocialMediaURL, &lr.VerificationLevel,
+			&src, &match, &lr.SocialMediaURL, &lr.IncentiveType, &lr.MaterialConnection,
+			&lr.DisclosureDetails, &lr.VerificationLevel,
 			&lr.ModerationStatus, &lr.EditCount, &lr.EditedAt, &lr.Version, &lr.CreatedAt, &lr.UpdatedAt,
 			&lr.ReviewerName, &lr.ReviewerReviewCount, &lr.HelpfulCount, &lr.ViewerVoted,
 			&respID, &respBody, &respCAt, &respUAt)

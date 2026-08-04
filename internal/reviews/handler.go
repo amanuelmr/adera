@@ -33,38 +33,44 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 }
 
 type reviewRequest struct {
-	TargetID         string         `json:"target_id"`
-	OverallRating    int            `json:"overall_rating"`
-	Title            string         `json:"title"`
-	Body             string         `json:"body"`
-	Language         string         `json:"language"`
-	ExperienceDate   string         `json:"experience_date"` // YYYY-MM-DD
-	PricePaid        *float64       `json:"price_paid"`
-	Currency         string         `json:"currency"`
-	WouldRecommend   *bool          `json:"would_recommend"`
-	ReturnLikelihood *int           `json:"return_likelihood"`
-	DiscoverySource  string         `json:"discovery_source"`
-	ExpectationMatch string         `json:"expectation_match"`
-	SocialMediaURL   string         `json:"social_media_url"`
-	CriterionScores  map[string]int `json:"criterion_scores"`
+	TargetID           string         `json:"target_id"`
+	OverallRating      int            `json:"overall_rating"`
+	Title              string         `json:"title"`
+	Body               string         `json:"body"`
+	Language           string         `json:"language"`
+	ExperienceDate     string         `json:"experience_date"` // YYYY-MM-DD
+	PricePaid          *float64       `json:"price_paid"`
+	Currency           string         `json:"currency"`
+	WouldRecommend     *bool          `json:"would_recommend"`
+	ReturnLikelihood   *int           `json:"return_likelihood"`
+	DiscoverySource    string         `json:"discovery_source"`
+	ExpectationMatch   string         `json:"expectation_match"`
+	SocialMediaURL     string         `json:"social_media_url"`
+	IncentiveType      string         `json:"incentive_type"`
+	MaterialConnection string         `json:"material_connection"`
+	DisclosureDetails  string         `json:"disclosure_details"`
+	CriterionScores    map[string]int `json:"criterion_scores"`
 	// Version is required on update (optimistic concurrency), ignored on create.
 	Version int `json:"version,omitempty"`
 }
 
 func (req reviewRequest) toInput(requireTarget bool) (Input, error) {
 	in := Input{
-		OverallRating:    req.OverallRating,
-		Title:            req.Title,
-		Body:             req.Body,
-		Language:         req.Language,
-		PricePaid:        req.PricePaid,
-		Currency:         req.Currency,
-		WouldRecommend:   req.WouldRecommend,
-		ReturnLikelihood: req.ReturnLikelihood,
-		DiscoverySource:  req.DiscoverySource,
-		ExpectationMatch: req.ExpectationMatch,
-		SocialMediaURL:   req.SocialMediaURL,
-		CriterionScores:  req.CriterionScores,
+		OverallRating:      req.OverallRating,
+		Title:              req.Title,
+		Body:               req.Body,
+		Language:           req.Language,
+		PricePaid:          req.PricePaid,
+		Currency:           req.Currency,
+		WouldRecommend:     req.WouldRecommend,
+		ReturnLikelihood:   req.ReturnLikelihood,
+		DiscoverySource:    req.DiscoverySource,
+		ExpectationMatch:   req.ExpectationMatch,
+		SocialMediaURL:     req.SocialMediaURL,
+		IncentiveType:      req.IncentiveType,
+		MaterialConnection: req.MaterialConnection,
+		DisclosureDetails:  req.DisclosureDetails,
+		CriterionScores:    req.CriterionScores,
 	}
 	if in.CriterionScores == nil {
 		in.CriterionScores = map[string]int{}

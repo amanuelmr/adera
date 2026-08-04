@@ -212,6 +212,7 @@ No incumbent combines: verified experiences + Amharic-first + resident categorie
 13. **Telegram bot as a second client surface.** *(Deferred; the JSON API is channel-agnostic by design.)*
 14. **SEO-renderable content layer.** *(Frontend-phase requirement; recorded in docs/frontend-handoff.md — SSR strongly preferred.)*
 15. **Incentives with fraud brakes, not cash-per-review.** *(Deferred entirely; documented as a risk if ever added. Cold-start plan: seed listings, concentrate on 2-3 neighborhoods and categories.)*
+16. **Visible incentive and relationship disclosures.** *(Implemented: structured compensation and material-connection fields are returned on every review surface; `other` requires details. This records transparency but does not endorse paid-review acquisition.)*
 
 ---
 

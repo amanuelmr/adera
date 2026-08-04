@@ -24,6 +24,10 @@ docs/research/security-and-legal-risks.md §7 and require professional review.
    per review, edits audited) and may report.
 5. **24-hour SLA for hate speech / disinformation notifications** (Proclamation
    1185/2020 exposure): the moderation queue orders oldest-first by design.
+6. **Material relationships are visible.** Reviews store structured incentive
+   and relationship disclosures. Public clients must label any value other
+   than `none`; selecting `other` requires explanatory details. Disclosure is
+   separate from verification and never makes a paid review "verified."
 
 ## Review states
 

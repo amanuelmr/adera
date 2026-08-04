@@ -721,7 +721,8 @@ paths:
         `cooldown_active` with `existing_review_id` — update instead); max 5
         reviews per user per 24h (429). `expectation_match` is only accepted
         when `discovery_source` is a social platform. Send `Idempotency-Key`
-        to make retries safe.
+        to make retries safe. Clients should always ask about incentives and
+        material connections; non-`none` values must be visibly labeled.
       security: [{bearerAuth: []}]
       parameters:
         - {name: Idempotency-Key, in: header, schema: {type: string, maxLength: 200}, description: Client-generated key; replays return the stored response.}
@@ -744,6 +745,9 @@ paths:
               discovery_source: tiktok
               expectation_match: better
               social_media_url: "https://www.tiktok.com/@foodie/video/1"
+              incentive_type: discount
+              material_connection: none
+              disclosure_details: "The restaurant provided a 20% discount."
               criterion_scores: {taste: 5, portion_size: 4, social_media_accuracy: 5}
       responses:
         '201':
@@ -1717,6 +1721,14 @@ components:
     ExpectationMatch:
       type: string
       enum: [better, as_expected, worse, very_different]
+    IncentiveType:
+      type: string
+      default: none
+      enum: [none, discount, free_product_or_service, payment, contest_entry, loyalty_points, other]
+    MaterialConnection:
+      type: string
+      default: none
+      enum: [none, current_employee, former_employee, owner_or_executive, family_or_friend, business_partner, other]
     VerificationLevel:
       type: string
       description: See docs/verification-model.md. Only receipt_submitted+ count as "verified".
@@ -1909,6 +1921,16 @@ components:
           allOf: [{$ref: '#/components/schemas/ExpectationMatch'}]
           description: Only valid when discovery_source is a social platform.
         social_media_url: {type: string, description: "https URL on a supported social domain; stored, never fetched."}
+        incentive_type:
+          allOf: [{$ref: '#/components/schemas/IncentiveType'}]
+          description: Compensation received in connection with the review; ask explicitly even though the compatibility default is `none`.
+        material_connection:
+          allOf: [{$ref: '#/components/schemas/MaterialConnection'}]
+          description: Relationship with the reviewed target that readers should know about.
+        disclosure_details:
+          type: string
+          maxLength: 500
+          description: Required when either disclosure type is `other`; otherwise optional context for a non-`none` disclosure.
         criterion_scores:
           type: object
           additionalProperties: {type: integer}
@@ -1931,6 +1953,9 @@ components:
         discovery_source: {type: string}
         expectation_match: {type: string}
         social_media_url: {type: string}
+        incentive_type: {$ref: '#/components/schemas/IncentiveType'}
+        material_connection: {$ref: '#/components/schemas/MaterialConnection'}
+        disclosure_details: {type: string}
         verification_level: {$ref: '#/components/schemas/VerificationLevel'}
         moderation_status: {$ref: '#/components/schemas/ReviewModerationStatus'}
         edit_count: {type: integer}

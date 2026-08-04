@@ -34,7 +34,8 @@ func (r *Repo) Pool() *pgxpool.Pool { return r.pool }
 
 const reviewColumns = `id, target_id, user_id, overall_rating, title, body, language,
 	experience_date, price_paid, currency, would_recommend, return_likelihood,
-	discovery_source, expectation_match, social_media_url, verification_level,
+	discovery_source, expectation_match, social_media_url, incentive_type,
+	material_connection, disclosure_details, verification_level,
 	moderation_status, edit_count, edited_at, version, created_at, updated_at`
 
 func scanReview(row pgx.Row) (Review, error) {
@@ -46,7 +47,8 @@ func scanReview(row pgx.Row) (Review, error) {
 	)
 	err := row.Scan(&rv.ID, &rv.TargetID, &rv.UserID, &rv.OverallRating, &rv.Title, &rv.Body, &rv.Language,
 		&expDate, &rv.PricePaid, &rv.Currency, &rv.WouldRecommend, &rv.ReturnLikelihood,
-		&src, &match, &rv.SocialMediaURL, &rv.VerificationLevel,
+		&src, &match, &rv.SocialMediaURL, &rv.IncentiveType, &rv.MaterialConnection,
+		&rv.DisclosureDetails, &rv.VerificationLevel,
 		&rv.ModerationStatus, &rv.EditCount, &rv.EditedAt, &rv.Version, &rv.CreatedAt, &rv.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Review{}, web.ErrNotFound("review")
@@ -249,12 +251,15 @@ func (r *Repo) Create(ctx context.Context, userID uuid.UUID, in Input) (Review, 
 		row := tx.QueryRow(ctx, `
 			INSERT INTO reviews (id, target_id, user_id, overall_rating, title, body, language,
 				experience_date, price_paid, currency, would_recommend, return_likelihood,
-				discovery_source, expectation_match, social_media_url, moderation_status)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,nullif($13,''),nullif($14,''),$15,'published')
+				discovery_source, expectation_match, social_media_url, incentive_type,
+				material_connection, disclosure_details, moderation_status)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,nullif($13,''),nullif($14,''),
+				$15,$16,$17,$18,'published')
 			RETURNING `+reviewColumns,
 			id, in.TargetID, userID, in.OverallRating, in.Title, in.Body, in.Language,
 			in.ExperienceDate, in.PricePaid, in.Currency, in.WouldRecommend, in.ReturnLikelihood,
-			in.DiscoverySource, in.ExpectationMatch, in.SocialMediaURL)
+			in.DiscoverySource, in.ExpectationMatch, in.SocialMediaURL, in.IncentiveType,
+			in.MaterialConnection, in.DisclosureDetails)
 		rv, err = scanReview(row)
 		if err != nil {
 			return err
@@ -324,13 +329,15 @@ func (r *Repo) Update(ctx context.Context, userID, reviewID uuid.UUID, expectedV
 				experience_date = $6, price_paid = $7, currency = $8,
 				would_recommend = $9, return_likelihood = $10,
 				discovery_source = nullif($11, ''), expectation_match = nullif($12, ''),
-				social_media_url = $13,
+				social_media_url = $13, incentive_type = $14,
+				material_connection = $15, disclosure_details = $16,
 				edit_count = edit_count + 1, edited_at = now(), version = version + 1
 			WHERE id = $1
 			RETURNING `+reviewColumns,
 			reviewID, in.OverallRating, in.Title, in.Body, in.Language,
 			in.ExperienceDate, in.PricePaid, in.Currency, in.WouldRecommend, in.ReturnLikelihood,
-			in.DiscoverySource, in.ExpectationMatch, in.SocialMediaURL)
+			in.DiscoverySource, in.ExpectationMatch, in.SocialMediaURL, in.IncentiveType,
+			in.MaterialConnection, in.DisclosureDetails)
 		rv, err = scanReview(row)
 		if err != nil {
 			return err

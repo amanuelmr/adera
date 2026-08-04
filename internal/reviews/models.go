@@ -53,6 +53,27 @@ var SocialSources = map[string]bool{
 // Expectation-match answers for social-media discoveries.
 var ExpectationMatches = []string{"better", "as_expected", "worse", "very_different"}
 
+const (
+	IncentiveNone  = "none"
+	IncentiveOther = "other"
+
+	ConnectionNone  = "none"
+	ConnectionOther = "other"
+)
+
+// IncentiveTypes describe compensation received in connection with a review.
+var IncentiveTypes = []string{
+	IncentiveNone, "discount", "free_product_or_service", "payment",
+	"contest_entry", "loyalty_points", IncentiveOther,
+}
+
+// MaterialConnections describe relationships that could affect how readers
+// weigh a review.
+var MaterialConnections = []string{
+	ConnectionNone, "current_employee", "former_employee", "owner_or_executive",
+	"family_or_friend", "business_partner", ConnectionOther,
+}
+
 // Policy constants (documented in docs/rating-and-ranking.md and
 // docs/moderation-policy.md).
 const (
@@ -65,28 +86,31 @@ const (
 
 // Review is the full review record.
 type Review struct {
-	ID                uuid.UUID  `json:"id"`
-	TargetID          uuid.UUID  `json:"target_id"`
-	UserID            uuid.UUID  `json:"user_id"`
-	OverallRating     int        `json:"overall_rating"`
-	Title             string     `json:"title,omitempty"`
-	Body              string     `json:"body"`
-	Language          string     `json:"language,omitempty"`
-	ExperienceDate    *time.Time `json:"experience_date,omitempty"`
-	PricePaid         *float64   `json:"price_paid,omitempty"`
-	Currency          string     `json:"currency"`
-	WouldRecommend    *bool      `json:"would_recommend,omitempty"`
-	ReturnLikelihood  *int       `json:"return_likelihood,omitempty"`
-	DiscoverySource   string     `json:"discovery_source,omitempty"`
-	ExpectationMatch  string     `json:"expectation_match,omitempty"`
-	SocialMediaURL    string     `json:"social_media_url,omitempty"`
-	VerificationLevel string     `json:"verification_level"`
-	ModerationStatus  string     `json:"moderation_status"`
-	EditCount         int        `json:"edit_count"`
-	EditedAt          *time.Time `json:"edited_at,omitempty"`
-	Version           int        `json:"version"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	ID                 uuid.UUID  `json:"id"`
+	TargetID           uuid.UUID  `json:"target_id"`
+	UserID             uuid.UUID  `json:"user_id"`
+	OverallRating      int        `json:"overall_rating"`
+	Title              string     `json:"title,omitempty"`
+	Body               string     `json:"body"`
+	Language           string     `json:"language,omitempty"`
+	ExperienceDate     *time.Time `json:"experience_date,omitempty"`
+	PricePaid          *float64   `json:"price_paid,omitempty"`
+	Currency           string     `json:"currency"`
+	WouldRecommend     *bool      `json:"would_recommend,omitempty"`
+	ReturnLikelihood   *int       `json:"return_likelihood,omitempty"`
+	DiscoverySource    string     `json:"discovery_source,omitempty"`
+	ExpectationMatch   string     `json:"expectation_match,omitempty"`
+	SocialMediaURL     string     `json:"social_media_url,omitempty"`
+	IncentiveType      string     `json:"incentive_type"`
+	MaterialConnection string     `json:"material_connection"`
+	DisclosureDetails  string     `json:"disclosure_details,omitempty"`
+	VerificationLevel  string     `json:"verification_level"`
+	ModerationStatus   string     `json:"moderation_status"`
+	EditCount          int        `json:"edit_count"`
+	EditedAt           *time.Time `json:"edited_at,omitempty"`
+	Version            int        `json:"version"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 
 	CriterionScores map[string]int `json:"criterion_scores,omitempty"`
 }
@@ -115,20 +139,23 @@ type MediaRef struct {
 
 // Input is the create/update payload after transport decoding.
 type Input struct {
-	TargetID         uuid.UUID
-	OverallRating    int
-	Title            string
-	Body             string
-	Language         string
-	ExperienceDate   *time.Time
-	PricePaid        *float64
-	Currency         string
-	WouldRecommend   *bool
-	ReturnLikelihood *int
-	DiscoverySource  string
-	ExpectationMatch string
-	SocialMediaURL   string
-	CriterionScores  map[string]int // keyed by criterion code
+	TargetID           uuid.UUID
+	OverallRating      int
+	Title              string
+	Body               string
+	Language           string
+	ExperienceDate     *time.Time
+	PricePaid          *float64
+	Currency           string
+	WouldRecommend     *bool
+	ReturnLikelihood   *int
+	DiscoverySource    string
+	ExpectationMatch   string
+	SocialMediaURL     string
+	IncentiveType      string
+	MaterialConnection string
+	DisclosureDetails  string
+	CriterionScores    map[string]int // keyed by criterion code
 }
 
 var socialURLDomains = []string{
@@ -183,6 +210,29 @@ func (in *Input) Validate() error {
 		if err := validateSocialURL(in.SocialMediaURL); err != nil {
 			return err
 		}
+	}
+	if in.IncentiveType == "" {
+		in.IncentiveType = IncentiveNone
+	}
+	if !contains(IncentiveTypes, in.IncentiveType) {
+		return e.WithDetail("incentive_type", "unsupported incentive type")
+	}
+	if in.MaterialConnection == "" {
+		in.MaterialConnection = ConnectionNone
+	}
+	if !contains(MaterialConnections, in.MaterialConnection) {
+		return e.WithDetail("material_connection", "unsupported connection type")
+	}
+	in.DisclosureDetails = strings.TrimSpace(in.DisclosureDetails)
+	if len([]rune(in.DisclosureDetails)) > 500 {
+		return e.WithDetail("disclosure_details", "at most 500 characters")
+	}
+	if (in.IncentiveType == IncentiveOther || in.MaterialConnection == ConnectionOther) &&
+		len([]rune(in.DisclosureDetails)) < 3 {
+		return e.WithDetail("disclosure_details", "required when a disclosure type is other")
+	}
+	if in.IncentiveType == IncentiveNone && in.MaterialConnection == ConnectionNone && in.DisclosureDetails != "" {
+		return e.WithDetail("disclosure_details", "requires an incentive or material connection")
 	}
 	return nil
 }
