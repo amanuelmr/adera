@@ -54,6 +54,7 @@ tags:
   - {name: media}
   - {name: claims}
   - {name: notifications}
+  - {name: privacy}
   - {name: moderation, description: Requires the moderator role (admins inherit it).}
   - {name: admin, description: Requires the admin role.}
   - {name: ops}
@@ -452,11 +453,94 @@ paths:
       tags: [notifications]
       summary: Mark one owned activity item read
       security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/ID'}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
       responses:
         '200': {$ref: '#/components/responses/StatusOK'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
+
+  /api/v1/users/me/data-export:
+    get:
+      tags: [privacy]
+      summary: Export the caller's account and contributed data
+      description: |
+        Returns a versioned JSON snapshot from one repeatable-read transaction.
+        Credential hashes, verification codes, idempotency payloads, and
+        private object-storage keys are excluded. Media and evidence are
+        represented by metadata; binary files are not embedded.
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Personal data export (`Content-Disposition: attachment`).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/PersonalDataExport'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/users/me/erasure-requests:
+    post:
+      tags: [privacy]
+      summary: Request review of personal-data erasure
+      description: Only one pending, in-review, or approved request may exist per user.
+      security: [{bearerAuth: []}]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: {type: string, maxLength: 1000}
+      responses:
+        '201':
+          description: Request recorded with append-only history.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/ErasureRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    get:
+      tags: [privacy]
+      summary: List the caller's erasure requests
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Request history, newest first.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErasureRequestPage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+
+  /api/v1/users/me/erasure-requests/{id}:
+    delete:
+      tags: [privacy]
+      summary: Cancel an owned pending or in-review erasure request
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200':
+          description: Cancelled request.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/ErasureRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
 
   /api/v1/categories:
     get:
@@ -1546,6 +1630,62 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '409': {$ref: '#/components/responses/Conflict'}
 
+  /api/v1/admin/privacy/erasure-requests:
+    get:
+      tags: [privacy, admin]
+      summary: List the data-erasure review queue
+      description: Requires the admin role.
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: status
+          in: query
+          schema: {$ref: '#/components/schemas/ErasureRequestStatus'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Requests oldest first.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErasureRequestPage'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/admin/privacy/erasure-requests/{id}/decision:
+    post:
+      tags: [privacy, admin]
+      summary: Start review, approve, or reject an erasure request
+      description: |
+        Requires the admin role. Approval requires a prior `in_review`
+        transition and records acceptance for separately governed fulfillment;
+        it does not automatically delete retained review or audit data.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: {type: string, enum: [in_review, approved, rejected]}
+                note: {type: string, maxLength: 2000, description: Required when rejecting.}
+      responses:
+        '200':
+          description: Updated request; the user also receives an activity item.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/ErasureRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
   /health:
     get:
       tags: [ops]
@@ -2131,3 +2271,55 @@ components:
             data:
               type: array
               items: {$ref: '#/components/schemas/Notification'}
+
+    ErasureRequestStatus:
+      type: string
+      enum: [pending, in_review, approved, rejected, cancelled]
+
+    ErasureRequest:
+      type: object
+      required: [id, user_id, status, created_at, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        user_id: {type: string, format: uuid}
+        status: {$ref: '#/components/schemas/ErasureRequestStatus'}
+        reason: {type: string}
+        decision_note: {type: string}
+        reviewed_by: {type: string, format: uuid, nullable: true}
+        reviewed_at: {type: string, format: date-time, nullable: true}
+        decided_at: {type: string, format: date-time, nullable: true}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+
+    ErasureRequestPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/ErasureRequest'}
+
+    PersonalDataExport:
+      type: object
+      required: [schema_version, generated_at, profile]
+      properties:
+        schema_version: {type: string, example: "1"}
+        generated_at: {type: string, format: date-time}
+        profile: {type: object, additionalProperties: true}
+        roles: {type: array, items: {type: object, additionalProperties: true}}
+        sessions: {type: array, items: {type: object, additionalProperties: true}}
+        businesses_created: {type: array, items: {type: object, additionalProperties: true}}
+        business_memberships: {type: array, items: {type: object, additionalProperties: true}}
+        targets_created: {type: array, items: {type: object, additionalProperties: true}}
+        target_edit_suggestions: {type: array, items: {type: object, additionalProperties: true}}
+        reviews: {type: array, items: {$ref: '#/components/schemas/Review'}}
+        review_criterion_scores: {type: array, items: {type: object, additionalProperties: true}}
+        review_media_metadata: {type: array, items: {type: object, additionalProperties: true}}
+        review_evidence_metadata: {type: array, items: {type: object, additionalProperties: true}}
+        helpful_votes: {type: array, items: {type: object, additionalProperties: true}}
+        reports: {type: array, items: {$ref: '#/components/schemas/Report'}}
+        business_claims: {type: array, items: {type: object, additionalProperties: true}}
+        business_responses: {type: array, items: {type: object, additionalProperties: true}}
+        business_response_edits: {type: array, items: {type: object, additionalProperties: true}}
+        notifications: {type: array, items: {$ref: '#/components/schemas/Notification'}}
+        erasure_requests: {type: array, items: {$ref: '#/components/schemas/ErasureRequest'}}

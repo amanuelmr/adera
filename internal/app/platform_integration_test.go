@@ -38,6 +38,10 @@ func TestAuthorizationMatrix(t *testing.T) {
 		{"GET", "/api/v1/users/me/notifications/unread-count"},
 		{"PUT", "/api/v1/users/me/notifications/read-all"},
 		{"PUT", "/api/v1/users/me/notifications/" + someID + "/read"},
+		{"GET", "/api/v1/users/me/data-export"},
+		{"POST", "/api/v1/users/me/erasure-requests"},
+		{"GET", "/api/v1/users/me/erasure-requests"},
+		{"DELETE", "/api/v1/users/me/erasure-requests/" + someID},
 		{"POST", "/api/v1/auth/logout"},
 		{"POST", "/api/v1/auth/logout-all"},
 		{"GET", "/api/v1/auth/sessions"},
@@ -73,6 +77,8 @@ func TestAuthorizationMatrix(t *testing.T) {
 		{"POST", "/api/v1/admin/categories"},
 		{"PATCH", "/api/v1/admin/categories/" + someID},
 		{"POST", "/api/v1/admin/targets/" + someID + "/merge"},
+		{"GET", "/api/v1/admin/privacy/erasure-requests"},
+		{"POST", "/api/v1/admin/privacy/erasure-requests/" + someID + "/decision"},
 	}
 	for _, ep := range roleGated {
 		status, _ := a.do(ep.method, ep.path, map[string]any{}, customer.Access)

@@ -24,6 +24,7 @@ import (
 	"github.com/adera-platform/backend/internal/platform/security"
 	"github.com/adera-platform/backend/internal/platform/storage"
 	"github.com/adera-platform/backend/internal/platform/web"
+	"github.com/adera-platform/backend/internal/privacy"
 	"github.com/adera-platform/backend/internal/ratings"
 	"github.com/adera-platform/backend/internal/reviews"
 	"github.com/adera-platform/backend/internal/search"
@@ -56,6 +57,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 
 	usersRepo := users.NewRepo(pool)
 	notificationSvc := notifications.NewService(pool)
+	privacySvc := privacy.NewService(pool, notificationSvc)
 	authSvc := auth.NewService(pool, usersRepo, hasher, tokens, provider, cfg.RefreshTokenTTL)
 	categoriesRepo := categories.NewRepo(pool)
 	locationsRepo := locations.NewRepo(pool)
@@ -73,6 +75,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	auth.NewHandler(authSvc, loginLimiter, otpLimiter, cfg.TrustProxyHeaders).Routes(mux)
 	users.NewHandler(usersRepo).Routes(mux)
 	notifications.NewHandler(notificationSvc).Routes(mux)
+	privacy.NewHandler(privacySvc).Routes(mux)
 	categories.NewHandler(categoriesRepo).Routes(mux)
 	locations.NewHandler(locationsRepo).Routes(mux)
 	businesses.NewHandler(bizRepo).Routes(mux)
