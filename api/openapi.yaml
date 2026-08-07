@@ -471,7 +471,7 @@ paths:
       security: [{bearerAuth: []}]
       responses:
         '200':
-          description: Personal data export (`Content-Disposition: attachment`).
+          description: 'Personal data export (`Content-Disposition: attachment`).'
           content:
             application/json:
               schema:
