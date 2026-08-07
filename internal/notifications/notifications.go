@@ -172,8 +172,8 @@ func (s *Service) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error
 	return count, nil
 }
 
-// PendingOutboxCount is used by readiness/operations tests and future
-// dispatchers to observe undelivered external events.
+// PendingOutboxCount is used by readiness/operations tests and the
+// dispatcher's callers to observe undelivered external events.
 func (s *Service) PendingOutboxCount(ctx context.Context) (int, error) {
 	var count int
 	if err := s.pool.QueryRow(ctx, `
@@ -181,4 +181,91 @@ func (s *Service) PendingOutboxCount(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("counting pending notification events: %w", err)
 	}
 	return count, nil
+}
+
+// outboxVisibilityTimeout is how long a claimed event is hidden from other
+// claimants before it is eligible for redelivery, in case the dispatcher
+// crashes after Send succeeds but before the event is marked delivered.
+const outboxVisibilityTimeout = 2 * time.Minute
+
+// ClaimOutboxBatch atomically claims up to limit due, unprocessed outbox
+// events and hides them from other claimants for outboxVisibilityTimeout.
+// The SELECT and UPDATE run as one statement, so FOR UPDATE SKIP LOCKED is
+// safe even with multiple dispatcher instances.
+func (s *Service) ClaimOutboxBatch(ctx context.Context, limit int) ([]OutboxEvent, error) {
+	rows, err := s.pool.Query(ctx, `
+		WITH claimed AS (
+			SELECT id FROM notification_outbox
+			WHERE processed_at IS NULL AND available_at <= now()
+			ORDER BY created_at
+			LIMIT $1
+			FOR UPDATE SKIP LOCKED
+		)
+		UPDATE notification_outbox o
+		SET available_at = now() + $2 * interval '1 second'
+		FROM claimed
+		WHERE o.id = claimed.id
+		RETURNING o.id, o.topic, o.payload, o.attempts`, limit, outboxVisibilityTimeout.Seconds())
+	if err != nil {
+		return nil, fmt.Errorf("claiming notification outbox batch: %w", err)
+	}
+	defer rows.Close()
+	var events []OutboxEvent
+	for rows.Next() {
+		var event OutboxEvent
+		var raw []byte
+		if err := rows.Scan(&event.ID, &event.Topic, &raw, &event.Attempts); err != nil {
+			return nil, fmt.Errorf("scanning notification outbox event: %w", err)
+		}
+		event.Payload = raw
+		events = append(events, event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating notification outbox batch: %w", err)
+	}
+	return events, nil
+}
+
+// MarkOutboxDelivered marks a claimed event as successfully delivered.
+func (s *Service) MarkOutboxDelivered(ctx context.Context, id uuid.UUID) error {
+	if _, err := s.pool.Exec(ctx, `
+		UPDATE notification_outbox SET processed_at = now() WHERE id = $1`, id); err != nil {
+		return fmt.Errorf("marking notification outbox event delivered: %w", err)
+	}
+	return nil
+}
+
+// MarkOutboxRetry records a failed delivery attempt and schedules a retry
+// after backoff.
+func (s *Service) MarkOutboxRetry(ctx context.Context, id uuid.UUID, sendErr error, backoff time.Duration) error {
+	if _, err := s.pool.Exec(ctx, `
+		UPDATE notification_outbox
+		SET attempts = attempts + 1, available_at = now() + $2 * interval '1 second', last_error = $3
+		WHERE id = $1`, id, backoff.Seconds(), truncateError(sendErr)); err != nil {
+		return fmt.Errorf("recording notification outbox retry: %w", err)
+	}
+	return nil
+}
+
+// MarkOutboxAbandoned stops further delivery attempts after the retry limit
+// is exhausted, while preserving attempts and last_error for operators to
+// inspect and replay manually.
+func (s *Service) MarkOutboxAbandoned(ctx context.Context, id uuid.UUID, sendErr error) error {
+	if _, err := s.pool.Exec(ctx, `
+		UPDATE notification_outbox
+		SET attempts = attempts + 1, processed_at = now(), last_error = $2
+		WHERE id = $1`, id, truncateError(sendErr)); err != nil {
+		return fmt.Errorf("abandoning notification outbox event: %w", err)
+	}
+	return nil
+}
+
+// truncateError caps stored error text; last_error is diagnostic, not a log.
+func truncateError(err error) string {
+	const maxLen = 500
+	msg := err.Error()
+	if len(msg) > maxLen {
+		return msg[:maxLen]
+	}
+	return msg
 }
