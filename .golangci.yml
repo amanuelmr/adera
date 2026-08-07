@@ -13,9 +13,9 @@ linters:
     - rowserrcheck
     - sqlclosecheck
     - noctx
-linters-settings: {}
-issues:
-  exclude-rules:
-    # Test helpers may ignore cleanup errors.
-    - path: _test\.go
-      linters: [errcheck]
+  exclusions:
+    rules:
+      # Test helpers may ignore cleanup errors and skip context plumbing on
+      # ad-hoc HTTP calls against an httptest.Server.
+      - path: _test\.go
+        linters: [errcheck, noctx]
