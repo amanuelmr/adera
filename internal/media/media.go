@@ -368,7 +368,7 @@ func (s *Service) sanitizeImage(ctx context.Context, key, declaredType string) (
 		return nil, "", &web.Error{Status: 422, Code: web.CodeUploadInvalid,
 			Message: "the uploaded file was not found; upload before finalizing", Internal: err}
 	}
-	defer obj.Close()
+	defer func() { _ = obj.Close() }()
 	raw, err := io.ReadAll(io.LimitReader(obj, MaxUploadBytes+1))
 	if err != nil {
 		return nil, "", fmt.Errorf("reading staged object: %w", err)
@@ -512,7 +512,7 @@ func (s *Service) FinalizeEvidence(ctx context.Context, evidenceID, userID uuid.
 	if err != nil {
 		return uploadInvalid("the uploaded file was not found; upload before finalizing")
 	}
-	defer obj.Close()
+	defer func() { _ = obj.Close() }()
 	head, err := io.ReadAll(io.LimitReader(obj, 16))
 	if err != nil {
 		return fmt.Errorf("reading evidence head: %w", err)
