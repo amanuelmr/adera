@@ -22,6 +22,7 @@ import (
 
 	"github.com/adera-platform/backend/internal/app"
 	"github.com/adera-platform/backend/internal/auth"
+	"github.com/adera-platform/backend/internal/notifications"
 	"github.com/adera-platform/backend/internal/platform/config"
 	"github.com/adera-platform/backend/internal/platform/database"
 	"github.com/adera-platform/backend/internal/platform/logging"
@@ -100,6 +101,19 @@ func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 		provider = auth.NoopProvider{}
 		slog.Warn("no verification provider configured; verification endpoints will return 503")
 	}
+
+	var notifyProvider notifications.Provider
+	if cfg.IsDev() {
+		notifyProvider = notifications.ConsoleProvider{W: os.Stdout}
+		slog.Info("using console notification delivery provider (development only)")
+	} else {
+		// No real SMS/email integration is configured yet; events accumulate
+		// in the outbox for later replay rather than being dropped.
+		notifyProvider = notifications.NoopProvider{}
+		slog.Warn("no notification delivery provider configured; outbox events will not be delivered")
+	}
+	dispatcher := notifications.NewDispatcher(notifications.NewService(pool), notifyProvider)
+	go dispatcher.Run(ctx)
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
