@@ -98,6 +98,15 @@ func TestConfigValidate(t *testing.T) {
 			withSMTP(c)
 			c.SMTPTimeout = 0
 		}, true},
+		{"push disabled by default", func(*Config) {}, false},
+		{"valid push credentials", func(c *Config) {
+			c.FCMCredentialsFile = "/run/secrets/fcm.json"
+			c.FCMTimeout = 10 * time.Second
+		}, false},
+		{"non-positive push timeout", func(c *Config) {
+			c.FCMCredentialsFile = "/run/secrets/fcm.json"
+			c.FCMTimeout = 0
+		}, true},
 		{"seed admin password in production", func(c *Config) {
 			c.Env = EnvProduction
 			c.SeedAdminPassword = "admin12345!"
@@ -148,4 +157,12 @@ func TestSMTPEnabled(t *testing.T) {
 	cfg := validConfig()
 	withSMTP(&cfg)
 	assert.True(t, cfg.SMTPEnabled())
+}
+
+func TestPushEnabled(t *testing.T) {
+	assert.False(t, validConfig().PushEnabled())
+
+	cfg := validConfig()
+	cfg.FCMCredentialsFile = "/run/secrets/fcm.json"
+	assert.True(t, cfg.PushEnabled())
 }

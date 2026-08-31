@@ -164,6 +164,9 @@ the relevant document when behavior changes. Full guidelines are in
   (`internal/auth/provider.go` is the integration point). Email verification
   and password reset deliver over SMTP once `SMTP_HOST` is configured, and
   fall back to the console in development.
+- Push delivery requires `FCM_CREDENTIALS_FILE`; without it outbox events
+  accumulate for later replay. Messages are data-only, so a client must render
+  and localize them (`internal/notifications/fcm.go`).
 - Rate limiting is per-process; multi-replica deployments need the documented
   Redis-backed `Limiter` implementation.
 - Image derivatives (thumbnails) and WebP re-encoding are deferred; public

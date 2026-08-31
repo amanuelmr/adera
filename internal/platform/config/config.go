@@ -73,6 +73,12 @@ type Config struct {
 	SMTPTLS         string // one of SMTPTLSStartTLS, SMTPTLSImplicit, SMTPTLSNone
 	SMTPTimeout     time.Duration
 
+	// Push delivery. FCMCredentialsFile points at a Google service-account
+	// key file; delivery is disabled when it is empty and outbox events then
+	// accumulate for later replay.
+	FCMCredentialsFile string
+	FCMTimeout         time.Duration
+
 	CORSAllowedOrigins []string
 	TrustProxyHeaders  bool
 
@@ -124,6 +130,9 @@ func Load() (Config, error) {
 		SMTPFromName:    getEnv("SMTP_FROM_NAME", "Adera"),
 		SMTPTLS:         getEnv("SMTP_TLS", SMTPTLSStartTLS),
 		SMTPTimeout:     getEnvDuration("SMTP_TIMEOUT", 10*time.Second),
+
+		FCMCredentialsFile: os.Getenv("FCM_CREDENTIALS_FILE"),
+		FCMTimeout:         getEnvDuration("FCM_TIMEOUT", 10*time.Second),
 
 		CORSAllowedOrigins: splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")),
 		TrustProxyHeaders:  getEnvBool("TRUST_PROXY_HEADERS", false),
@@ -206,6 +215,9 @@ func (c Config) Validate() error {
 			errs = append(errs, errors.New("SMTP_TIMEOUT must be positive"))
 		}
 	}
+	if c.FCMCredentialsFile != "" && c.FCMTimeout <= 0 {
+		errs = append(errs, errors.New("FCM_TIMEOUT must be positive"))
+	}
 	if c.Env == EnvProduction && c.SeedAdminPassword != "" {
 		errs = append(errs, errors.New("SEED_ADMIN_PASSWORD must not be set in production"))
 	}
@@ -217,6 +229,9 @@ func (c Config) IsDev() bool { return c.Env != EnvProduction }
 
 // SMTPEnabled reports whether outbound email delivery is configured.
 func (c Config) SMTPEnabled() bool { return c.SMTPHost != "" }
+
+// PushEnabled reports whether push delivery is configured.
+func (c Config) PushEnabled() bool { return c.FCMCredentialsFile != "" }
 
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
