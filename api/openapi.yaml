@@ -1783,6 +1783,40 @@ paths:
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
 
+  /api/v1/app/version:
+    get:
+      tags: [meta]
+      summary: Mobile client version gate
+      description: |
+        Public on purpose: a client too old to authenticate still has to be
+        able to discover that it must update. `update_required` and
+        `update_available` are returned **only** when the caller supplies its
+        own `version`, so an absent field never reads as "up to date".
+        An unconfigured platform returns the gate with no evaluation.
+      parameters:
+        - name: platform
+          in: query
+          schema: {type: string, enum: [android, ios], default: android}
+        - name: version
+          in: query
+          schema: {type: string, example: "1.4.2"}
+          description: The caller's own version; dotted numeric, pre-release and build metadata ignored.
+      responses:
+        '200':
+          description: The version gate for the platform.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataEnvelope'}
+              example:
+                data:
+                  platform: android
+                  minimum_supported: "1.2.0"
+                  latest: "1.10.0"
+                  store_url: "https://play.google.com/store/apps/details?id=et.adera"
+                  update_required: false
+                  update_available: true
+        '422': {$ref: '#/components/responses/ValidationError'}
+
   /health:
     get:
       tags: [ops]

@@ -11,6 +11,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/adera-platform/backend/internal/admin"
+	"github.com/adera-platform/backend/internal/appversion"
 	"github.com/adera-platform/backend/internal/auth"
 	"github.com/adera-platform/backend/internal/businesses"
 	"github.com/adera-platform/backend/internal/categories"
@@ -87,6 +88,18 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	claims.NewHandler(claimsSvc).Routes(mux)
 	moderation.NewHandler(moderationSvc, mediaSvc, reportLimiter).Routes(mux)
 	admin.NewHandler(adminSvc).Routes(mux)
+	appversion.NewHandler(appversion.Policy{
+		Android: appversion.Gate{
+			MinimumSupported: cfg.AndroidMinVersion,
+			Latest:           cfg.AndroidLatestVersion,
+			StoreURL:         cfg.AndroidStoreURL,
+		},
+		IOS: appversion.Gate{
+			MinimumSupported: cfg.IOSMinVersion,
+			Latest:           cfg.IOSLatestVersion,
+			StoreURL:         cfg.IOSStoreURL,
+		},
+	}).Routes(mux)
 	registerDocs(mux)
 
 	// Operational endpoints (no auth; restrict /metrics at the network layer

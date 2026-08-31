@@ -79,6 +79,15 @@ type Config struct {
 	FCMCredentialsFile string
 	FCMTimeout         time.Duration
 
+	// Mobile client version gate, served by GET /api/v1/app/version. An empty
+	// minimum disables the check for that platform.
+	AndroidMinVersion    string
+	AndroidLatestVersion string
+	AndroidStoreURL      string
+	IOSMinVersion        string
+	IOSLatestVersion     string
+	IOSStoreURL          string
+
 	CORSAllowedOrigins []string
 	TrustProxyHeaders  bool
 
@@ -133,6 +142,13 @@ func Load() (Config, error) {
 
 		FCMCredentialsFile: os.Getenv("FCM_CREDENTIALS_FILE"),
 		FCMTimeout:         getEnvDuration("FCM_TIMEOUT", 10*time.Second),
+
+		AndroidMinVersion:    os.Getenv("APP_ANDROID_MIN_VERSION"),
+		AndroidLatestVersion: os.Getenv("APP_ANDROID_LATEST_VERSION"),
+		AndroidStoreURL:      os.Getenv("APP_ANDROID_STORE_URL"),
+		IOSMinVersion:        os.Getenv("APP_IOS_MIN_VERSION"),
+		IOSLatestVersion:     os.Getenv("APP_IOS_LATEST_VERSION"),
+		IOSStoreURL:          os.Getenv("APP_IOS_STORE_URL"),
 
 		CORSAllowedOrigins: splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")),
 		TrustProxyHeaders:  getEnvBool("TRUST_PROXY_HEADERS", false),
