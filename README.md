@@ -110,6 +110,17 @@ production: `DATABASE_URL` and `JWT_SECRET` (≥ 32 bytes). Argon2id parameters
 are validated against the OWASP minimum at startup. Secrets are read from the
 environment only — nothing secret is committed.
 
+Setting `SMTP_HOST` turns on emailed verification codes and password resets;
+leaving it empty keeps codes on the console in development and returns
+`503 verification_unavailable` in production. To exercise the real delivery
+path locally, point it at a catcher such as MailHog:
+
+```bash
+docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog
+export SMTP_HOST=127.0.0.1 SMTP_PORT=1025 SMTP_TLS=none \
+       SMTP_FROM_ADDRESS=no-reply@adera.local
+```
+
 ### Documentation map
 
 | Document | Contents |
@@ -148,9 +159,11 @@ the relevant document when behavior changes. Full guidelines are in
 
 ## Known limitations
 
-- SMS/email delivery is a console provider in development and reports
-  `503 verification_unavailable` in production until a real provider is wired
-  (`internal/auth/provider.go` is the integration point).
+- SMS delivery has no provider: phone verification reports
+  `503 verification_unavailable` until an SMS or Telegram integration is added
+  (`internal/auth/provider.go` is the integration point). Email verification
+  and password reset deliver over SMTP once `SMTP_HOST` is configured, and
+  fall back to the console in development.
 - Rate limiting is per-process; multi-replica deployments need the documented
   Redis-backed `Limiter` implementation.
 - Image derivatives (thumbnails) and WebP re-encoding are deferred; public
