@@ -20,6 +20,16 @@ func validConfig() Config {
 	}
 }
 
+// withSMTP turns on a valid outbound-email configuration.
+func withSMTP(c *Config) {
+	c.SMTPHost = "smtp.example.com"
+	c.SMTPPort = 587
+	c.SMTPFromAddress = "no-reply@adera.example.com"
+	c.SMTPFromName = "Adera"
+	c.SMTPTLS = SMTPTLSStartTLS
+	c.SMTPTimeout = 10 * time.Second
+}
+
 func TestConfigValidate(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -49,6 +59,45 @@ func TestConfigValidate(t *testing.T) {
 			c.StorageAccessKey = "key"
 			c.StorageSecretKey = "secret"
 		}, false},
+		{"smtp disabled by default", func(*Config) {}, false},
+		{"smtp host without from address", func(c *Config) {
+			c.SMTPHost = "smtp.example.com"
+			c.SMTPPort = 587
+			c.SMTPTLS = SMTPTLSStartTLS
+			c.SMTPTimeout = 10 * time.Second
+		}, true},
+		{"valid smtp settings", func(c *Config) { withSMTP(c) }, false},
+		{"invalid smtp from address", func(c *Config) {
+			withSMTP(c)
+			c.SMTPFromAddress = "not-an-address"
+		}, true},
+		{"smtp port out of range", func(c *Config) {
+			withSMTP(c)
+			c.SMTPPort = 70000
+		}, true},
+		{"smtp username without password", func(c *Config) {
+			withSMTP(c)
+			c.SMTPUsername = "mailer"
+			c.SMTPPassword = ""
+		}, true},
+		{"unknown smtp tls mode", func(c *Config) {
+			withSMTP(c)
+			c.SMTPTLS = "ssl"
+		}, true},
+		{"plaintext smtp allowed outside production", func(c *Config) {
+			withSMTP(c)
+			c.SMTPTLS = SMTPTLSNone
+		}, false},
+		{"plaintext smtp refused in production", func(c *Config) {
+			withSMTP(c)
+			c.Env = EnvProduction
+			c.JWTSecret = "production-secret-at-least-32-bytes!!"
+			c.SMTPTLS = SMTPTLSNone
+		}, true},
+		{"non-positive smtp timeout", func(c *Config) {
+			withSMTP(c)
+			c.SMTPTimeout = 0
+		}, true},
 		{"seed admin password in production", func(c *Config) {
 			c.Env = EnvProduction
 			c.SeedAdminPassword = "admin12345!"
@@ -91,4 +140,12 @@ func TestSplitAndTrim(t *testing.T) {
 			assert.Equal(t, tt.want, splitAndTrim(tt.in))
 		})
 	}
+}
+
+func TestSMTPEnabled(t *testing.T) {
+	assert.False(t, validConfig().SMTPEnabled())
+
+	cfg := validConfig()
+	withSMTP(&cfg)
+	assert.True(t, cfg.SMTPEnabled())
 }
