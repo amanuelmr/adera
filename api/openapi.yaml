@@ -706,6 +706,38 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/DataEnvelope'}
 
+  /api/v1/targets/nearby:
+    get:
+      tags: [targets]
+      summary: Published targets within a radius of a point, closest first
+      description: |
+        Great-circle (haversine) distance against the stored coordinates; a
+        bounding box narrows the scan first so the geo index is usable.
+        Targets without coordinates (online sellers) are never returned.
+        Each item carries `distance_km`. Results are a single ranked page —
+        widen `radius_km` or raise `limit` rather than paginating.
+      parameters:
+        - {name: lat, in: query, required: true, schema: {type: number, minimum: -90, maximum: 90}, example: 9.0}
+        - {name: lng, in: query, required: true, schema: {type: number, minimum: -180, maximum: 180}, example: 38.75}
+        - name: radius_km
+          in: query
+          schema: {type: number, exclusiveMinimum: 0, maximum: 50, default: 5}
+          description: Search radius in kilometres; at most 50.
+        - {$ref: '#/components/parameters/FilterCategory'}
+        - {$ref: '#/components/parameters/FilterCity'}
+        - {$ref: '#/components/parameters/FilterArea'}
+        - {$ref: '#/components/parameters/FilterType'}
+        - {$ref: '#/components/parameters/FilterMinRating'}
+        - {$ref: '#/components/parameters/FilterVerified'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Nearest targets first (each includes `distance_km`).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataEnvelope'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
   /api/v1/targets/{idOrSlug}:
     get:
       tags: [targets]
