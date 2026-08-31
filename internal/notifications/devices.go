@@ -101,7 +101,7 @@ func (s *Service) UnregisterDevice(ctx context.Context, userID uuid.UUID, token 
 		return fmt.Errorf("unregistering device token: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return web.ErrNotFound("device token not found")
+		return web.ErrNotFound("device token")
 	}
 	return nil
 }
