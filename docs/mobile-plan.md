@@ -158,10 +158,10 @@ be built today. Needs `GET /targets/nearby?lat=&lng=&radius=&category=`.
 `frontend-handoff.md` §3 already lists map view as intentionally deferred — for
 the app it should be un-deferred.
 
-**2. No image derivatives.** `internal/media` stores one re-encoded original per
-the handoff doc's own note. A review list with photos over 2G is punishing without
-thumbnails. Higher priority for mobile than it was for web, because list views are
-the default surface.
+**2. ~~No image derivatives.~~ Done.** Finalizing a photo now also stores a
+thumbnail bounded to 480 px on its longest edge, surfaced as `thumb_url` on
+review media. Measured on a 1600x1200 upload: 114 KB full versus 15 KB
+thumbnail. Additional sizes and WebP remain deferred.
 
 **3. No minimum-version / force-upgrade endpoint.** Needed *before* the first
 store release, not after — without it a broken client can never be retired. Cheap
@@ -245,9 +245,10 @@ Adapting `frontend-handoff.md` §5 to an app:
 
 ## 9. Phasing
 
-**Phase 0 — unblock (backend).** Verification delivery is done (email, §4.1).
-Remaining: FCM adapter + device-token endpoint; `/targets/nearby`; image
-derivatives; min-version endpoint. Push is the only hard blocker left.
+**Phase 0 — unblock (backend). Complete.** Verification delivery (email, §4.1),
+push (FCM adapter + device-token registration), `/targets/nearby`, image
+thumbnails, and the version gate are all implemented. Push needs a Firebase
+project and credentials before it delivers anything.
 
 **Phase 1 — app MVP.** Auth + OTP, discover, search, target profile, review
 submission with offline queue, my reviews, push. Ship to internal testing.

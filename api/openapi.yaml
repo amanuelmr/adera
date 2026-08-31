@@ -1150,12 +1150,16 @@ paths:
   /api/v1/media/uploads/{id}/finalize:
     post:
       tags: [media]
-      summary: Finalize a public photo (validate, re-encode, strip EXIF/GPS, publish)
+      summary: Finalize a public photo (validate, re-encode, strip EXIF/GPS, thumbnail, publish)
       description: |
         Server-side: magic-byte check against the declared type, decode with
-        decompression-bomb guard, re-encode (drops all metadata), copy to the
+        decompression-bomb guard, re-encode (drops all metadata), generate a
+        thumbnail bounded to 480 px on its longest edge, copy both to the
         public bucket, delete staging, raise the review's verification level
-        to `media_attached`. 422 `upload_invalid` on any mismatch; 410 when
+        to `media_attached`. Review media then carries `thumb_url` alongside
+        `url`; it is absent when the upload was already within the thumbnail
+        bound, and clients fall back to `url`. A thumbnail that fails to
+        upload is logged and skipped rather than failing the photo. 422 `upload_invalid` on any mismatch; 410 when
         the upload window expired.
       security: [{bearerAuth: []}]
       parameters: [{$ref: '#/components/parameters/PathID'}]

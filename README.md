@@ -169,8 +169,9 @@ the relevant document when behavior changes. Full guidelines are in
   and localize them (`internal/notifications/fcm.go`).
 - Rate limiting is per-process; multi-replica deployments need the documented
   Redis-backed `Limiter` implementation.
-- Image derivatives (thumbnails) and WebP re-encoding are deferred; public
-  media is stored as one sanitized original.
+- Public review photos are stored as a sanitized original plus one thumbnail
+  (480 px longest edge, served as `thumb_url`). Further sizes and WebP
+  re-encoding are still deferred.
 - Search relevance thresholds were tuned on seed data; a native-speaker Amharic
   query test set is needed before launch.
 - Legal compliance items in

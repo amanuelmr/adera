@@ -131,10 +131,13 @@ type ListedReview struct {
 	} `json:"business_response,omitempty"`
 }
 
-// MediaRef is a public, ready media object reference.
+// MediaRef is a public, ready media object reference. ThumbURL is empty when
+// the upload was already small enough that no derivative was stored, in which
+// case clients fall back to URL.
 type MediaRef struct {
-	ID  uuid.UUID `json:"id"`
-	URL string    `json:"url"`
+	ID       uuid.UUID `json:"id"`
+	URL      string    `json:"url"`
+	ThumbURL string    `json:"thumb_url,omitempty"`
 }
 
 // Input is the create/update payload after transport decoding.
