@@ -459,6 +459,71 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
 
+  /api/v1/users/me/devices:
+    get:
+      tags: [notifications]
+      summary: List the caller's registered push installs
+      description: |
+        The push token itself is never returned — it is a send credential.
+        Each entry carries only the id, platform, app version and timestamps.
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Registered installs, most recently seen first.
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    post:
+      tags: [notifications]
+      summary: Register or refresh a push token
+      description: |
+        Idempotent upsert keyed on the token: clients post it on every launch.
+        Registering a token already held by another account **moves** it, so
+        the previous user stops receiving that handset's pushes — shared
+        phones make that a privacy requirement. At most 10 installs are kept
+        per account; the least recently seen is dropped.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, platform]
+              properties:
+                token: {type: string, minLength: 32, maxLength: 4096, description: FCM registration token.}
+                platform: {type: string, enum: [android, ios, web]}
+                app_version: {type: string, maxLength: 40, example: "1.0.0"}
+      responses:
+        '200':
+          description: The registered install.
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [notifications]
+      summary: Unregister a push token (client logout)
+      description: |
+        The token is sent in the body rather than the path because FCM tokens
+        are long and not URL-friendly. Only the caller's own tokens can be
+        removed.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: {type: string}
+      responses:
+        '200':
+          description: '`{"data": {"status": "unregistered"}}`'
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
   /api/v1/users/me/data-export:
     get:
       tags: [privacy]

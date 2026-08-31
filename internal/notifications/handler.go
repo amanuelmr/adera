@@ -18,6 +18,58 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/v1/users/me/notifications/unread-count", web.RequireAuth(http.HandlerFunc(h.unreadCount)))
 	mux.Handle("PUT /api/v1/users/me/notifications/read-all", web.RequireAuth(http.HandlerFunc(h.readAll)))
 	mux.Handle("PUT /api/v1/users/me/notifications/{id}/read", web.RequireAuth(http.HandlerFunc(h.read)))
+	mux.Handle("GET /api/v1/users/me/devices", web.RequireAuth(http.HandlerFunc(h.listDevices)))
+	mux.Handle("POST /api/v1/users/me/devices", web.RequireAuth(http.HandlerFunc(h.registerDevice)))
+	mux.Handle("DELETE /api/v1/users/me/devices", web.RequireAuth(http.HandlerFunc(h.unregisterDevice)))
+}
+
+type deviceRequest struct {
+	Token      string `json:"token"`
+	Platform   string `json:"platform"`
+	AppVersion string `json:"app_version"`
+}
+
+func (h *Handler) registerDevice(w http.ResponseWriter, r *http.Request) {
+	p, _ := web.PrincipalFromContext(r.Context())
+	var req deviceRequest
+	if err := web.DecodeJSON(w, r, &req); err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	device, err := h.service.RegisterDevice(r.Context(), p.UserID, req.Token, req.Platform, req.AppVersion)
+	if err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	web.Respond(w, http.StatusOK, device)
+}
+
+func (h *Handler) unregisterDevice(w http.ResponseWriter, r *http.Request) {
+	p, _ := web.PrincipalFromContext(r.Context())
+	var req deviceRequest
+	if err := web.DecodeJSON(w, r, &req); err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	if req.Token == "" {
+		web.RespondError(w, r, web.ErrValidation("invalid device").WithDetail("token", "is required"))
+		return
+	}
+	if err := h.service.UnregisterDevice(r.Context(), p.UserID, req.Token); err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	web.Respond(w, http.StatusOK, map[string]string{"status": "unregistered"})
+}
+
+func (h *Handler) listDevices(w http.ResponseWriter, r *http.Request) {
+	p, _ := web.PrincipalFromContext(r.Context())
+	items, err := h.service.ListDevices(r.Context(), p.UserID)
+	if err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	web.Respond(w, http.StatusOK, items)
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
