@@ -1,15 +1,27 @@
 # Deploying Adera
 
-Runs the API live on a free tier, with no credit card at any step.
+**Live:** https://adera.amanuel.work — also reachable at
+`adera-api-9cfb.onrender.com`.
+
+Runs the API on a free tier with no credit card at any step.
 
 | Piece | Service | Notes |
 | --- | --- | --- |
-| Go API | Render (free web service) | Builds the existing `Dockerfile` |
-| Postgres | Neon (free tier) | Auto-suspends, resumes in <1s |
+| Go API | Render (free web service, Frankfurt) | Builds the existing `Dockerfile` |
+| Postgres | Neon (free tier, Frankfurt) | Auto-suspends, resumes in <1s |
 | Object storage | none | `STORAGE_ENABLED=false`; only evidence uploads need it |
 
 Total cost: nothing. The one compromise is Render's idle spin-down — see
 [Keeping it warm](#6-keep-it-warm).
+
+Two things about the current setup, before you change anything:
+
+- Render is connected to the **public repo URL**, not through the GitHub App,
+  so there are no webhooks and **pushes do not auto-deploy**. Use *Manual
+  Deploy* in the dashboard, or connect GitHub under the service's Settings to
+  get push-to-deploy.
+- Free custom domains are capped at **2 per workspace**, and
+  `adera.amanuel.work` uses one of them.
 
 ---
 
@@ -34,15 +46,17 @@ Render's free plan has no pre-deploy hook, so run this once from your machine:
 DATABASE_URL='<neon pooled url>' go run ./cmd/api migrate
 ```
 
-Optionally load reference data (categories, cities) plus a seed admin, so the
-live API has something to return:
+Use the **direct** (non-pooled) URL here, not the pooled one. Neon's pooler is
+transaction-mode PgBouncer, which `CREATE EXTENSION` in `0001` and the
+migrator's advisory locks do not reliably survive. The running service uses the
+pooled URL; migrations use the direct one.
 
-```sh
-DATABASE_URL='<neon pooled url>' \
-SEED_ADMIN_EMAIL='you@example.com' \
-SEED_ADMIN_PASSWORD='<a real password>' \
-  go run ./cmd/api seed
-```
+**Do not run `seed` against this database.** It refuses to run when
+`APP_ENV=production` by design, and its admin password falls back to the
+documented development value — running it would put a known-password admin
+account on a public instance. The live API is not empty regardless: categories
+and cities load through `0010_reference_data`, which is a migration, not seed
+data.
 
 Re-run `migrate` after any future migration is added.
 
@@ -83,21 +97,31 @@ issue automatically once DNS resolves.
 ## 6. Keep it warm
 
 Free instances sleep after 15 minutes idle and take 30–50s to wake — bad for a
-link someone clicks once. A free cron pinger fixes it:
+link someone clicks once.
 
-- [cron-job.org](https://cron-job.org) or UptimeRobot, no card
-- Hit `https://<your-domain>/health` every **10 minutes**
+This is handled by `.github/workflows/keepalive.yml`, which pings `/health`
+every 10 minutes. No third-party uptime service and no extra account: public
+repos get unlimited Actions minutes.
 
-Render's free allowance is 750 instance-hours/month; staying awake costs ~730,
-so this fits — but it leaves little headroom. Don't ping more than one free
-service from the same account.
+It deliberately runs **05:00–21:00 UTC only**, not around the clock. The free
+allowance is 750 instance-hours per month **across the whole workspace**, and
+staying awake 24/7 burns ~730 of them — 97% of everything, spent on one
+service. The 16-hour window costs ~490 hours, still covers business hours in
+Europe, Africa and the US, and leaves room for another free service later.
+
+To go always-warm, change the cron to `*/10 * * * *` — but check the
+free-hours gauge under Billing → Included Usage first.
+
+One gotcha: GitHub disables scheduled workflows after **60 days without repo
+activity**. If the API starts sleeping again, re-enable it under the Actions
+tab.
 
 ## Verifying
 
 ```sh
-curl -s https://<your-domain>/health     # liveness
-curl -s https://<your-domain>/ready      # checks the DB connection
-curl -s https://<your-domain>/metrics    # Prometheus metrics
+curl -s https://adera.amanuel.work/health     # liveness
+curl -s https://adera.amanuel.work/ready      # checks the DB connection
+curl -s https://adera.amanuel.work/metrics    # Prometheus metrics
 ```
 
 `/ready` is the one that matters: it returns unhealthy when `DATABASE_URL` is
