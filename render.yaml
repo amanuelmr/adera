@@ -1,0 +1,45 @@
+# Render Blueprint — deploys the Adera API as a free Docker web service.
+#
+# Postgres is NOT defined here: Render's own free database expires, so
+# DATABASE_URL points at an external Neon instance instead (set in the
+# dashboard, see DEPLOY.md).
+#
+# Object storage stays off — STORAGE_ENABLED defaults to false, so the API
+# runs without MinIO or any S3 bucket. Evidence uploads are the only feature
+# that needs it; everything else works.
+
+services:
+  - type: web
+    name: adera-api
+    runtime: docker
+    plan: free
+    region: frankfurt # closest Render region to Addis Ababa
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      - key: APP_ENV
+        value: production
+
+      # The distroless image has no shell, so the port cannot be interpolated
+      # from Render's $PORT at runtime. Both are pinned to Render's default
+      # instead, which keeps the listener and the health check in agreement.
+      - key: PORT
+        value: "10000"
+      - key: HTTP_ADDR
+        value: ":10000"
+
+      # Neon connection string — set by hand in the dashboard, never committed.
+      # Must include ?sslmode=require.
+      - key: DATABASE_URL
+        sync: false
+
+      # Config rejects anything under 32 bytes in production. Confirm the
+      # generated value clears that (see DEPLOY.md step 4).
+      - key: JWT_SECRET
+        generateValue: true
+
+      - key: STORAGE_ENABLED
+        value: "false"
