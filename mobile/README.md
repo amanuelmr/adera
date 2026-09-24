@@ -23,6 +23,19 @@ envelope every endpoint returns and throw `ApiError` on failure), and
 `schema.d.ts` is generated from `../api/openapi.yaml`. Copy `.env.example` to
 `.env` to point at a non-default backend (see `src/api/env.ts`).
 
+## Push notifications
+
+Delivery is raw FCM (matching the backend's `internal/notifications/fcm.go`
+provider), not Expo's push relay, so:
+
+- **Requires a development build, not Expo Go** — Expo Go has dropped remote
+  push support since SDK 53 (`npx expo run:android` or
+  `eas build --profile development`).
+- **Requires a real Android push credential in the backend** — nothing
+  arrives without it (see `docs/mobile-plan.md` §9). The client registers a
+  device token as soon as it's granted permission regardless; that part
+  works with no Firebase project on the client side.
+
 ## Commands
 
 ```bash

@@ -1,13 +1,16 @@
 import { Stack } from 'expo-router';
 
 import { OfflineQueueProcessor } from '@/features/reviews/offline-queue-processor';
+import { PushRegistration } from '@/features/push/push-registration';
 
 export default function AppLayout() {
   return (
     <>
-      {/* Only mounted while signed in — queued jobs are tied to the
-          signed-in user, and retrying them signed out would just 401. */}
+      {/* Only mounted while signed in — a queued job or a device
+          registration both belong to whoever is signed in when they
+          happen. */}
       <OfflineQueueProcessor />
+      <PushRegistration />
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="search" options={{ title: 'Search' }} />

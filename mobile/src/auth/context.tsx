@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import { apiClient, unwrap } from '@/api/client';
 import type { components } from '@/api/schema';
+import { unregisterCurrentDevice } from '@/features/push/register';
 import { onForcedSignOut } from './events';
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from './storage';
 // Registers the auth middleware (token attachment + refresh-on-401) on
@@ -78,14 +79,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    // Best-effort: an unreachable server shouldn't trap the user in a
-    // session they asked to leave. The refresh token becomes useless either
-    // way once local tokens are cleared.
+    // Before the tokens that authorize it are gone. Best-effort throughout:
+    // an unreachable server shouldn't trap the user in a session they asked
+    // to leave — the refresh token becomes useless either way once local
+    // tokens are cleared.
+    await unregisterCurrentDevice().catch(() => undefined);
     await apiClient.POST('/api/v1/auth/logout').catch(() => undefined);
     await signOutLocally();
   }, [signOutLocally]);
 
   const logoutAll = useCallback(async () => {
+    await unregisterCurrentDevice().catch(() => undefined);
     await apiClient.POST('/api/v1/auth/logout-all').catch(() => undefined);
     await signOutLocally();
   }, [signOutLocally]);

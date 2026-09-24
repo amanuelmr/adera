@@ -37,6 +37,12 @@
           "photosPermission": "Adera needs access to your photos so you can attach them to a review.",
           "cameraPermission": "Adera needs access to your camera so you can photograph what you're reviewing."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "default"
+        }
       ]
     ],
     "experiments": {
