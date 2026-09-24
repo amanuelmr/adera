@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -10,9 +10,10 @@ export type TargetCardProps = {
   reviewCount: number;
   badge?: string;
   onPress: () => void;
+  style?: StyleProp<ViewStyle>;
 };
 
-export function TargetCard({ name, averageRating, reviewCount, badge, onPress }: TargetCardProps) {
+export function TargetCard({ name, averageRating, reviewCount, badge, onPress, style }: TargetCardProps) {
   const ratingLabel =
     averageRating != null
       ? `Rated ${averageRating.toFixed(1)} out of 5 from ${reviewCount} review${reviewCount === 1 ? '' : 's'}`
@@ -21,7 +22,7 @@ export function TargetCard({ name, averageRating, reviewCount, badge, onPress }:
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${name}. ${ratingLabel}`}>
       {({ pressed }) => (
-        <ThemedView type="backgroundElement" style={[styles.card, { opacity: pressed ? 0.8 : 1 }]}>
+        <ThemedView type="backgroundElement" style={[styles.card, { opacity: pressed ? 0.8 : 1 }, style]}>
           <ThemedText type="smallBold" numberOfLines={1}>
             {name}
           </ThemedText>
