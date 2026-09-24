@@ -4201,6 +4201,8 @@ export interface components {
                 /** Format: uuid */
                 id?: string;
                 url?: string;
+                /** @description 480px-bounded derivative; absent when the original was already small enough. */
+                thumb_url?: string;
             }[];
             business_response?: {
                 /** Format: uuid */

@@ -2308,6 +2308,7 @@ components:
                 properties:
                   id: {type: string, format: uuid}
                   url: {type: string}
+                  thumb_url: {type: string, description: "480px-bounded derivative; absent when the original was already small enough."}
             business_response:
               type: object
               nullable: true
