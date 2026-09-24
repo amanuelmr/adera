@@ -1,11 +1,17 @@
-# Adera (አደራ) — Trusted Ethiopian Review Platform (Backend)
+# Adera (አደራ) — Trusted Ethiopian Review Platform
 
 Adera helps Ethiopian consumers make better decisions before spending money —
 on electronics and phone repair, salons and barbers, online sellers and
 delivery, and restaurants and cafés discovered through TikTok and Instagram.
 
-**This repository is the backend only** (Go + PostgreSQL modular monolith).
-Frontend/UX research for the next phase lives in
+This repository holds both halves of the product:
+- **Backend** (Go + PostgreSQL modular monolith) — everything at the repo
+  root (`cmd/`, `internal/`, `api/`, `migrations/`).
+- **Mobile app** (Expo + React Native, Android-first) — [`mobile/`](mobile/),
+  see [`mobile/README.md`](mobile/README.md).
+
+Product scope and phasing for the mobile client live in
+[`docs/mobile-plan.md`](docs/mobile-plan.md); the earlier web/UX research is in
 [`docs/frontend-handoff.md`](docs/frontend-handoff.md).
 
 ## Motivation

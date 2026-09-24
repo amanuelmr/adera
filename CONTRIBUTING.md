@@ -18,6 +18,12 @@ make check   # go vet, go test, go test -race, govulncheck
 Integration tests need the compose PostgreSQL (they create disposable
 databases and are skipped when it's unreachable — CI always runs them).
 
+For changes under `mobile/`:
+
+```bash
+cd mobile && npx expo lint && npx tsc --noEmit
+```
+
 ## Code conventions
 
 - Module-by-capability layout (`internal/<capability>`): each module owns its
