@@ -754,7 +754,7 @@ paths:
           description: Ranked targets (includes `ranking_score`).
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/DataEnvelope'}
+              schema: {$ref: '#/components/schemas/RankedTargetPage'}
 
   /api/v1/targets/trending:
     get:
@@ -769,7 +769,7 @@ paths:
           description: Targets with `recent_review_count` and `recent_average`.
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/DataEnvelope'}
+              schema: {$ref: '#/components/schemas/TrendingTargetPage'}
 
   /api/v1/targets/nearby:
     get:
@@ -800,7 +800,7 @@ paths:
           description: Nearest targets first (each includes `distance_km`).
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/DataEnvelope'}
+              schema: {$ref: '#/components/schemas/NearbyTargetPage'}
         '422': {$ref: '#/components/responses/ValidationError'}
 
   /api/v1/targets/{idOrSlug}:
@@ -1106,7 +1106,7 @@ paths:
           description: Ranked matches with `score`.
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/DataEnvelope'}
+              schema: {$ref: '#/components/schemas/SearchResultPage'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '429': {$ref: '#/components/responses/RateLimited'}
 
@@ -2176,6 +2176,59 @@ components:
             data:
               type: array
               items: {$ref: '#/components/schemas/Target'}
+
+    RankedTarget:
+      allOf:
+        - $ref: '#/components/schemas/Target'
+        - properties:
+            ranking_score: {type: number, description: "(10×3.5 + Σratings)/(10+n), 4 decimals."}
+    RankedTargetPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/RankedTarget'}
+
+    TrendingTarget:
+      allOf:
+        - $ref: '#/components/schemas/Target'
+        - properties:
+            recent_review_count: {type: integer, description: "Published reviews in the last 30 days."}
+            recent_average: {type: number, nullable: true, description: "Average rating over that same window."}
+    TrendingTargetPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/TrendingTarget'}
+
+    NearbyTarget:
+      allOf:
+        - $ref: '#/components/schemas/Target'
+        - properties:
+            distance_km: {type: number, description: "Great-circle distance from the query point."}
+    NearbyTargetPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/NearbyTarget'}
+
+    SearchResult:
+      allOf:
+        - $ref: '#/components/schemas/Target'
+        - properties:
+            score: {type: number, description: "Relevance score; ranked matches only, not a rating."}
+    SearchResultPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/SearchResult'}
 
     ReviewCreate:
       type: object
