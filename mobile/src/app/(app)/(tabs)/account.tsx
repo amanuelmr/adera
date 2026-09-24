@@ -8,19 +8,12 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 
-// Placeholder landing screen for a signed-in user — replaced by the real
-// Discover screen (docs/mobile-plan.md §9 Phase 1) in the next feature slice.
-export default function HomeScreen() {
+export default function AccountScreen() {
   const { logout, logoutAll } = useAuth();
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="title">አደራ</ThemedText>
-        <ThemedText type="subtitle" themeColor="textSecondary">
-          You&apos;re signed in
-        </ThemedText>
-
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <Link href="/verify" style={styles.link}>
           <ThemedText type="link">Verify your email</ThemedText>
         </Link>
@@ -43,17 +36,14 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: Spacing.four,
     gap: Spacing.two,
-    paddingHorizontal: Spacing.four,
   },
   link: {
-    marginTop: Spacing.two,
+    paddingVertical: Spacing.one,
   },
   actions: {
     marginTop: Spacing.five,
     gap: Spacing.two,
-    alignSelf: 'stretch',
   },
 });
