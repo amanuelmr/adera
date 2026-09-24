@@ -786,7 +786,7 @@ paths:
         - {name: lng, in: query, required: true, schema: {type: number, minimum: -180, maximum: 180}, example: 38.75}
         - name: radius_km
           in: query
-          schema: {type: number, exclusiveMinimum: 0, maximum: 50, default: 5}
+          schema: {type: number, minimum: 0, exclusiveMinimum: true, maximum: 50, default: 5}
           description: Search radius in kilometres; at most 50.
         - {$ref: '#/components/parameters/FilterCategory'}
         - {$ref: '#/components/parameters/FilterCity'}
