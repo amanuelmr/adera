@@ -1810,7 +1810,7 @@ paths:
           description: The version gate for the platform.
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/DataEnvelope'}
+              schema: {$ref: '#/components/schemas/VersionGatePage'}
               example:
                 data:
                   platform: android
@@ -2229,6 +2229,21 @@ components:
             data:
               type: array
               items: {$ref: '#/components/schemas/SearchResult'}
+
+    VersionGate:
+      type: object
+      properties:
+        platform: {type: string, enum: [android, ios]}
+        minimum_supported: {type: string}
+        latest: {type: string}
+        store_url: {type: string}
+        update_required: {type: boolean, description: "Present only when the caller supplied its own version."}
+        update_available: {type: boolean, description: "Present only when the caller supplied its own version."}
+    VersionGatePage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data: {$ref: '#/components/schemas/VersionGate'}
 
     ReviewCreate:
       type: object

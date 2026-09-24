@@ -3721,7 +3721,7 @@ export interface paths {
                          *       }
                          *     }
                          */
-                        "application/json": components["schemas"]["DataEnvelope"];
+                        "application/json": components["schemas"]["VersionGatePage"];
                     };
                 };
                 422: components["responses"]["ValidationError"];
@@ -4122,6 +4122,20 @@ export interface components {
         };
         SearchResultPage: components["schemas"]["DataEnvelope"] & {
             data?: components["schemas"]["SearchResult"][];
+        };
+        VersionGate: {
+            /** @enum {string} */
+            platform?: "android" | "ios";
+            minimum_supported?: string;
+            latest?: string;
+            store_url?: string;
+            /** @description Present only when the caller supplied its own version. */
+            update_required?: boolean;
+            /** @description Present only when the caller supplied its own version. */
+            update_available?: boolean;
+        };
+        VersionGatePage: components["schemas"]["DataEnvelope"] & {
+            data?: components["schemas"]["VersionGate"];
         };
         ReviewCreate: {
             /** Format: uuid */
