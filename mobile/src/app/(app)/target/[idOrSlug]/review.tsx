@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -54,6 +55,7 @@ export default function WriteReviewScreen() {
   const existingReview = useReview(reviewId);
   const criteria = useCriteria(target.data?.category_id);
   const theme = useTheme();
+  const { t } = useTranslation();
 
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<ReviewFormState>(INITIAL_REVIEW_FORM);
@@ -146,7 +148,7 @@ export default function WriteReviewScreen() {
             ? ` ${submit.data.failedPhotoCount} photo${submit.data.failedPhotoCount === 1 ? '' : 's'} couldn't be uploaded and will retry automatically.`
             : ''}
         </ThemedText>
-        <Button title="Back to target" onPress={() => router.replace(`/target/${idOrSlug}`)} />
+        <Button title={t('common.backToTarget')} onPress={() => router.replace(`/target/${idOrSlug}`)} />
       </ThemedView>
     );
   }
@@ -166,21 +168,21 @@ export default function WriteReviewScreen() {
 
   const submitError = submit.error
     ? submit.error instanceof ApiError && submit.error.code === 'cooldown_active'
-      ? "You've already reviewed this in the last 30 days."
+      ? t('errors.reviewCooldown')
       : submit.error instanceof ApiError && submit.error.code === 'rate_limited'
-        ? "You've submitted a few reviews already today — try again later."
+        ? t('errors.reviewRateLimited')
         : submit.error instanceof ApiError && submit.error.code === 'precondition_failed'
-          ? 'This review changed since you started editing. Go back and try again.'
+          ? t('errors.reviewStale')
           : submit.error instanceof ApiError && submit.error.code === 'validation_failed'
             ? (Object.values(submit.error.details ?? {})[0] ?? submit.error.message)
             : submit.error instanceof Error && submit.error.message === 'offline'
-              ? 'You need a connection to update a review.'
-              : "Couldn't submit your review. Check your connection and try again."
+              ? t('errors.reviewOffline')
+              : t('errors.reviewGeneric')
     : undefined;
 
   return (
     <ThemedView style={styles.container}>
-      <Stack.Screen options={{ title: `${isEditing ? 'Edit review' : 'Write a review'} · ${step + 1}/${STEP_COUNT}` }} />
+      <Stack.Screen options={{ title: `${isEditing ? t('nav.editReview') : t('nav.writeReview')} · ${step + 1}/${STEP_COUNT}` }} />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <View style={styles.dots}>
           {Array.from({ length: STEP_COUNT }).map((_, index) => (
@@ -239,12 +241,16 @@ export default function WriteReviewScreen() {
         ) : null}
 
         <View style={styles.actions}>
-          {step > 0 ? <Button title="Back" variant="secondary" onPress={() => setStep((s) => s - 1)} /> : <View style={styles.spacer} />}
+          {step > 0 ? (
+            <Button title={t('common.back')} variant="secondary" onPress={() => setStep((s) => s - 1)} />
+          ) : (
+            <View style={styles.spacer} />
+          )}
           {step < STEP_COUNT - 1 ? (
-            <Button title="Next" onPress={() => setStep((s) => s + 1)} disabled={!canProceed} />
+            <Button title={t('common.next')} onPress={() => setStep((s) => s + 1)} disabled={!canProceed} />
           ) : (
             <Button
-              title={isEditing ? 'Save changes' : 'Submit'}
+              title={isEditing ? t('common.saveChanges') : t('common.submit')}
               onPress={() => submit.mutate()}
               loading={submit.isPending}
               disabled={!canProceed}

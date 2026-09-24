@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,6 +13,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 
 export default function ResetPasswordScreen() {
+  const { t } = useTranslation();
   const { identifier: identifierParam } = useLocalSearchParams<{ identifier?: string }>();
   const [identifier, setIdentifier] = useState(identifierParam ?? '');
   const [code, setCode] = useState('');
@@ -41,12 +43,12 @@ export default function ResetPasswordScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <ThemedText type="subtitle">Enter your code</ThemedText>
+          <ThemedText type="subtitle">{t('auth.enterCodeTitle')}</ThemedText>
 
-          <TextField label="Email or phone" value={identifier} onChangeText={setIdentifier} autoCapitalize="none" />
-          <TextField label="6-digit code" value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
+          <TextField label={t('auth.emailOrPhone')} value={identifier} onChangeText={setIdentifier} autoCapitalize="none" />
+          <TextField label={t('auth.sixDigitCode')} value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} />
           <TextField
-            label="New password"
+            label={t('auth.newPassword')}
             value={newPassword}
             onChangeText={setNewPassword}
             secureTextEntry
@@ -56,7 +58,7 @@ export default function ResetPasswordScreen() {
           />
 
           <Button
-            title="Reset password"
+            title={t('common.resetPassword')}
             onPress={handleSubmit}
             loading={submitting}
             disabled={!identifier || !code || !newPassword}

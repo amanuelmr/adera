@@ -1,0 +1,78 @@
+{
+  "common": {
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "saveChanges": "Save changes",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "viewTarget": "View target",
+    "signOut": "Sign out",
+    "signOutEverywhere": "Sign out everywhere",
+    "resendCode": "Resend code",
+    "sendCode": "Send code",
+    "confirm": "Confirm",
+    "updateNow": "Update now",
+    "backToTarget": "Back to target",
+    "resetPassword": "Reset password"
+  },
+  "nav": {
+    "search": "Search",
+    "verifyEmail": "Verify email",
+    "yourDevices": "Your devices",
+    "writeReview": "Write a review",
+    "editReview": "Edit review"
+  },
+  "auth": {
+    "signInTitle": "Sign in",
+    "emailOrPhone": "Email or phone",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account? Create one",
+    "haveAccount": "Already have an account? Sign in",
+    "createAccountTitle": "Create your account",
+    "name": "Name",
+    "email": "Email",
+    "resetPasswordTitle": "Reset your password",
+    "resetPasswordBody": "We'll send a code to your email or phone if an account exists.",
+    "enterCodeTitle": "Enter your code",
+    "sixDigitCode": "6-digit code",
+    "newPassword": "New password",
+    "verifyRequestBody": "We'll email you a 6-digit code to confirm your address.",
+    "verifyConfirmBody": "Enter the 6-digit code we emailed you.",
+    "verifiedTitle": "Email verified",
+    "verifyLink": "Verify your email",
+    "devicesLink": "Your devices"
+  },
+  "errors": {
+    "invalidCredentials": "Incorrect email/phone or password.",
+    "accountSuspended": "This account has been suspended.",
+    "rateLimited": "Too many attempts — try again in a few minutes.",
+    "verificationUnavailable": "Verification isn't available right now, but you can still use the app.",
+    "generic": "Something went wrong. Check your connection and try again.",
+    "reviewCooldown": "You've already reviewed this in the last 30 days.",
+    "reviewRateLimited": "You've submitted a few reviews already today — try again later.",
+    "reviewStale": "This review changed since you started editing. Go back and try again.",
+    "reviewGeneric": "Couldn't submit your review. Check your connection and try again.",
+    "reviewOffline": "You need a connection to update a review."
+  },
+  "disclosure": {
+    "title": "One more thing",
+    "body": "We ask everyone this — it keeps reviews trustworthy. A discount, free item, or relationship with the business gets a public label, not a removed review.",
+    "incentiveQuestion": "Did you receive anything for this review?",
+    "relationshipQuestion": "Do you have a relationship with this business?",
+    "details": "Details",
+    "detailsOptional": "Details (optional)",
+    "detailsPlaceholder": "Briefly explain"
+  },
+  "updateRequired": {
+    "title": "Update required",
+    "body": "This version of Adera is no longer supported. Update to keep using the app."
+  },
+  "settings": {
+    "language": "Language"
+  }
+}

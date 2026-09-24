@@ -1,5 +1,6 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -13,6 +14,7 @@ import { Spacing } from '@/constants/theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  const { t } = useTranslation();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string>();
@@ -36,11 +38,11 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <ThemedText type="title">አደራ</ThemedText>
           <ThemedText type="subtitle" themeColor="textSecondary" style={styles.subtitle}>
-            Sign in
+            {t('auth.signInTitle')}
           </ThemedText>
 
           <TextField
-            label="Email or phone"
+            label={t('auth.emailOrPhone')}
             value={identifier}
             onChangeText={setIdentifier}
             autoCapitalize="none"
@@ -49,7 +51,7 @@ export default function LoginScreen() {
             textContentType="username"
           />
           <TextField
-            label="Password"
+            label={t('auth.password')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -58,13 +60,13 @@ export default function LoginScreen() {
             error={error}
           />
 
-          <Button title="Sign in" onPress={handleSubmit} loading={submitting} disabled={!identifier || !password} />
+          <Button title={t('common.signIn')} onPress={handleSubmit} loading={submitting} disabled={!identifier || !password} />
 
           <Link href="/forgot-password" style={styles.link}>
-            <ThemedText type="link">Forgot password?</ThemedText>
+            <ThemedText type="link">{t('auth.forgotPassword')}</ThemedText>
           </Link>
           <Link href="/register" style={styles.link}>
-            <ThemedText type="link">Don&apos;t have an account? Create one</ThemedText>
+            <ThemedText type="link">{t('auth.noAccount')}</ThemedText>
           </Link>
         </ScrollView>
       </SafeAreaView>

@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,6 +13,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 
 export default function ForgotPasswordScreen() {
+  const { t } = useTranslation();
   const [identifier, setIdentifier] = useState('');
   const [error, setError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
@@ -35,13 +37,13 @@ export default function ForgotPasswordScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <ThemedText type="subtitle">Reset your password</ThemedText>
+          <ThemedText type="subtitle">{t('auth.resetPasswordTitle')}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            We&apos;ll send a code to your email or phone if an account exists.
+            {t('auth.resetPasswordBody')}
           </ThemedText>
 
           <TextField
-            label="Email or phone"
+            label={t('auth.emailOrPhone')}
             value={identifier}
             onChangeText={setIdentifier}
             autoCapitalize="none"
@@ -49,7 +51,7 @@ export default function ForgotPasswordScreen() {
             error={error}
           />
 
-          <Button title="Send code" onPress={handleSubmit} loading={submitting} disabled={!identifier} />
+          <Button title={t('common.sendCode')} onPress={handleSubmit} loading={submitting} disabled={!identifier} />
         </ScrollView>
       </SafeAreaView>
     </ThemedView>

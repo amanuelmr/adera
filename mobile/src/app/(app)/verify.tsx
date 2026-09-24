@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -13,6 +14,7 @@ import { Spacing } from '@/constants/theme';
 // Email-only for v1 (docs/mobile-plan.md §4.1); confirming isn't required to
 // read or write, so there's no gate here — just a code round trip.
 export default function VerifyScreen() {
+  const { t } = useTranslation();
   const [codeRequested, setCodeRequested] = useState(false);
   const [code, setCode] = useState('');
   const [confirmed, setConfirmed] = useState(false);
@@ -50,7 +52,7 @@ export default function VerifyScreen() {
       <ThemedView style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
           <ScrollView contentContainerStyle={styles.content}>
-            <ThemedText type="subtitle">Email verified</ThemedText>
+            <ThemedText type="subtitle">{t('auth.verifiedTitle')}</ThemedText>
           </ScrollView>
         </SafeAreaView>
       </ThemedView>
@@ -62,19 +64,24 @@ export default function VerifyScreen() {
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <ThemedText type="small" themeColor="textSecondary">
-            {codeRequested
-              ? 'Enter the 6-digit code we emailed you.'
-              : "We'll email you a 6-digit code to confirm your address."}
+            {codeRequested ? t('auth.verifyConfirmBody') : t('auth.verifyRequestBody')}
           </ThemedText>
 
           {codeRequested ? (
             <>
-              <TextField label="6-digit code" value={code} onChangeText={setCode} keyboardType="number-pad" maxLength={6} error={error} />
-              <Button title="Confirm" onPress={confirmCode} loading={submitting} disabled={!code} />
-              <Button title="Resend code" variant="secondary" onPress={requestCode} loading={submitting} />
+              <TextField
+                label={t('auth.sixDigitCode')}
+                value={code}
+                onChangeText={setCode}
+                keyboardType="number-pad"
+                maxLength={6}
+                error={error}
+              />
+              <Button title={t('common.confirm')} onPress={confirmCode} loading={submitting} disabled={!code} />
+              <Button title={t('common.resendCode')} variant="secondary" onPress={requestCode} loading={submitting} />
             </>
           ) : (
-            <Button title="Send code" onPress={requestCode} loading={submitting} />
+            <Button title={t('common.sendCode')} onPress={requestCode} loading={submitting} />
           )}
           {!codeRequested && error ? <ThemedText style={styles.error}>{error}</ThemedText> : null}
         </ScrollView>

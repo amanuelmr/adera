@@ -36,6 +36,19 @@ provider), not Expo's push relay, so:
   device token as soon as it's granted permission regardless; that part
   works with no Firebase project on the client side.
 
+## Localization
+
+`src/lib/i18n.ts` (i18next + react-i18next), resources in `src/lib/locales/`.
+English and Amharic only for now, covering navigation, auth, error messages,
+and the review disclosure step — the trust-critical surfaces
+docs/frontend-handoff.md §7 says to translate first/best. The Amharic text
+is a first draft, same caveat as `internal/auth/email.go`'s bilingual copy:
+**needs a native review before launch.** Everything else (Discover, Search,
+Target Profile body copy, the rest of the review wizard) is still
+English-only; adding a language means adding matching keys to every file in
+`src/lib/locales/` — `ThemedText` picks up Noto Sans Ethiopic automatically
+once the active language is `am` (see `src/lib/fonts.ts`).
+
 ## Commands
 
 ```bash

@@ -1,27 +1,29 @@
 import { ApiError } from '@/api/client';
+import i18n from '@/lib/i18n';
 
 /**
- * Maps a stable API error `code` to user-facing copy. Centralized because
- * every auth screen needs it, and because the API's codes are the
- * localization key going forward (docs/frontend-handoff.md §7) — swapping
- * these strings for i18next lookups later is a change to this one file.
+ * Maps a stable API error `code` to user-facing copy — the API's codes are
+ * the localization key (docs/frontend-handoff.md §7), so this is the one
+ * place that needs to change if a new code needs copy. Uses the i18next
+ * singleton directly (not the useTranslation hook) since this is a plain
+ * function called from event handlers, not a component.
  */
 export function friendlyAuthError(err: unknown): string {
   if (err instanceof ApiError) {
     switch (err.code) {
       case 'invalid_credentials':
-        return 'Incorrect email/phone or password.';
+        return i18n.t('errors.invalidCredentials');
       case 'account_suspended':
-        return 'This account has been suspended.';
+        return i18n.t('errors.accountSuspended');
       case 'rate_limited':
-        return 'Too many attempts — try again in a few minutes.';
+        return i18n.t('errors.rateLimited');
       case 'verification_unavailable':
-        return "Verification isn't available right now, but you can still use the app.";
+        return i18n.t('errors.verificationUnavailable');
       case 'validation_failed':
         return Object.values(err.details ?? {})[0] ?? err.message;
       default:
         return err.message;
     }
   }
-  return 'Something went wrong. Check your connection and try again.';
+  return i18n.t('errors.generic');
 }

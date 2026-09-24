@@ -1,5 +1,6 @@
 import { Link } from 'expo-router';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,15 +9,30 @@ import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { useProfile } from '@/features/profile/queries';
+import { FilterChip } from '@/features/search/filter-chip';
+import { useProfile, useUpdateProfile } from '@/features/profile/queries';
 import { MyReviewCard } from '@/features/reviews/my-review-card';
 import { useMyReviews } from '@/features/reviews/queries';
+import { SUPPORTED_LANGUAGES, setAppLanguage, type AppLanguage } from '@/lib/i18n';
+
+const LANGUAGE_NAMES: Record<AppLanguage, string> = { en: 'English', am: 'አማርኛ' };
 
 export default function AccountScreen() {
+  const { t, i18n } = useTranslation();
   const { logout, logoutAll } = useAuth();
   const profile = useProfile();
+  const updateProfile = useUpdateProfile();
   const reviews = useMyReviews();
   const reviewItems = useMemo(() => reviews.data?.pages.flatMap((page) => page.data ?? []) ?? [], [reviews.data]);
+
+  async function changeLanguage(language: AppLanguage) {
+    await setAppLanguage(language);
+    // Best-effort — the interface language and the account's
+    // preferred_language are the same setting from the user's point of view
+    // (docs/mobile-plan.md §7), but a sync failure shouldn't undo the switch
+    // they just made locally.
+    updateProfile.mutate({ preferredLanguage: language }, { onError: () => undefined });
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -65,15 +81,28 @@ export default function AccountScreen() {
           ListFooterComponent={
             <View style={styles.settings}>
               {reviews.isFetchingNextPage ? <ActivityIndicator /> : null}
+
+              <ThemedText type="smallBold">{t('settings.language')}</ThemedText>
+              <View style={styles.languageRow}>
+                {SUPPORTED_LANGUAGES.map((language) => (
+                  <FilterChip
+                    key={language}
+                    label={LANGUAGE_NAMES[language]}
+                    selected={i18n.language === language}
+                    onPress={() => changeLanguage(language)}
+                  />
+                ))}
+              </View>
+
               <Link href="/verify" style={styles.link}>
-                <ThemedText type="link">Verify your email</ThemedText>
+                <ThemedText type="link">{t('auth.verifyLink')}</ThemedText>
               </Link>
               <Link href="/sessions" style={styles.link}>
-                <ThemedText type="link">Your devices</ThemedText>
+                <ThemedText type="link">{t('auth.devicesLink')}</ThemedText>
               </Link>
               <View style={styles.actions}>
-                <Button title="Sign out" variant="secondary" onPress={() => logout()} />
-                <Button title="Sign out everywhere" variant="secondary" onPress={() => logoutAll()} />
+                <Button title={t('common.signOut')} variant="secondary" onPress={() => logout()} />
+                <Button title={t('common.signOutEverywhere')} variant="secondary" onPress={() => logoutAll()} />
               </View>
             </View>
           }
@@ -107,6 +136,11 @@ const styles = StyleSheet.create({
   settings: {
     marginTop: Spacing.five,
     gap: Spacing.two,
+  },
+  languageRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    marginBottom: Spacing.two,
   },
   link: {
     paddingVertical: Spacing.one,

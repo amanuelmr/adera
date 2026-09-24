@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import type { components } from '@/api/schema';
@@ -31,36 +32,34 @@ export function DisclosureStep({
   onChangeDisclosureDetails: (value: string) => void;
 }) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const needsDetails = incentiveType !== 'none' || materialConnection !== 'none';
   const detailsRequired = incentiveType === 'other' || materialConnection === 'other';
 
   return (
     <View style={styles.container}>
-      <ThemedText type="subtitle">One more thing</ThemedText>
+      <ThemedText type="subtitle">{t('disclosure.title')}</ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        We ask everyone this — it keeps reviews trustworthy. A discount, free item, or relationship with the business gets a
-        public label, not a removed review.
+        {t('disclosure.body')}
       </ThemedText>
 
       <View style={styles.field}>
-        <ThemedText type="smallBold">Did you receive anything for this review?</ThemedText>
+        <ThemedText type="smallBold">{t('disclosure.incentiveQuestion')}</ThemedText>
         <ChipGroup options={INCENTIVE_OPTIONS} value={incentiveType} onChange={onChangeIncentiveType} />
       </View>
 
       <View style={styles.field}>
-        <ThemedText type="smallBold">Do you have a relationship with this business?</ThemedText>
+        <ThemedText type="smallBold">{t('disclosure.relationshipQuestion')}</ThemedText>
         <ChipGroup options={MATERIAL_CONNECTION_OPTIONS} value={materialConnection} onChange={onChangeMaterialConnection} />
       </View>
 
       {needsDetails ? (
         <View style={styles.field}>
-          <ThemedText type="smallBold">
-            Details{detailsRequired ? '' : ' (optional)'}
-          </ThemedText>
+          <ThemedText type="smallBold">{t(detailsRequired ? 'disclosure.details' : 'disclosure.detailsOptional')}</ThemedText>
           <TextInput
             value={disclosureDetails}
             onChangeText={onChangeDisclosureDetails}
-            placeholder="Briefly explain"
+            placeholder={t('disclosure.detailsPlaceholder')}
             placeholderTextColor={theme.textSecondary}
             style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
           />

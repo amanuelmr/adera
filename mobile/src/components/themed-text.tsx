@@ -1,15 +1,25 @@
+import { useTranslation } from 'react-i18next';
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
 import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { ETHIOPIC_FONT_BOLD, ETHIOPIC_FONT_REGULAR } from '@/lib/fonts';
 
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
   themeColor?: ThemeColor;
 };
 
+const BOLD_TYPES = new Set(['title', 'subtitle', 'smallBold']);
+
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
+  const { i18n } = useTranslation();
+
+  // `code` is excluded: it renders literal values (paths, numbers), which
+  // don't appear in Amharic, and should stay monospace regardless of locale.
+  const ethiopicFontFamily =
+    i18n.language === 'am' && type !== 'code' ? (BOLD_TYPES.has(type) ? ETHIOPIC_FONT_BOLD : ETHIOPIC_FONT_REGULAR) : undefined;
 
   return (
     <Text
@@ -23,6 +33,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
         type === 'link' && styles.link,
         type === 'linkPrimary' && styles.linkPrimary,
         type === 'code' && styles.code,
+        ethiopicFontFamily && { fontFamily: ethiopicFontFamily },
         style,
       ]}
       {...rest}

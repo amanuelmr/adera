@@ -1,5 +1,6 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -15,6 +16,7 @@ import { Spacing } from '@/constants/theme';
 // deferred, so registration collects email rather than a channel picker.
 export default function RegisterScreen() {
   const { register } = useAuth();
+  const { t } = useTranslation();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,11 +43,17 @@ export default function RegisterScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <ThemedText type="subtitle">Create your account</ThemedText>
+          <ThemedText type="subtitle">{t('auth.createAccountTitle')}</ThemedText>
 
-          <TextField label="Name" value={displayName} onChangeText={setDisplayName} autoComplete="name" textContentType="name" />
           <TextField
-            label="Email"
+            label={t('auth.name')}
+            value={displayName}
+            onChangeText={setDisplayName}
+            autoComplete="name"
+            textContentType="name"
+          />
+          <TextField
+            label={t('auth.email')}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -54,7 +62,7 @@ export default function RegisterScreen() {
             textContentType="emailAddress"
           />
           <TextField
-            label="Password"
+            label={t('auth.password')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -64,14 +72,14 @@ export default function RegisterScreen() {
           />
 
           <Button
-            title="Create account"
+            title={t('common.createAccount')}
             onPress={handleSubmit}
             loading={submitting}
             disabled={!displayName || !email || !password}
           />
 
           <Link href="/" style={styles.link}>
-            <ThemedText type="link">Already have an account? Sign in</ThemedText>
+            <ThemedText type="link">{t('auth.haveAccount')}</ThemedText>
           </Link>
         </ScrollView>
       </SafeAreaView>
