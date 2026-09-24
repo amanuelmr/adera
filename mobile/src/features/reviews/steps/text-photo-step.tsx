@@ -4,7 +4,7 @@ import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { pickAndCompressPhoto } from '../photos';
+import { deletePersistedPhoto, pickAndCompressPhoto } from '../photos';
 import type { PickedPhoto } from '../types';
 
 const MAX_PHOTOS = 5;
@@ -66,7 +66,10 @@ export function TextPhotoStep({
           <View key={photo.uri} style={styles.photoWrapper}>
             <Image source={{ uri: photo.uri }} style={styles.photo} />
             <Pressable
-              onPress={() => onChangePhotos(photos.filter((_, i) => i !== index))}
+              onPress={() => {
+                deletePersistedPhoto(photo.uri);
+                onChangePhotos(photos.filter((_, i) => i !== index));
+              }}
               accessibilityRole="button"
               accessibilityLabel="Remove photo"
               style={[styles.removeButton, { backgroundColor: theme.background }]}>

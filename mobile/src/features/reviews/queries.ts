@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { apiClient, unwrap } from '@/api/client';
+import { apiClient, unwrap, ApiError } from '@/api/client';
+import { deletePersistedPhoto } from './photos';
 import type { ReviewFormState } from './types';
 
 export function useCriteria(categoryId: string | undefined) {
@@ -12,19 +13,7 @@ export function useCriteria(categoryId: string | undefined) {
   });
 }
 
-/**
- * Creates the review, then uploads each photo as its own two-phase job
- * (presign → upload → finalize) — media attaches to a review that must
- * already exist. A photo failure doesn't roll back the review: it's already
- * published, and the plan treats a lost photo as recoverable, not fatal
- * (docs/mobile-plan.md §5 — this is exactly the gap the offline queue,
- * next feature slice, closes by retrying just the upload).
- */
-export async function submitReview(
-  targetId: string,
-  form: ReviewFormState,
-  idempotencyKey: string
-): Promise<{ reviewId: string; failedPhotoCount: number }> {
+export async function createReview(targetId: string, form: ReviewFormState, idempotencyKey: string): Promise<string> {
   const created = unwrap(
     await apiClient.POST('/api/v1/reviews', {
       headers: { 'Idempotency-Key': idempotencyKey },
@@ -47,21 +36,48 @@ export async function submitReview(
       },
     })
   );
-
-  const reviewId = created.data.id!;
-  let failedPhotoCount = 0;
-  for (const photo of form.photos) {
-    try {
-      await uploadReviewPhoto(reviewId, photo.uri);
-    } catch {
-      failedPhotoCount += 1;
-    }
-  }
-
-  return { reviewId, failedPhotoCount };
+  return created.data.id!;
 }
 
-async function uploadReviewPhoto(reviewId: string, localUri: string): Promise<void> {
+/**
+ * Creates the review, then uploads each photo as its own two-phase job
+ * (presign → upload → finalize) — media attaches to a review that must
+ * already exist. Photos that fail with a real server rejection (bad file,
+ * etc.) are dropped; photos that fail because the network dropped mid-upload
+ * are reported back as retryable so the caller can hand them to the offline
+ * queue instead of losing them.
+ */
+export async function submitReview(
+  targetId: string,
+  form: ReviewFormState,
+  idempotencyKey: string
+): Promise<{ reviewId: string; retryablePhotoUris: string[] }> {
+  const reviewId = await createReview(targetId, form, idempotencyKey);
+  const retryablePhotoUris = await uploadPhotos(reviewId, form.photos.map((photo) => photo.uri));
+  return { reviewId, retryablePhotoUris };
+}
+
+/** Uploads each URI, returning the ones that failed for a reason worth retrying later. */
+export async function uploadPhotos(reviewId: string, uris: string[]): Promise<string[]> {
+  const retryable: string[] = [];
+  for (const uri of uris) {
+    try {
+      await uploadReviewPhoto(reviewId, uri);
+      deletePersistedPhoto(uri);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        // The server rejected this photo outright — retrying it unchanged
+        // would just fail again, so give up and clean up.
+        deletePersistedPhoto(uri);
+      } else {
+        retryable.push(uri);
+      }
+    }
+  }
+  return retryable;
+}
+
+export async function uploadReviewPhoto(reviewId: string, localUri: string): Promise<void> {
   const ticket = unwrap(
     await apiClient.POST('/api/v1/reviews/{id}/media', {
       params: { path: { id: reviewId } },

@@ -1,3 +1,4 @@
+import { File, Paths } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -29,5 +30,20 @@ export async function pickAndCompressPhoto(): Promise<PickPhotoResult> {
   }
   const rendered = await context.renderAsync();
   const result = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: COMPRESS_QUALITY });
-  return { uri: result.uri };
+
+  // Moved out of cache into persistent storage: a queued review submission
+  // can sit for hours on a bad connection, and expo-image-manipulator's
+  // output lives in a cache dir the OS is free to clear at any time.
+  const persisted = new File(Paths.document, `review-photo-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`);
+  await new File(result.uri).copy(persisted);
+  return { uri: persisted.uri };
+}
+
+/** Deletes a photo persisted by {@link pickAndCompressPhoto} once it's no longer needed. */
+export function deletePersistedPhoto(uri: string): void {
+  try {
+    new File(uri).delete();
+  } catch {
+    // Already gone, or never one of ours — either way, nothing to clean up.
+  }
 }

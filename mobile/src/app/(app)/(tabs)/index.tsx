@@ -9,6 +9,7 @@ import { CategoryTile } from '@/features/targets/category-tile';
 import { DiscoverSection } from '@/features/targets/discover-section';
 import { TargetCard } from '@/features/targets/target-card';
 import { useCategories, useTopRatedTargets, useTrendingTargets } from '@/features/targets/queries';
+import { PendingSyncBanner } from '@/features/reviews/pending-sync-banner';
 
 export default function DiscoverScreen() {
   const categories = useCategories();
@@ -32,6 +33,8 @@ export default function DiscoverScreen() {
               </ThemedView>
             </Pressable>
           </ThemedView>
+
+          <PendingSyncBanner />
 
           <DiscoverSection
             title="Categories"

@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiClient, unwrap } from '@/api/client';
+import { enqueueHelpfulVote } from '@/features/reviews/offline-queue';
 
 export type ReviewSort = 'newest' | 'highest' | 'lowest' | 'most_helpful';
 
@@ -75,10 +76,18 @@ export function useTargetReviews(targetId: string | undefined, filters: ReviewFi
 export function useToggleHelpful(targetId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ reviewId, voted }: { reviewId: string; voted: boolean }) =>
-      voted
-        ? apiClient.DELETE('/api/v1/reviews/{id}/helpful', { params: { path: { id: reviewId } } })
-        : apiClient.PUT('/api/v1/reviews/{id}/helpful', { params: { path: { id: reviewId } } }),
+    mutationFn: async ({ reviewId, voted }: { reviewId: string; voted: boolean }) => {
+      try {
+        await (voted
+          ? apiClient.DELETE('/api/v1/reviews/{id}/helpful', { params: { path: { id: reviewId } } })
+          : apiClient.PUT('/api/v1/reviews/{id}/helpful', { params: { path: { id: reviewId } } }));
+      } catch {
+        // Network failure, not a rejection (openapi-fetch resolves HTTP
+        // errors rather than throwing) — safe to queue since the vote is
+        // idempotent and last-write-wins.
+        await enqueueHelpfulVote(reviewId, !voted);
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['targets', 'reviews', targetId] });
     },

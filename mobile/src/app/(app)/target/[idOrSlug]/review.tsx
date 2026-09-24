@@ -11,7 +11,9 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { generateIdempotencyKey } from '@/features/reviews/idempotency';
+import { enqueueReviewSubmission } from '@/features/reviews/offline-queue';
 import { submitReview, useCriteria } from '@/features/reviews/queries';
+import { isConnected } from '@/lib/network-status';
 import { INITIAL_REVIEW_FORM, type ReviewFormState } from '@/features/reviews/types';
 import { CriteriaStep } from '@/features/reviews/steps/criteria-step';
 import { ContextStep } from '@/features/reviews/steps/context-step';
@@ -38,7 +40,36 @@ export default function WriteReviewScreen() {
   }
 
   const submit = useMutation({
-    mutationFn: () => submitReview(target.data!.id!, form, idempotencyKey),
+    mutationFn: async (): Promise<{ queued: boolean; failedPhotoCount: number }> => {
+      const targetId = target.data!.id!;
+
+      if (!(await isConnected())) {
+        await enqueueReviewSubmission({ targetId, form, idempotencyKey });
+        return { queued: true, failedPhotoCount: 0 };
+      }
+
+      try {
+        const result = await submitReview(targetId, form, idempotencyKey);
+        if (result.retryablePhotoUris.length > 0) {
+          // The review itself is live; only the photos need another attempt.
+          await enqueueReviewSubmission({
+            targetId,
+            form,
+            idempotencyKey,
+            reviewId: result.reviewId,
+            pendingPhotoUris: result.retryablePhotoUris,
+          });
+        }
+        return { queued: false, failedPhotoCount: result.retryablePhotoUris.length };
+      } catch (err) {
+        if (err instanceof ApiError) throw err; // a real rejection — nothing offline retry can fix
+        // Network dropped mid-attempt — the review may or may not have been
+        // created; queuing a fresh attempt is safe either way because the
+        // Idempotency-Key makes a duplicate POST /reviews a no-op.
+        await enqueueReviewSubmission({ targetId, form, idempotencyKey });
+        return { queued: true, failedPhotoCount: 0 };
+      }
+    },
   });
 
   if (target.isPending) {
@@ -62,11 +93,13 @@ export default function WriteReviewScreen() {
   if (submit.isSuccess) {
     return (
       <ThemedView style={styles.centered}>
-        <ThemedText type="subtitle">Thanks for your review!</ThemedText>
+        <ThemedText type="subtitle">{submit.data.queued ? 'Saved — sending soon' : 'Thanks for your review!'}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.confirmationBody}>
-          It&apos;s live on {target.data.name}&apos;s page.
+          {submit.data.queued
+            ? "You're offline right now. We'll send this the moment you're back online."
+            : `It's live on ${target.data.name}'s page.`}
           {submit.data.failedPhotoCount > 0
-            ? ` ${submit.data.failedPhotoCount} photo${submit.data.failedPhotoCount === 1 ? '' : 's'} couldn't be uploaded — you can add them later.`
+            ? ` ${submit.data.failedPhotoCount} photo${submit.data.failedPhotoCount === 1 ? '' : 's'} couldn't be uploaded and will retry automatically.`
             : ''}
         </ThemedText>
         <Button title="Back to target" onPress={() => router.replace(`/target/${idOrSlug}`)} />
