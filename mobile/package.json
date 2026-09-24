@@ -11,6 +11,7 @@
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
+    "openapi-fetch": "^0.17.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
@@ -25,6 +26,7 @@
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
+    "openapi-typescript": "^7.13.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -33,7 +35,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "generate:api": "openapi-typescript ../api/openapi.yaml -o ./src/api/schema.d.ts"
   },
   "private": true
 }

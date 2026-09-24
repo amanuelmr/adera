@@ -21,7 +21,7 @@ databases and are skipped when it's unreachable — CI always runs them).
 For changes under `mobile/`:
 
 ```bash
-cd mobile && npx expo lint && npx tsc --noEmit
+cd mobile && npm run generate:api && npx expo lint && npx tsc --noEmit
 ```
 
 ## Code conventions
