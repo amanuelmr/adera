@@ -6,17 +6,17 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 
-// Placeholder — replaced by the target profile screen (docs/mobile-plan.md
-// §9 Phase 1) in a later feature slice. Exists now so Discover's target
-// cards have a real destination rather than a dangling route.
-export default function TargetScreen() {
+// Placeholder — replaced by the review submission flow (docs/mobile-plan.md
+// §9 Phase 1) in a later feature slice. Exists now so the target profile's
+// "Write a review" CTA has a real destination rather than a dangling route.
+export default function WriteReviewScreen() {
   const { idOrSlug } = useLocalSearchParams<{ idOrSlug: string }>();
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <ThemedText type="small" themeColor="textSecondary">
-          Target profile for &ldquo;{idOrSlug}&rdquo; is coming soon.
+          Reviewing &ldquo;{idOrSlug}&rdquo; is coming soon.
         </ThemedText>
       </SafeAreaView>
     </ThemedView>
