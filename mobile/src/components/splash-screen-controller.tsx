@@ -1,19 +1,15 @@
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
-import { useAuth } from '@/auth/context';
-
 SplashScreen.preventAutoHideAsync();
 
-/** Keeps the splash screen up until auth status resolves from secure storage. */
-export function SplashScreenController() {
-  const { status } = useAuth();
-
+/** Keeps the splash screen up until every startup check (auth, version gate, ...) is ready. */
+export function SplashScreenController({ ready }: { ready: boolean }) {
   useEffect(() => {
-    if (status !== 'loading') {
+    if (ready) {
       SplashScreen.hideAsync();
     }
-  }, [status]);
+  }, [ready]);
 
   return null;
 }
