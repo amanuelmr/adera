@@ -5,6 +5,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
+import type { components } from '@/api/schema';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -12,7 +13,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { generateIdempotencyKey } from '@/features/reviews/idempotency';
 import { enqueueReviewSubmission } from '@/features/reviews/offline-queue';
-import { submitReview, useCriteria } from '@/features/reviews/queries';
+import { submitReview, submitReviewEdit, useCriteria, useReview } from '@/features/reviews/queries';
 import { isConnected } from '@/lib/network-status';
 import { INITIAL_REVIEW_FORM, type ReviewFormState } from '@/features/reviews/types';
 import { CriteriaStep } from '@/features/reviews/steps/criteria-step';
@@ -25,15 +26,48 @@ import { useTarget } from '@/features/targets/queries';
 const STEP_COUNT = 5;
 const MIN_BODY_LENGTH = 20;
 
+// Existing media is left untouched (photos here are only newly added ones —
+// see submitReviewEdit); discovery_source/expectation_match come back from
+// the API as plain strings rather than their enum types (a spec looseness,
+// not a validation gap — only enum members are ever actually stored).
+function reviewToFormState(review: components['schemas']['Review']): ReviewFormState {
+  return {
+    overallRating: review.overall_rating,
+    criterionScores: review.criterion_scores ?? {},
+    title: review.title ?? '',
+    body: review.body ?? '',
+    photos: [],
+    experienceDate: review.experience_date?.slice(0, 10) ?? '',
+    discoverySource: review.discovery_source as components['schemas']['DiscoverySource'] | undefined,
+    expectationMatch: review.expectation_match as components['schemas']['ExpectationMatch'] | undefined,
+    pricePaid: review.price_paid != null ? String(review.price_paid) : '',
+    incentiveType: review.incentive_type ?? 'none',
+    materialConnection: review.material_connection ?? 'none',
+    disclosureDetails: review.disclosure_details ?? '',
+  };
+}
+
 export default function WriteReviewScreen() {
-  const { idOrSlug } = useLocalSearchParams<{ idOrSlug: string }>();
+  const { idOrSlug, reviewId } = useLocalSearchParams<{ idOrSlug: string; reviewId?: string }>();
+  const isEditing = !!reviewId;
   const target = useTarget(idOrSlug);
+  const existingReview = useReview(reviewId);
   const criteria = useCriteria(target.data?.category_id);
   const theme = useTheme();
 
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<ReviewFormState>(INITIAL_REVIEW_FORM);
   const [idempotencyKey] = useState(generateIdempotencyKey);
+
+  // Hydrates the form from the fetched review exactly once it arrives —
+  // adjusting state during render (not in an effect) so there's no extra
+  // render pass showing the blank form first. See filters-sheet.tsx for the
+  // same pattern.
+  const [hydratedFrom, setHydratedFrom] = useState<string>();
+  if (isEditing && existingReview.data && hydratedFrom !== reviewId) {
+    setHydratedFrom(reviewId);
+    setForm(reviewToFormState(existingReview.data));
+  }
 
   function update<K extends keyof ReviewFormState>(key: K, value: ReviewFormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -42,6 +76,14 @@ export default function WriteReviewScreen() {
   const submit = useMutation({
     mutationFn: async (): Promise<{ queued: boolean; failedPhotoCount: number }> => {
       const targetId = target.data!.id!;
+
+      if (isEditing) {
+        // Full-replace PUT with no Idempotency-Key support — editing stays
+        // online-only rather than growing the offline queue a third job type.
+        if (!(await isConnected())) throw new Error('offline');
+        const result = await submitReviewEdit(reviewId!, targetId, form, existingReview.data!.version!);
+        return { queued: false, failedPhotoCount: result.retryablePhotoUris.length };
+      }
 
       if (!(await isConnected())) {
         await enqueueReviewSubmission({ targetId, form, idempotencyKey });
@@ -72,7 +114,7 @@ export default function WriteReviewScreen() {
     },
   });
 
-  if (target.isPending) {
+  if (target.isPending || (isEditing && existingReview.isPending)) {
     return (
       <ThemedView style={styles.centered}>
         <ActivityIndicator />
@@ -80,11 +122,11 @@ export default function WriteReviewScreen() {
     );
   }
 
-  if (target.isError || !target.data?.id) {
+  if (target.isError || !target.data?.id || (isEditing && (existingReview.isError || !existingReview.data))) {
     return (
       <ThemedView style={styles.centered}>
         <ThemedText type="small" themeColor="textSecondary">
-          Couldn&apos;t load this target. Check your connection and try again.
+          Couldn&apos;t load this {isEditing ? 'review' : 'target'}. Check your connection and try again.
         </ThemedText>
       </ThemedView>
     );
@@ -93,7 +135,9 @@ export default function WriteReviewScreen() {
   if (submit.isSuccess) {
     return (
       <ThemedView style={styles.centered}>
-        <ThemedText type="subtitle">{submit.data.queued ? 'Saved — sending soon' : 'Thanks for your review!'}</ThemedText>
+        <ThemedText type="subtitle">
+          {submit.data.queued ? 'Saved — sending soon' : isEditing ? 'Review updated' : 'Thanks for your review!'}
+        </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.confirmationBody}>
           {submit.data.queued
             ? "You're offline right now. We'll send this the moment you're back online."
@@ -125,14 +169,18 @@ export default function WriteReviewScreen() {
       ? "You've already reviewed this in the last 30 days."
       : submit.error instanceof ApiError && submit.error.code === 'rate_limited'
         ? "You've submitted a few reviews already today — try again later."
-        : submit.error instanceof ApiError && submit.error.code === 'validation_failed'
-          ? (Object.values(submit.error.details ?? {})[0] ?? submit.error.message)
-          : "Couldn't submit your review. Check your connection and try again."
+        : submit.error instanceof ApiError && submit.error.code === 'precondition_failed'
+          ? 'This review changed since you started editing. Go back and try again.'
+          : submit.error instanceof ApiError && submit.error.code === 'validation_failed'
+            ? (Object.values(submit.error.details ?? {})[0] ?? submit.error.message)
+            : submit.error instanceof Error && submit.error.message === 'offline'
+              ? 'You need a connection to update a review.'
+              : "Couldn't submit your review. Check your connection and try again."
     : undefined;
 
   return (
     <ThemedView style={styles.container}>
-      <Stack.Screen options={{ title: `Write a review · ${step + 1}/${STEP_COUNT}` }} />
+      <Stack.Screen options={{ title: `${isEditing ? 'Edit review' : 'Write a review'} · ${step + 1}/${STEP_COUNT}` }} />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <View style={styles.dots}>
           {Array.from({ length: STEP_COUNT }).map((_, index) => (
@@ -195,7 +243,12 @@ export default function WriteReviewScreen() {
           {step < STEP_COUNT - 1 ? (
             <Button title="Next" onPress={() => setStep((s) => s + 1)} disabled={!canProceed} />
           ) : (
-            <Button title="Submit" onPress={() => submit.mutate()} loading={submit.isPending} disabled={!canProceed} />
+            <Button
+              title={isEditing ? 'Save changes' : 'Submit'}
+              onPress={() => submit.mutate()}
+              loading={submit.isPending}
+              disabled={!canProceed}
+            />
           )}
         </View>
       </SafeAreaView>
