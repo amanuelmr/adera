@@ -1,6 +1,7 @@
 import type { Middleware } from 'openapi-fetch';
 
 import { apiClient } from '@/api/client';
+import { unregisterCurrentDevice } from '@/features/push/register';
 import { emitForcedSignOut } from './events';
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from './storage';
 
@@ -37,6 +38,12 @@ async function performRefresh(): Promise<string | null> {
   const newAccessToken = result.data?.data?.access_token;
   const newRefreshToken = result.data?.data?.refresh_token;
   if (result.error || !newAccessToken || !newRefreshToken) {
+    // Best-effort, before the tokens that could authorize it are gone: the
+    // access token that triggered this refresh has already 401'd once, so
+    // there's no guarantee this succeeds either, but attempting it here is
+    // the only chance there ever is — once clearTokens() below runs, no
+    // authenticated call can be made again for this session.
+    await unregisterCurrentDevice();
     await clearTokens();
     return null;
   }

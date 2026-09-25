@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { apiClient, unwrap } from '@/api/client';
+import { apiClient, unwrap, ApiError } from '@/api/client';
 import { enqueueHelpfulVote } from '@/features/reviews/offline-queue';
 
 export type ReviewSort = 'newest' | 'highest' | 'lowest' | 'most_helpful';
@@ -78,13 +78,14 @@ export function useToggleHelpful(targetId: string | undefined) {
   return useMutation({
     mutationFn: async ({ reviewId, voted }: { reviewId: string; voted: boolean }) => {
       try {
-        await (voted
-          ? apiClient.DELETE('/api/v1/reviews/{id}/helpful', { params: { path: { id: reviewId } } })
-          : apiClient.PUT('/api/v1/reviews/{id}/helpful', { params: { path: { id: reviewId } } }));
-      } catch {
-        // Network failure, not a rejection (openapi-fetch resolves HTTP
-        // errors rather than throwing) — safe to queue since the vote is
-        // idempotent and last-write-wins.
+        unwrap(
+          await (voted
+            ? apiClient.DELETE('/api/v1/reviews/{id}/helpful', { params: { path: { id: reviewId } } })
+            : apiClient.PUT('/api/v1/reviews/{id}/helpful', { params: { path: { id: reviewId } } }))
+        );
+      } catch (err) {
+        if (err instanceof ApiError) throw err; // a real rejection — surface it, don't queue a retry that will just fail again
+        // Network failure — safe to queue since the vote is idempotent and last-write-wins.
         await enqueueHelpfulVote(reviewId, !voted);
       }
     },

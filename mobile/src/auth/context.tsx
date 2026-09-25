@@ -4,7 +4,7 @@ import { apiClient, unwrap } from '@/api/client';
 import type { components } from '@/api/schema';
 import { unregisterCurrentDevice } from '@/features/push/register';
 import { onForcedSignOut } from './events';
-import { clearTokens, getAccessToken, getRefreshToken, setTokens } from './storage';
+import { clearTokens, getAccessToken, getRefreshToken, setCurrentUserId, setTokens } from './storage';
 // Registers the auth middleware (token attachment + refresh-on-401) on
 // `apiClient` as a side effect of import — see middleware.ts.
 import './middleware';
@@ -56,20 +56,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     const { data } = unwrap(result);
-    if (!data.tokens?.access_token || !data.tokens.refresh_token) {
+    if (!data.tokens?.access_token || !data.tokens.refresh_token || !data.user?.id) {
       throw new Error('Registration succeeded but no session was returned');
     }
     await setTokens({ accessToken: data.tokens.access_token, refreshToken: data.tokens.refresh_token });
+    await setCurrentUserId(data.user.id);
     setStatus('signedIn');
   }, []);
 
   const login = useCallback(async (identifier: string, password: string) => {
     const result = await apiClient.POST('/api/v1/auth/login', { body: { identifier, password } });
     const { data } = unwrap(result);
-    if (!data.tokens?.access_token || !data.tokens.refresh_token) {
+    if (!data.tokens?.access_token || !data.tokens.refresh_token || !data.user?.id) {
       throw new Error('Login succeeded but no session was returned');
     }
     await setTokens({ accessToken: data.tokens.access_token, refreshToken: data.tokens.refresh_token });
+    await setCurrentUserId(data.user.id);
     setStatus('signedIn');
   }, []);
 

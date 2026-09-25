@@ -6,6 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 // doesn't fall back to an insecure web store.
 const ACCESS_TOKEN_KEY = 'adera.access_token';
 const REFRESH_TOKEN_KEY = 'adera.refresh_token';
+const USER_ID_KEY = 'adera.user_id';
 
 export type TokenPair = { accessToken: string; refreshToken: string };
 
@@ -25,5 +26,20 @@ export async function setTokens({ accessToken, refreshToken }: TokenPair): Promi
 }
 
 export async function clearTokens(): Promise<void> {
-  await Promise.all([SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY), SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)]);
+  await Promise.all([
+    SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
+    SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+    SecureStore.deleteItemAsync(USER_ID_KEY),
+  ]);
+}
+
+// Tags offline-queue jobs (src/features/reviews/offline-queue.ts) so a job
+// queued by one account is never replayed under a different one signed in
+// later on the same device.
+export async function getCurrentUserId(): Promise<string | null> {
+  return SecureStore.getItemAsync(USER_ID_KEY);
+}
+
+export async function setCurrentUserId(userId: string): Promise<void> {
+  await SecureStore.setItemAsync(USER_ID_KEY, userId);
 }

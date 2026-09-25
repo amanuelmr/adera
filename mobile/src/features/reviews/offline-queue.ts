@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { apiClient, ApiError } from '@/api/client';
+import { apiClient, unwrap, ApiError } from '@/api/client';
+import { getCurrentUserId } from '@/auth/storage';
 import { createReview, uploadPhotos } from './queries';
 import type { ReviewFormState } from './types';
 
@@ -9,6 +10,8 @@ const STORAGE_KEY = 'adera.offline-queue.v1';
 export type ReviewSubmissionJob = {
   type: 'review-submission';
   id: string;
+  /** Whoever was signed in when this was queued — see processQueue(). */
+  userId: string;
   targetId: string;
   idempotencyKey: string;
   form: ReviewFormState;
@@ -21,6 +24,7 @@ export type ReviewSubmissionJob = {
 export type HelpfulVoteJob = {
   type: 'helpful-vote';
   id: string;
+  userId: string;
   reviewId: string;
   voted: boolean;
 };
@@ -62,13 +66,25 @@ export function getQueueSnapshot(): QueueJob[] {
   return jobs ?? [];
 }
 
+// Enqueue is only ever called from an authenticated screen (the review
+// wizard, a helpful-vote tap), so a missing user id here means something is
+// badly wrong with the calling code, not a normal runtime condition —
+// failing loud is correct rather than silently tagging the job with nothing
+// and letting it match whoever happens to be signed in later.
+async function requireCurrentUserId(): Promise<string> {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Cannot queue an offline job with no signed-in user');
+  return userId;
+}
+
 export async function enqueueReviewSubmission(
   input: Pick<ReviewSubmissionJob, 'targetId' | 'idempotencyKey' | 'form'> & { reviewId?: string; pendingPhotoUris?: string[] }
 ): Promise<void> {
-  const queue = await hydrate();
+  const [queue, userId] = await Promise.all([hydrate(), requireCurrentUserId()]);
   queue.push({
     type: 'review-submission',
     id: generateJobId(),
+    userId,
     targetId: input.targetId,
     idempotencyKey: input.idempotencyKey,
     form: input.form,
@@ -79,23 +95,33 @@ export async function enqueueReviewSubmission(
 }
 
 export async function enqueueHelpfulVote(reviewId: string, voted: boolean): Promise<void> {
-  const queue = await hydrate();
+  const [queue, userId] = await Promise.all([hydrate(), requireCurrentUserId()]);
   // Last-write-wins: a newer toggle for the same review supersedes an
-  // unsent older one rather than replaying both in order.
-  jobs = queue.filter((job) => !(job.type === 'helpful-vote' && job.reviewId === reviewId));
-  jobs.push({ type: 'helpful-vote', id: generateJobId(), reviewId, voted });
+  // unsent older one rather than replaying both in order. Scoped to this
+  // user's own prior jobs only — a different account's queued vote for the
+  // same review (unlikely, but possible on a shared device) is untouched.
+  jobs = queue.filter((job) => !(job.type === 'helpful-vote' && job.reviewId === reviewId && job.userId === userId));
+  jobs.push({ type: 'helpful-vote', id: generateJobId(), userId, reviewId, voted });
   await persist();
 }
 
 let processing = false;
 
-/** Drains everything it can; jobs that still fail for network reasons stay queued. */
+/**
+ * Drains everything it can *for the currently signed-in account*; jobs
+ * belonging to a different account (queued by an earlier session on this
+ * device, or awaiting the account that's still on this device) are left
+ * queued untouched — replaying user A's job under user B's now-current
+ * bearer token would publish it under the wrong account.
+ */
 export async function processQueue(): Promise<void> {
   if (processing) return;
   processing = true;
   try {
-    const queue = await hydrate();
+    const [queue, currentUserId] = await Promise.all([hydrate(), getCurrentUserId()]);
+    if (!currentUserId) return;
     for (const job of [...queue]) {
+      if (job.userId !== currentUserId) continue;
       const resolved = await runJob(job);
       if (resolved && jobs) {
         jobs = jobs.filter((j) => j.id !== job.id);
@@ -111,9 +137,11 @@ export async function processQueue(): Promise<void> {
 async function runJob(job: QueueJob): Promise<boolean> {
   try {
     if (job.type === 'helpful-vote') {
-      await (job.voted
-        ? apiClient.PUT('/api/v1/reviews/{id}/helpful', { params: { path: { id: job.reviewId } } })
-        : apiClient.DELETE('/api/v1/reviews/{id}/helpful', { params: { path: { id: job.reviewId } } }));
+      unwrap(
+        await (job.voted
+          ? apiClient.PUT('/api/v1/reviews/{id}/helpful', { params: { path: { id: job.reviewId } } })
+          : apiClient.DELETE('/api/v1/reviews/{id}/helpful', { params: { path: { id: job.reviewId } } }))
+      );
       return true;
     }
 
