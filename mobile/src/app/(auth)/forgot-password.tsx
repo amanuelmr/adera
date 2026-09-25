@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { apiClient } from '@/api/client';
+import { apiClient, unwrap } from '@/api/client';
 import { friendlyAuthError } from '@/auth/friendly-error';
 import { Button } from '@/components/button';
 import { TextField } from '@/components/text-field';
@@ -24,7 +24,7 @@ export default function ForgotPasswordScreen() {
     try {
       // Always 200 whether or not the account exists (no enumeration) — so
       // there's nothing to branch on here besides a network/rate-limit error.
-      await apiClient.POST('/api/v1/auth/password-reset/request', { body: { identifier: identifier.trim() } });
+      unwrap(await apiClient.POST('/api/v1/auth/password-reset/request', { body: { identifier: identifier.trim() } }));
       router.push({ pathname: '/reset-password', params: { identifier: identifier.trim() } });
     } catch (err) {
       setError(friendlyAuthError(err));

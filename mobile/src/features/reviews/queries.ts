@@ -148,7 +148,8 @@ export function useMyReviews() {
 export function useDeleteReview() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (reviewId: string) => apiClient.DELETE('/api/v1/reviews/{id}', { params: { path: { id: reviewId } } }),
+    mutationFn: async (reviewId: string) =>
+      unwrap(await apiClient.DELETE('/api/v1/reviews/{id}', { params: { path: { id: reviewId } } })),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users', 'me', 'reviews'] });
     },
