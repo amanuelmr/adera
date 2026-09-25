@@ -47,13 +47,15 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v9
         with:
-          # Pinned, not "latest": the action's "latest" resolved to v1.64.8
-          # (built with go1.24), which can't analyze code declaring go1.26.6
-          # in go.mod ("the Go language version used to build golangci-lint
-          # is lower than the targeted Go version"). v2.14.0 is itself built
-          # with go1.26.6 and runs clean against this repo.
+          # golangci-lint-action@v6 doesn't support golangci-lint v2 at all
+          # ("you must update to golangci-lint-action v7") — v9 is the
+          # action's current major and the README's own example pins v2.x
+          # the same way. v2.14.0 is itself built with go1.26.6, so it can
+          # analyze code declaring go1.26.6 in go.mod (v1.64.8, which
+          # "latest" under @v6 resolved to, was built with go1.24 and
+          # couldn't).
           version: v2.14.0
 
   docker:
