@@ -49,7 +49,12 @@ jobs:
           go-version-file: go.mod
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          # Pinned, not "latest": the action's "latest" resolved to v1.64.8
+          # (built with go1.24), which can't analyze code declaring go1.26.6
+          # in go.mod ("the Go language version used to build golangci-lint
+          # is lower than the targeted Go version"). v2.14.0 is itself built
+          # with go1.26.6 and runs clean against this repo.
+          version: v2.14.0
 
   docker:
     runs-on: ubuntu-latest
