@@ -6,19 +6,30 @@ import { Platform } from 'react-native';
 import { registerDeviceToken, unregisterDeviceToken, type DevicePlatform } from './queries';
 
 // Backend delivery is raw FCM (internal/notifications/fcm.go), not Expo's
-// push relay — getDevicePushTokenAsync() returns the native FCM/APNs
-// registration token, not an ExponentPushToken[...], which is what that
-// endpoint expects.
+// push relay — getDevicePushTokenAsync() returns the native device
+// registration token, which on Android *is* an FCM token but on iOS is an
+// APNs token instead. The backend's FCM provider can't deliver to an APNs
+// token, so registering one would just store a destination nothing can ever
+// send to. Android-only for v1 anyway (docs/mobile-plan.md §1.2) — iOS
+// support needs its own Firebase-Cloud-Messaging-for-iOS integration to get
+// a real FCM token, not just skipping this check.
 let currentToken: string | undefined;
 
 function toDevicePlatform(osName: string): DevicePlatform | undefined {
-  if (osName === 'android' || osName === 'ios') return osName;
-  return undefined; // web isn't a push target for this app (Android-first, docs/mobile-plan.md §1.2)
+  return osName === 'android' ? 'android' : undefined;
 }
 
+// Best-effort and logged, not thrown — a failed registration (transient
+// network issue, backend rejecting a malformed token) shouldn't crash app
+// startup or the token-rotation listener below, but silently swallowing it
+// entirely made the failure invisible even for debugging.
 async function register(platform: DevicePlatform, token: string): Promise<void> {
   currentToken = token;
-  await registerDeviceToken(token, platform, Constants.expoConfig?.version);
+  try {
+    await registerDeviceToken(token, platform, Constants.expoConfig?.version);
+  } catch (err) {
+    console.warn('Failed to register push device token', err);
+  }
 }
 
 /**
