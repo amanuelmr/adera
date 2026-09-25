@@ -70,7 +70,8 @@
   },
   "updateRequired": {
     "title": "Update required",
-    "body": "This version of Adera is no longer supported. Update to keep using the app."
+    "body": "This version of Adera is no longer supported. Update to keep using the app.",
+    "checkStore": "Please check the Play Store for the latest version."
   },
   "settings": {
     "language": "Language"
