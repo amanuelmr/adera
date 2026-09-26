@@ -459,6 +459,71 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
 
+  /api/v1/users/me/devices:
+    get:
+      tags: [notifications]
+      summary: List the caller's registered push installs
+      description: |
+        The push token itself is never returned — it is a send credential.
+        Each entry carries only the id, platform, app version and timestamps.
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Registered installs, most recently seen first.
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    post:
+      tags: [notifications]
+      summary: Register or refresh a push token
+      description: |
+        Idempotent upsert keyed on the token: clients post it on every launch.
+        Registering a token already held by another account **moves** it, so
+        the previous user stops receiving that handset's pushes — shared
+        phones make that a privacy requirement. At most 10 installs are kept
+        per account; the least recently seen is dropped.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, platform]
+              properties:
+                token: {type: string, minLength: 32, maxLength: 4096, description: FCM registration token.}
+                platform: {type: string, enum: [android, ios, web]}
+                app_version: {type: string, maxLength: 40, example: "1.0.0"}
+      responses:
+        '200':
+          description: The registered install.
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [notifications]
+      summary: Unregister a push token (client logout)
+      description: |
+        The token is sent in the body rather than the path because FCM tokens
+        are long and not URL-friendly. Only the caller's own tokens can be
+        removed.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: {type: string}
+      responses:
+        '200':
+          description: '`{"data": {"status": "unregistered"}}`'
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
   /api/v1/users/me/data-export:
     get:
       tags: [privacy]
@@ -689,7 +754,7 @@ paths:
           description: Ranked targets (includes `ranking_score`).
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/DataEnvelope'}
+              schema: {$ref: '#/components/schemas/RankedTargetPage'}
 
   /api/v1/targets/trending:
     get:
@@ -704,7 +769,39 @@ paths:
           description: Targets with `recent_review_count` and `recent_average`.
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/DataEnvelope'}
+              schema: {$ref: '#/components/schemas/TrendingTargetPage'}
+
+  /api/v1/targets/nearby:
+    get:
+      tags: [targets]
+      summary: Published targets within a radius of a point, closest first
+      description: |
+        Great-circle (haversine) distance against the stored coordinates; a
+        bounding box narrows the scan first so the geo index is usable.
+        Targets without coordinates (online sellers) are never returned.
+        Each item carries `distance_km`. Results are a single ranked page —
+        widen `radius_km` or raise `limit` rather than paginating.
+      parameters:
+        - {name: lat, in: query, required: true, schema: {type: number, minimum: -90, maximum: 90}, example: 9.0}
+        - {name: lng, in: query, required: true, schema: {type: number, minimum: -180, maximum: 180}, example: 38.75}
+        - name: radius_km
+          in: query
+          schema: {type: number, minimum: 0, exclusiveMinimum: true, maximum: 50, default: 5}
+          description: Search radius in kilometres; at most 50.
+        - {$ref: '#/components/parameters/FilterCategory'}
+        - {$ref: '#/components/parameters/FilterCity'}
+        - {$ref: '#/components/parameters/FilterArea'}
+        - {$ref: '#/components/parameters/FilterType'}
+        - {$ref: '#/components/parameters/FilterMinRating'}
+        - {$ref: '#/components/parameters/FilterVerified'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Nearest targets first (each includes `distance_km`).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NearbyTargetPage'}
+        '422': {$ref: '#/components/responses/ValidationError'}
 
   /api/v1/targets/{idOrSlug}:
     get:
@@ -1009,7 +1106,7 @@ paths:
           description: Ranked matches with `score`.
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/DataEnvelope'}
+              schema: {$ref: '#/components/schemas/SearchResultPage'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '429': {$ref: '#/components/responses/RateLimited'}
 
@@ -1053,12 +1150,16 @@ paths:
   /api/v1/media/uploads/{id}/finalize:
     post:
       tags: [media]
-      summary: Finalize a public photo (validate, re-encode, strip EXIF/GPS, publish)
+      summary: Finalize a public photo (validate, re-encode, strip EXIF/GPS, thumbnail, publish)
       description: |
         Server-side: magic-byte check against the declared type, decode with
-        decompression-bomb guard, re-encode (drops all metadata), copy to the
+        decompression-bomb guard, re-encode (drops all metadata), generate a
+        thumbnail bounded to 480 px on its longest edge, copy both to the
         public bucket, delete staging, raise the review's verification level
-        to `media_attached`. 422 `upload_invalid` on any mismatch; 410 when
+        to `media_attached`. Review media then carries `thumb_url` alongside
+        `url`; it is absent when the upload was already within the thumbnail
+        bound, and clients fall back to `url`. A thumbnail that fails to
+        upload is logged and skipped rather than failing the photo. 422 `upload_invalid` on any mismatch; 410 when
         the upload window expired.
       security: [{bearerAuth: []}]
       parameters: [{$ref: '#/components/parameters/PathID'}]
@@ -1686,6 +1787,40 @@ paths:
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
 
+  /api/v1/app/version:
+    get:
+      tags: [meta]
+      summary: Mobile client version gate
+      description: |
+        Public on purpose: a client too old to authenticate still has to be
+        able to discover that it must update. `update_required` and
+        `update_available` are returned **only** when the caller supplies its
+        own `version`, so an absent field never reads as "up to date".
+        An unconfigured platform returns the gate with no evaluation.
+      parameters:
+        - name: platform
+          in: query
+          schema: {type: string, enum: [android, ios], default: android}
+        - name: version
+          in: query
+          schema: {type: string, example: "1.4.2"}
+          description: The caller's own version; dotted numeric, pre-release and build metadata ignored.
+      responses:
+        '200':
+          description: The version gate for the platform.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VersionGatePage'}
+              example:
+                data:
+                  platform: android
+                  minimum_supported: "1.2.0"
+                  latest: "1.10.0"
+                  store_url: "https://play.google.com/store/apps/details?id=et.adera"
+                  update_required: false
+                  update_available: true
+        '422': {$ref: '#/components/responses/ValidationError'}
+
   /health:
     get:
       tags: [ops]
@@ -2042,6 +2177,74 @@ components:
               type: array
               items: {$ref: '#/components/schemas/Target'}
 
+    RankedTarget:
+      allOf:
+        - $ref: '#/components/schemas/Target'
+        - properties:
+            ranking_score: {type: number, description: "(10×3.5 + Σratings)/(10+n), 4 decimals."}
+    RankedTargetPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/RankedTarget'}
+
+    TrendingTarget:
+      allOf:
+        - $ref: '#/components/schemas/Target'
+        - properties:
+            recent_review_count: {type: integer, description: "Published reviews in the last 30 days."}
+            recent_average: {type: number, nullable: true, description: "Average rating over that same window."}
+    TrendingTargetPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/TrendingTarget'}
+
+    NearbyTarget:
+      allOf:
+        - $ref: '#/components/schemas/Target'
+        - properties:
+            distance_km: {type: number, description: "Great-circle distance from the query point."}
+    NearbyTargetPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/NearbyTarget'}
+
+    SearchResult:
+      allOf:
+        - $ref: '#/components/schemas/Target'
+        - properties:
+            score: {type: number, description: "Relevance score; ranked matches only, not a rating."}
+    SearchResultPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/SearchResult'}
+
+    VersionGate:
+      type: object
+      properties:
+        platform: {type: string, enum: [android, ios]}
+        minimum_supported: {type: string}
+        latest: {type: string}
+        store_url: {type: string}
+        update_required: {type: boolean, description: "Present only when the caller supplied its own version."}
+        update_available: {type: boolean, description: "Present only when the caller supplied its own version."}
+    VersionGatePage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data: {$ref: '#/components/schemas/VersionGate'}
+
     ReviewCreate:
       type: object
       required: [target_id, overall_rating, body]
@@ -2120,6 +2323,7 @@ components:
                 properties:
                   id: {type: string, format: uuid}
                   url: {type: string}
+                  thumb_url: {type: string, description: "480px-bounded derivative; absent when the original was already small enough."}
             business_response:
               type: object
               nullable: true

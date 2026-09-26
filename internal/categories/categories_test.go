@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/adera-platform/backend/internal/platform/web"
 	"github.com/adera-platform/backend/internal/platform/testdb"
+	"github.com/adera-platform/backend/internal/platform/web"
 )
 
 // catElectronicsID is fixed by migrations/0010_reference_data.sql.

@@ -73,6 +73,74 @@ func run() error {
 	}
 }
 
+// verificationProvider selects how one-time codes reach users: SMTP when a
+// relay is configured, the console in development, and otherwise a provider
+// that reports unavailable so endpoints return 503 instead of silently
+// dropping codes.
+//
+// Only the email channel has a real delivery path; phone verification stays
+// unavailable until an SMS or Telegram provider is added.
+func verificationProvider(cfg config.Config) (auth.Provider, error) {
+	if !cfg.SMTPEnabled() {
+		if cfg.IsDev() {
+			slog.Info("using console verification provider (development only)")
+			return auth.ConsoleProvider{W: os.Stdout}, nil
+		}
+		slog.Warn("no verification provider configured; verification endpoints will return 503")
+		return auth.NoopProvider{}, nil
+	}
+
+	opts := auth.SMTPOptions{
+		Host:        cfg.SMTPHost,
+		Port:        cfg.SMTPPort,
+		Username:    cfg.SMTPUsername,
+		Password:    cfg.SMTPPassword,
+		FromAddress: cfg.SMTPFromAddress,
+		FromName:    cfg.SMTPFromName,
+		Timeout:     cfg.SMTPTimeout,
+	}
+	switch cfg.SMTPTLS {
+	case config.SMTPTLSImplicit:
+		opts.ImplicitTLS = true
+	case config.SMTPTLSNone:
+		opts.AllowPlaintext = true
+	}
+
+	provider, err := auth.NewEmailProvider(opts)
+	if err != nil {
+		return nil, fmt.Errorf("configuring smtp verification provider: %w", err)
+	}
+	slog.Info("using smtp verification provider",
+		"host", cfg.SMTPHost, "port", cfg.SMTPPort, "tls", cfg.SMTPTLS, "from", cfg.SMTPFromAddress)
+	return provider, nil
+}
+
+// notificationProvider selects how outbox events are delivered: FCM push when
+// service-account credentials are configured, the console in development, and
+// otherwise a provider that fails loudly so events accumulate in the outbox
+// for later replay instead of being dropped.
+func notificationProvider(cfg config.Config, svc *notifications.Service) (notifications.Provider, error) {
+	if !cfg.PushEnabled() {
+		if cfg.IsDev() {
+			slog.Info("using console notification delivery provider (development only)")
+			return notifications.ConsoleProvider{W: os.Stdout}, nil
+		}
+		slog.Warn("no notification delivery provider configured; outbox events will not be delivered")
+		return notifications.NoopProvider{}, nil
+	}
+
+	credentials, err := os.ReadFile(cfg.FCMCredentialsFile)
+	if err != nil {
+		return nil, fmt.Errorf("reading fcm credentials: %w", err)
+	}
+	provider, err := notifications.NewFCMProvider(credentials, svc, cfg.FCMTimeout)
+	if err != nil {
+		return nil, err
+	}
+	slog.Info("using fcm notification delivery provider", "project", provider.ProjectID())
+	return provider, nil
+}
+
 func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 	var store storage.Store
 	if cfg.StorageEnabled {
@@ -91,28 +159,17 @@ func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 		slog.Warn("object storage disabled; media endpoints will return 503")
 	}
 
-	var provider auth.Provider
-	if cfg.IsDev() {
-		provider = auth.ConsoleProvider{W: os.Stdout}
-		slog.Info("using console verification provider (development only)")
-	} else {
-		// No real SMS/email integration is configured yet; verification
-		// endpoints report unavailable rather than pretending to send.
-		provider = auth.NoopProvider{}
-		slog.Warn("no verification provider configured; verification endpoints will return 503")
+	provider, err := verificationProvider(cfg)
+	if err != nil {
+		return err
 	}
 
-	var notifyProvider notifications.Provider
-	if cfg.IsDev() {
-		notifyProvider = notifications.ConsoleProvider{W: os.Stdout}
-		slog.Info("using console notification delivery provider (development only)")
-	} else {
-		// No real SMS/email integration is configured yet; events accumulate
-		// in the outbox for later replay rather than being dropped.
-		notifyProvider = notifications.NoopProvider{}
-		slog.Warn("no notification delivery provider configured; outbox events will not be delivered")
+	notificationSvc := notifications.NewService(pool)
+	notifyProvider, err := notificationProvider(cfg, notificationSvc)
+	if err != nil {
+		return err
 	}
-	dispatcher := notifications.NewDispatcher(notifications.NewService(pool), notifyProvider)
+	dispatcher := notifications.NewDispatcher(notificationSvc, notifyProvider)
 	go dispatcher.Run(ctx)
 
 	srv := &http.Server{

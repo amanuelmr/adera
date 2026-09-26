@@ -2,7 +2,7 @@ module github.com/adera-platform/backend
 
 go 1.26.1
 
-toolchain go1.26.5
+toolchain go1.26.6
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.1

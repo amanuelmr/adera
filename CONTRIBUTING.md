@@ -18,6 +18,14 @@ make check   # go vet, go test, go test -race, govulncheck
 Integration tests need the compose PostgreSQL (they create disposable
 databases and are skipped when it's unreachable — CI always runs them).
 
+For changes under `mobile/` (matches `.github/workflows/mobile-ci.yml`, which
+only runs on `mobile/**` and `api/openapi.yaml` changes):
+
+```bash
+cd mobile && npm run generate:api && git diff --exit-code -- src/api/schema.d.ts \
+  && npx tsc --noEmit && npx expo lint && npx expo-doctor
+```
+
 ## Code conventions
 
 - Module-by-capability layout (`internal/<capability>`): each module owns its

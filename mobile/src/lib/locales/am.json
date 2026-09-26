@@ -1,0 +1,79 @@
+{
+  "common": {
+    "signIn": "ግባ",
+    "createAccount": "መለያ ፍጠር",
+    "back": "ተመለስ",
+    "next": "ቀጣይ",
+    "submit": "አስገባ",
+    "saveChanges": "ለውጦችን አስቀምጥ",
+    "cancel": "ሰርዝ",
+    "delete": "ሰርዝ",
+    "edit": "አርትዕ",
+    "viewTarget": "ገጽ ተመልከት",
+    "signOut": "ውጣ",
+    "signOutEverywhere": "በሁሉም ቦታ ውጣ",
+    "resendCode": "ኮድ እንደገና ላክ",
+    "sendCode": "ኮድ ላክ",
+    "confirm": "አረጋግጥ",
+    "updateNow": "አሁን አዘምን",
+    "backToTarget": "ወደ ገጹ ተመለስ",
+    "resetPassword": "የይለፍ ቃል ዳግም አስጀምር"
+  },
+  "nav": {
+    "search": "ፈልግ",
+    "verifyEmail": "ኢሜይል አረጋግጥ",
+    "yourDevices": "የእርስዎ መሳሪያዎች",
+    "writeReview": "ግምገማ ጻፍ",
+    "editReview": "ግምገማ አርትዕ"
+  },
+  "auth": {
+    "signInTitle": "ግባ",
+    "emailOrPhone": "ኢሜይል ወይም ስልክ",
+    "password": "የይለፍ ቃል",
+    "forgotPassword": "የይለፍ ቃል ረሱ?",
+    "noAccount": "መለያ የለዎትም? አንድ ይፍጠሩ",
+    "haveAccount": "መለያ አለዎት? ይግቡ",
+    "createAccountTitle": "መለያዎን ይፍጠሩ",
+    "name": "ስም",
+    "email": "ኢሜይል",
+    "resetPasswordTitle": "የይለፍ ቃልዎን ዳግም ያስጀምሩ",
+    "resetPasswordBody": "መለያ ካለ ኮድ ወደ ኢሜይልዎ ወይም ስልክዎ እንልካለን።",
+    "enterCodeTitle": "ኮድዎን ያስገቡ",
+    "sixDigitCode": "ባለ 6 አሃዝ ኮድ",
+    "newPassword": "አዲስ የይለፍ ቃል",
+    "verifyRequestBody": "አድራሻዎን ለማረጋገጥ ባለ 6 አሃዝ ኮድ ወደ ኢሜይልዎ እንልካለን።",
+    "verifyConfirmBody": "ወደ ኢሜይልዎ የላክንልዎትን ባለ 6 አሃዝ ኮድ ያስገቡ።",
+    "verifiedTitle": "ኢሜይል ተረጋግጧል",
+    "verifyLink": "ኢሜይልዎን ያረጋግጡ",
+    "devicesLink": "የእርስዎ መሳሪያዎች"
+  },
+  "errors": {
+    "invalidCredentials": "ኢሜይል/ስልክ ወይም የይለፍ ቃል የተሳሳተ ነው።",
+    "accountSuspended": "ይህ መለያ ታግዷል።",
+    "rateLimited": "በጣም ብዙ ሙከራዎች — እባክዎ ከጥቂት ደቂቃዎች በኋላ ይሞክሩ።",
+    "verificationUnavailable": "ማረጋገጫ አሁን አይገኝም፣ ነገር ግን መተግበሪያውን መጠቀም ይችላሉ።",
+    "generic": "የሆነ ችግር ተፈጥሯል። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
+    "reviewCooldown": "ይህንን ቦታ ባለፉት 30 ቀናት ውስጥ አስቀድመው ገምግመውታል።",
+    "reviewRateLimited": "ዛሬ ቀደም ብለው ጥቂት ግምገማዎችን አስገብተዋል — በኋላ ይሞክሩ።",
+    "reviewStale": "ይህ ግምገማ እርስዎ ማርትዕ ከጀመሩ ጀምሮ ተቀይሯል። ተመልሰው እንደገና ይሞክሩ።",
+    "reviewGeneric": "ግምገማዎን ማስገባት አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
+    "reviewOffline": "ግምገማ ለማዘመን ግንኙነት ያስፈልግዎታል።"
+  },
+  "disclosure": {
+    "title": "አንድ ተጨማሪ ነገር",
+    "body": "ይህንን ሁሉንም ሰው እንጠይቃለን — ግምገማዎችን አስተማማኝ ያደርገዋል። ቅናሽ፣ ነጻ ዕቃ፣ ወይም ከንግዱ ጋር ያለ ግንኙነት ይፋዊ ምልክት ያገኛል፣ ግምገማው አይሰረዝም።",
+    "incentiveQuestion": "ለዚህ ግምገማ የሆነ ነገር ተቀብለዋል?",
+    "relationshipQuestion": "ከዚህ ንግድ ጋር ግንኙነት አለዎት?",
+    "details": "ዝርዝሮች",
+    "detailsOptional": "ዝርዝሮች (አማራጭ)",
+    "detailsPlaceholder": "በአጭሩ ያብራሩ"
+  },
+  "updateRequired": {
+    "title": "ማዘመን ያስፈልጋል",
+    "body": "የAdera ይህ ስሪት ከአሁን በኋላ አይደገፍም። መተግበሪያውን ለመቀጠል ያዘምኑ።",
+    "checkStore": "እባክዎ የቅርብ ጊዜውን ስሪት ለማግኘት Play Store ን ይመልከቱ።"
+  },
+  "settings": {
+    "language": "ቋንቋ"
+  }
+}

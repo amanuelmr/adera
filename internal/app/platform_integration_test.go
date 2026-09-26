@@ -374,12 +374,18 @@ func TestTargetReferenceValidation(t *testing.T) {
 	}, mod.Access)
 	assert.Equal(t, http.StatusUnprocessableEntity, status)
 
-	otherCity := "33333333-3333-4333-8333-333333333301"
+	// Reference data already ships every launch city, and areas only for
+	// Addis, so the mismatch case needs an area under a different existing
+	// city rather than a new city.
+	var otherCity string
+	err := a.pool.QueryRow(context.Background(),
+		`SELECT id FROM cities WHERE name = 'Hawassa'`).Scan(&otherCity)
+	require.NoError(t, err)
+
 	otherArea := "33333333-3333-4333-8333-333333333302"
-	_, err := a.pool.Exec(context.Background(), `
-		INSERT INTO cities (id, name, name_am, country, active) VALUES ($1, 'Hawassa', 'ሀዋሳ', 'ET', true);
-		INSERT INTO areas (id, city_id, name, name_am, active) VALUES ($2, $1, 'Piazza', 'ፒያሳ', true)`,
-		otherCity, otherArea)
+	_, err = a.pool.Exec(context.Background(),
+		`INSERT INTO areas (id, city_id, name, name_am, active) VALUES ($1, $2, 'Tabor', 'ታቦር', true)`,
+		otherArea, otherCity)
 	require.NoError(t, err)
 
 	status, _ = a.do("POST", "/api/v1/targets", map[string]any{

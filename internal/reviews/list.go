@@ -283,7 +283,7 @@ func (r *Repo) attachMedia(ctx context.Context, page []ListedReview) error {
 		index[lr.ID] = i
 	}
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, review_id, object_key FROM review_media
+		SELECT id, review_id, object_key, thumb_key FROM review_media
 		WHERE review_id = ANY($1) AND status = 'ready'
 		ORDER BY created_at`, ids)
 	if err != nil {
@@ -293,11 +293,16 @@ func (r *Repo) attachMedia(ctx context.Context, page []ListedReview) error {
 	for rows.Next() {
 		var mediaID, reviewID uuid.UUID
 		var key string
-		if err := rows.Scan(&mediaID, &reviewID, &key); err != nil {
+		var thumbKey *string
+		if err := rows.Scan(&mediaID, &reviewID, &key, &thumbKey); err != nil {
 			return fmt.Errorf("scanning review media: %w", err)
 		}
+		ref := MediaRef{ID: mediaID, URL: r.publicMediaURL(key)}
+		if thumbKey != nil {
+			ref.ThumbURL = r.publicMediaURL(*thumbKey)
+		}
 		i := index[reviewID]
-		page[i].Media = append(page[i].Media, MediaRef{ID: mediaID, URL: r.publicMediaURL(key)})
+		page[i].Media = append(page[i].Media, ref)
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("iterating review media: %w", err)

@@ -23,8 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"image/jpeg"
-	"image/png"
 	"io"
 	"log/slog"
 	"time"
@@ -48,6 +46,11 @@ const (
 	MaxEvidencePerReview = 5
 	// Decompression-bomb guard.
 	maxPixels = 40_000_000 // ~40 MP
+
+	// Re-encode qualities. Thumbnails go lower: they are shown small, and
+	// bytes are a household cost on the target networks.
+	fullJPEGQuality  = 85
+	thumbJPEGQuality = 80
 )
 
 // Content types accepted for upload. Public media must decode as JPEG/PNG at
@@ -318,7 +321,7 @@ func (s *Service) FinalizeReviewMedia(ctx context.Context, uploadID, userID uuid
 		}
 	}()
 
-	clean, format, err := s.sanitizeImage(ctx, stagingKey, contentType)
+	clean, thumb, format, err := s.sanitizeImage(ctx, stagingKey, contentType)
 	if err != nil {
 		return uuid.Nil, "", err
 	}
@@ -327,11 +330,25 @@ func (s *Service) FinalizeReviewMedia(ctx context.Context, uploadID, userID uuid
 	if err := s.store.Put(ctx, s.publicBucket, finalKey, bytes.NewReader(clean), int64(len(clean)), finalType); err != nil {
 		return uuid.Nil, "", fmt.Errorf("writing public media: %w", err)
 	}
+
+	// The thumbnail is an optimization, not the deliverable: if it fails to
+	// upload, publish the photo anyway and let readers fall back to the full
+	// image rather than losing the upload.
+	var thumbKey *string
+	if len(thumb) > 0 {
+		key := fmt.Sprintf("reviews/%s/%s_thumb.%s", reviewID, uploadID, format)
+		if err := s.store.Put(ctx, s.publicBucket, key, bytes.NewReader(thumb), int64(len(thumb)), finalType); err != nil {
+			slog.WarnContext(ctx, "failed to write media thumbnail",
+				"upload_id", uploadID, "object_key", key, "error", err)
+		} else {
+			thumbKey = &key
+		}
+	}
 	if err := database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `
 			UPDATE review_media SET object_key = $2, content_type = $3, size_bytes = $4,
-				status = 'ready', processing_started_at = NULL
-			WHERE id = $1 AND status = 'processing'`, uploadID, finalKey, finalType, len(clean))
+				thumb_key = $5, status = 'ready', processing_started_at = NULL
+			WHERE id = $1 AND status = 'processing'`, uploadID, finalKey, finalType, len(clean), thumbKey)
 		if err != nil {
 			return fmt.Errorf("marking media ready: %w", err)
 		}
@@ -361,52 +378,64 @@ func (s *Service) FinalizeReviewMedia(ctx context.Context, uploadID, userID uuid
 }
 
 // sanitizeImage downloads a staged object, verifies its magic bytes match the
-// declared type, decodes it defensively, and re-encodes it clean.
-func (s *Service) sanitizeImage(ctx context.Context, key, declaredType string) ([]byte, string, error) {
+// declared type, decodes it defensively, and re-encodes it clean. It also
+// returns a downscaled thumbnail, which is nil when the image is already
+// small enough not to need one.
+func (s *Service) sanitizeImage(ctx context.Context, key, declaredType string) ([]byte, []byte, string, error) {
 	obj, err := s.store.Get(ctx, s.privateBucket, key)
 	if err != nil {
-		return nil, "", &web.Error{Status: 422, Code: web.CodeUploadInvalid,
+		return nil, nil, "", &web.Error{Status: 422, Code: web.CodeUploadInvalid,
 			Message: "the uploaded file was not found; upload before finalizing", Internal: err}
 	}
 	defer func() { _ = obj.Close() }()
 	raw, err := io.ReadAll(io.LimitReader(obj, MaxUploadBytes+1))
 	if err != nil {
-		return nil, "", fmt.Errorf("reading staged object: %w", err)
+		return nil, nil, "", fmt.Errorf("reading staged object: %w", err)
 	}
 	if len(raw) > MaxUploadBytes || len(raw) < MinUploadBytes {
-		return nil, "", uploadInvalid("file size out of bounds")
+		return nil, nil, "", uploadInvalid("file size out of bounds")
 	}
 	if SniffImageType(raw) != declaredType {
-		return nil, "", uploadInvalid("file content does not match its declared type")
+		return nil, nil, "", uploadInvalid("file content does not match its declared type")
 	}
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(raw))
 	if err != nil {
-		return nil, "", uploadInvalid("file is not a decodable image")
+		return nil, nil, "", uploadInvalid("file is not a decodable image")
 	}
 	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width*cfg.Height > maxPixels {
-		return nil, "", uploadInvalid("image dimensions out of bounds")
+		return nil, nil, "", uploadInvalid("image dimensions out of bounds")
 	}
 	img, format, err := image.Decode(bytes.NewReader(raw))
 	if err != nil {
-		return nil, "", uploadInvalid("file is not a decodable image")
+		return nil, nil, "", uploadInvalid("file is not a decodable image")
 	}
-	// Re-encoding from the decoded pixel data drops every metadata segment
-	// (EXIF, GPS, XMP) by construction.
-	var buf bytes.Buffer
+	var ext string
 	switch format {
 	case "jpeg":
-		if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 85}); err != nil {
-			return nil, "", fmt.Errorf("re-encoding jpeg: %w", err)
-		}
-		return buf.Bytes(), "jpg", nil
+		ext = "jpg"
 	case "png":
-		if err := png.Encode(&buf, img); err != nil {
-			return nil, "", fmt.Errorf("re-encoding png: %w", err)
-		}
-		return buf.Bytes(), "png", nil
+		ext = "png"
 	default:
-		return nil, "", uploadInvalid("unsupported image format")
+		return nil, nil, "", uploadInvalid("unsupported image format")
 	}
+
+	// Re-encoding from the decoded pixel data drops every metadata segment
+	// (EXIF, GPS, XMP) by construction.
+	clean, err := encodeImage(img, ext, fullJPEGQuality)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("re-encoding image: %w", err)
+	}
+
+	// A thumbnail is only worth storing when it is actually smaller; an
+	// upload already within the bound is served as-is.
+	var thumb []byte
+	if scaled := thumbnail(img, ThumbMaxEdge); scaled != img {
+		thumb, err = encodeImage(scaled, ext, thumbJPEGQuality)
+		if err != nil {
+			return nil, nil, "", fmt.Errorf("encoding thumbnail: %w", err)
+		}
+	}
+	return clean, thumb, ext, nil
 }
 
 func uploadInvalid(msg string) *web.Error {

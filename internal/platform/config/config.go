@@ -6,6 +6,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/mail"
 	"os"
 	"strconv"
 	"strings"
@@ -17,6 +18,13 @@ const (
 	EnvDevelopment = "development"
 	EnvTest        = "test"
 	EnvProduction  = "production"
+)
+
+// SMTP transport-security modes.
+const (
+	SMTPTLSStartTLS = "starttls" // upgrade a plaintext connection (submission port 587)
+	SMTPTLSImplicit = "implicit" // TLS from the first byte (port 465)
+	SMTPTLSNone     = "none"     // plaintext; refused in production
 )
 
 // Config holds every runtime setting for the API service.
@@ -52,6 +60,33 @@ type Config struct {
 	StorageRegion        string
 	// Public base URL used to build display URLs for public media objects.
 	StoragePublicBaseURL string
+
+	// Outbound email for verification codes and password resets. Delivery is
+	// disabled when SMTPHost is empty: verification endpoints then report
+	// unavailable rather than pretending a code was sent.
+	SMTPHost        string
+	SMTPPort        int
+	SMTPUsername    string
+	SMTPPassword    string
+	SMTPFromAddress string
+	SMTPFromName    string
+	SMTPTLS         string // one of SMTPTLSStartTLS, SMTPTLSImplicit, SMTPTLSNone
+	SMTPTimeout     time.Duration
+
+	// Push delivery. FCMCredentialsFile points at a Google service-account
+	// key file; delivery is disabled when it is empty and outbox events then
+	// accumulate for later replay.
+	FCMCredentialsFile string
+	FCMTimeout         time.Duration
+
+	// Mobile client version gate, served by GET /api/v1/app/version. An empty
+	// minimum disables the check for that platform.
+	AndroidMinVersion    string
+	AndroidLatestVersion string
+	AndroidStoreURL      string
+	IOSMinVersion        string
+	IOSLatestVersion     string
+	IOSStoreURL          string
 
 	CORSAllowedOrigins []string
 	TrustProxyHeaders  bool
@@ -95,6 +130,25 @@ func Load() (Config, error) {
 		StoragePrivateBucket: getEnv("STORAGE_PRIVATE_BUCKET", "adera-private"),
 		StorageRegion:        getEnv("STORAGE_REGION", "us-east-1"),
 		StoragePublicBaseURL: getEnv("STORAGE_PUBLIC_BASE_URL", "http://localhost:9000/adera-public"),
+
+		SMTPHost:        os.Getenv("SMTP_HOST"),
+		SMTPPort:        getEnvInt("SMTP_PORT", 587),
+		SMTPUsername:    os.Getenv("SMTP_USERNAME"),
+		SMTPPassword:    os.Getenv("SMTP_PASSWORD"),
+		SMTPFromAddress: os.Getenv("SMTP_FROM_ADDRESS"),
+		SMTPFromName:    getEnv("SMTP_FROM_NAME", "Adera"),
+		SMTPTLS:         getEnv("SMTP_TLS", SMTPTLSStartTLS),
+		SMTPTimeout:     getEnvDuration("SMTP_TIMEOUT", 10*time.Second),
+
+		FCMCredentialsFile: os.Getenv("FCM_CREDENTIALS_FILE"),
+		FCMTimeout:         getEnvDuration("FCM_TIMEOUT", 10*time.Second),
+
+		AndroidMinVersion:    os.Getenv("APP_ANDROID_MIN_VERSION"),
+		AndroidLatestVersion: os.Getenv("APP_ANDROID_LATEST_VERSION"),
+		AndroidStoreURL:      os.Getenv("APP_ANDROID_STORE_URL"),
+		IOSMinVersion:        os.Getenv("APP_IOS_MIN_VERSION"),
+		IOSLatestVersion:     os.Getenv("APP_IOS_LATEST_VERSION"),
+		IOSStoreURL:          os.Getenv("APP_IOS_STORE_URL"),
 
 		CORSAllowedOrigins: splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")),
 		TrustProxyHeaders:  getEnvBool("TRUST_PROXY_HEADERS", false),
@@ -150,6 +204,36 @@ func (c Config) Validate() error {
 	if c.StorageEnabled && (c.StorageAccessKey == "" || c.StorageSecretKey == "") {
 		errs = append(errs, errors.New("STORAGE_ACCESS_KEY and STORAGE_SECRET_KEY are required when STORAGE_ENABLED=true"))
 	}
+	if c.SMTPHost != "" {
+		if c.SMTPPort <= 0 || c.SMTPPort > 65535 {
+			errs = append(errs, errors.New("SMTP_PORT must be between 1 and 65535"))
+		}
+		if c.SMTPFromAddress == "" {
+			errs = append(errs, errors.New("SMTP_FROM_ADDRESS is required when SMTP_HOST is set"))
+		} else if _, err := mail.ParseAddress(c.SMTPFromAddress); err != nil {
+			errs = append(errs, errors.New("SMTP_FROM_ADDRESS must be a valid email address"))
+		}
+		if c.SMTPUsername != "" && c.SMTPPassword == "" {
+			errs = append(errs, errors.New("SMTP_PASSWORD is required when SMTP_USERNAME is set"))
+		}
+		switch c.SMTPTLS {
+		case SMTPTLSStartTLS, SMTPTLSImplicit:
+		case SMTPTLSNone:
+			// Plaintext SMTP would send the OTP, and any SMTP password, in
+			// the clear; only tolerable against a local development relay.
+			if c.Env == EnvProduction {
+				errs = append(errs, errors.New("SMTP_TLS must not be none in production"))
+			}
+		default:
+			errs = append(errs, fmt.Errorf("SMTP_TLS must be one of starttls, implicit, none; got %q", c.SMTPTLS))
+		}
+		if c.SMTPTimeout <= 0 {
+			errs = append(errs, errors.New("SMTP_TIMEOUT must be positive"))
+		}
+	}
+	if c.FCMCredentialsFile != "" && c.FCMTimeout <= 0 {
+		errs = append(errs, errors.New("FCM_TIMEOUT must be positive"))
+	}
 	if c.Env == EnvProduction && c.SeedAdminPassword != "" {
 		errs = append(errs, errors.New("SEED_ADMIN_PASSWORD must not be set in production"))
 	}
@@ -158,6 +242,12 @@ func (c Config) Validate() error {
 
 // IsDev reports whether the service runs in a non-production environment.
 func (c Config) IsDev() bool { return c.Env != EnvProduction }
+
+// SMTPEnabled reports whether outbound email delivery is configured.
+func (c Config) SMTPEnabled() bool { return c.SMTPHost != "" }
+
+// PushEnabled reports whether push delivery is configured.
+func (c Config) PushEnabled() bool { return c.FCMCredentialsFile != "" }
 
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {

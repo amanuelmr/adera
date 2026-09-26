@@ -1,6 +1,8 @@
 package targets
 
 import (
+	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -29,6 +31,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/targets", h.browse)
 	mux.HandleFunc("GET /api/v1/targets/top-rated", h.topRated)
 	mux.HandleFunc("GET /api/v1/targets/trending", h.trending)
+	mux.HandleFunc("GET /api/v1/targets/nearby", h.nearby)
 	mux.HandleFunc("GET /api/v1/targets/{idOrSlug}", h.get)
 	mux.Handle("PATCH /api/v1/targets/{idOrSlug}", web.RequireAuth(http.HandlerFunc(h.update)))
 	mux.Handle("POST /api/v1/targets/{idOrSlug}/edit-suggestions", web.RequireAuth(http.HandlerFunc(h.suggestEdit)))
@@ -392,6 +395,65 @@ func (h *Handler) trending(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	items, err := h.repo.Trending(r.Context(), f, web.ParseLimit(r))
+	if err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	web.Respond(w, http.StatusOK, items)
+}
+
+// Nearby search bounds. The maximum keeps a single query from scanning the
+// whole table, and matches what a phone can usefully show in a list.
+const (
+	DefaultNearbyRadiusKm = 5.0
+	MaxNearbyRadiusKm     = 50.0
+)
+
+// ParseNearbyPoint reads the required lat/lng pair and the optional radius.
+func ParseNearbyPoint(r *http.Request) (lat, lng, radiusKm float64, err error) {
+	q := r.URL.Query()
+	coord := func(name string, limit float64) (float64, error) {
+		raw := q.Get(name)
+		if raw == "" {
+			return 0, web.ErrValidation("invalid filter").WithDetail(name, "is required")
+		}
+		v, parseErr := strconv.ParseFloat(raw, 64)
+		if parseErr != nil || math.IsNaN(v) || v < -limit || v > limit {
+			return 0, web.ErrValidation("invalid filter").
+				WithDetail(name, fmt.Sprintf("must be a number between %g and %g", -limit, limit))
+		}
+		return v, nil
+	}
+	if lat, err = coord("lat", 90); err != nil {
+		return 0, 0, 0, err
+	}
+	if lng, err = coord("lng", 180); err != nil {
+		return 0, 0, 0, err
+	}
+	radiusKm = DefaultNearbyRadiusKm
+	if raw := q.Get("radius_km"); raw != "" {
+		v, parseErr := strconv.ParseFloat(raw, 64)
+		if parseErr != nil || !(v > 0) || v > MaxNearbyRadiusKm {
+			return 0, 0, 0, web.ErrValidation("invalid filter").
+				WithDetail("radius_km", fmt.Sprintf("must be greater than 0 and at most %g", MaxNearbyRadiusKm))
+		}
+		radiusKm = v
+	}
+	return lat, lng, radiusKm, nil
+}
+
+func (h *Handler) nearby(w http.ResponseWriter, r *http.Request) {
+	f, err := ParseBrowseFilter(r)
+	if err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	lat, lng, radiusKm, err := ParseNearbyPoint(r)
+	if err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	items, err := h.repo.Nearby(r.Context(), f, lat, lng, radiusKm, web.ParseLimit(r))
 	if err != nil {
 		web.RespondError(w, r, err)
 		return

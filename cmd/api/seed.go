@@ -141,6 +141,11 @@ func seed(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 		return err
 	}
 
+	// at returns a coordinate pair for seeded targets. The positions are
+	// approximate neighbourhood centroids for Piassa and Bole, good enough to
+	// exercise /targets/nearby in development — not surveyed locations.
+	at := func(lat, lng float64) (*float64, *float64) { return &lat, &lng }
+
 	newTarget := func(in targets.CreateInput) (targets.Target, error) {
 		in.CreatedBy = adminID
 		in.AutoPublish = true
@@ -152,18 +157,22 @@ func seed(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 		return t, nil
 	}
 
+	shegerLat, shegerLng := at(9.0345, 38.748)
 	sheger, err := newTarget(targets.CreateInput{
 		TargetType: "repair_provider", CategoryID: catElectronics,
 		Name: "Sheger Phone Repair", Description: "Phone and laptop repair near Piassa; screen and battery specialists.",
 		AreaID: piassa, AddressText: "Piassa, behind Cinema Ethiopia", Aliases: []string{"ሸገር ስልክ ጥገና"},
+		Latitude: shegerLat, Longitude: shegerLng,
 	})
 	if err != nil {
 		return err
 	}
+	boleBeautyLat, boleBeautyLng := at(9.0104, 38.7869)
 	boleBeauty, err := newTarget(targets.CreateInput{
 		TargetType: "service", CategoryID: catBeauty,
 		Name: "Bole Beauty Lounge", Description: "Hair, nails, and bridal packages around Bole Medhanialem.",
 		AreaID: bole, AddressText: "Bole Medhanialem, next to Friendship Mall", Aliases: []string{"ቦሌ ውበት ሳሎን"},
+		Latitude: boleBeautyLat, Longitude: boleBeautyLng,
 	})
 	if err != nil {
 		return err
@@ -177,19 +186,23 @@ func seed(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 	if err != nil {
 		return err
 	}
+	kategnaLat, kategnaLng := at(9.0113, 38.7897)
 	kategna, err := newTarget(targets.CreateInput{
 		TargetType: "restaurant", CategoryID: catFood, BusinessID: &kategnaBiz.ID,
 		Name: "Kategna Restaurant Bole", Description: "Traditional Ethiopian dishes; famous for kitfo and shiro.",
 		AreaID: bole, AddressText: "Bole, near Edna Mall", Aliases: []string{"ካተኛ", "Kategna Bole"},
 		SocialLinks: map[string]string{"tiktok": "https://www.tiktok.com/@kategna.example"},
+		Latitude:    kategnaLat, Longitude: kategnaLng,
 	})
 	if err != nil {
 		return err
 	}
+	tomocaLat, tomocaLng := at(9.0352, 38.7492)
 	tomoca, err := newTarget(targets.CreateInput{
 		TargetType: "cafe", CategoryID: catFood,
 		Name: "Tomoca Coffee Piassa", Description: "Historic Addis coffee house; strong macchiato, takeaway beans.",
 		AreaID: piassa, AddressText: "Wavel Street, Piassa", Aliases: []string{"ቶሞካ ቡና", "Tomoca"},
+		Latitude: tomocaLat, Longitude: tomocaLng,
 	})
 	if err != nil {
 		return err

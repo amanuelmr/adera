@@ -1,11 +1,17 @@
-# Adera (አደራ) — Trusted Ethiopian Review Platform (Backend)
+# Adera (አደራ) — Trusted Ethiopian Review Platform
 
 Adera helps Ethiopian consumers make better decisions before spending money —
 on electronics and phone repair, salons and barbers, online sellers and
 delivery, and restaurants and cafés discovered through TikTok and Instagram.
 
-**This repository is the backend only** (Go + PostgreSQL modular monolith).
-Frontend/UX research for the next phase lives in
+This repository holds both halves of the product:
+- **Backend** (Go + PostgreSQL modular monolith) — everything at the repo
+  root (`cmd/`, `internal/`, `api/`, `migrations/`).
+- **Mobile app** (Expo + React Native, Android-first) — [`mobile/`](mobile/),
+  see [`mobile/README.md`](mobile/README.md).
+
+Product scope and phasing for the mobile client live in
+[`docs/mobile-plan.md`](docs/mobile-plan.md); the earlier web/UX research is in
 [`docs/frontend-handoff.md`](docs/frontend-handoff.md).
 
 ## Motivation
@@ -110,6 +116,17 @@ production: `DATABASE_URL` and `JWT_SECRET` (≥ 32 bytes). Argon2id parameters
 are validated against the OWASP minimum at startup. Secrets are read from the
 environment only — nothing secret is committed.
 
+Setting `SMTP_HOST` turns on emailed verification codes and password resets;
+leaving it empty keeps codes on the console in development and returns
+`503 verification_unavailable` in production. To exercise the real delivery
+path locally, point it at a catcher such as MailHog:
+
+```bash
+docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog
+export SMTP_HOST=127.0.0.1 SMTP_PORT=1025 SMTP_TLS=none \
+       SMTP_FROM_ADDRESS=no-reply@adera.local
+```
+
 ### Documentation map
 
 | Document | Contents |
@@ -148,13 +165,19 @@ the relevant document when behavior changes. Full guidelines are in
 
 ## Known limitations
 
-- SMS/email delivery is a console provider in development and reports
-  `503 verification_unavailable` in production until a real provider is wired
-  (`internal/auth/provider.go` is the integration point).
+- SMS delivery has no provider: phone verification reports
+  `503 verification_unavailable` until an SMS or Telegram integration is added
+  (`internal/auth/provider.go` is the integration point). Email verification
+  and password reset deliver over SMTP once `SMTP_HOST` is configured, and
+  fall back to the console in development.
+- Push delivery requires `FCM_CREDENTIALS_FILE`; without it outbox events
+  accumulate for later replay. Messages are data-only, so a client must render
+  and localize them (`internal/notifications/fcm.go`).
 - Rate limiting is per-process; multi-replica deployments need the documented
   Redis-backed `Limiter` implementation.
-- Image derivatives (thumbnails) and WebP re-encoding are deferred; public
-  media is stored as one sanitized original.
+- Public review photos are stored as a sanitized original plus one thumbnail
+  (480 px longest edge, served as `thumb_url`). Further sizes and WebP
+  re-encoding are still deferred.
 - Search relevance thresholds were tuned on seed data; a native-speaker Amharic
   query test set is needed before launch.
 - Legal compliance items in

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/google/uuid"
@@ -489,6 +490,108 @@ func (r *Repo) Trending(ctx context.Context, f BrowseFilter, limit int) ([]Trend
 }
 
 // CreateEditSuggestion records a community correction for moderator review.
+// NearbyTarget is a target plus its great-circle distance from the query
+// point, in kilometres.
+type NearbyTarget struct {
+	Target
+	DistanceKm float64 `json:"distance_km"`
+}
+
+// earthRadiusKm is the mean radius used for great-circle distance. Accuracy
+// is around 0.5%, which is far below the precision of the stored coordinates.
+const earthRadiusKm = 6371.0
+
+// kmPerDegreeLat is the length of one degree of latitude, near enough constant.
+const kmPerDegreeLat = 111.045
+
+// haversineExpr renders the great-circle distance in kilometres between a
+// target row and the point held at the given argument positions.
+func haversineExpr(latIdx, lngIdx int) string {
+	return fmt.Sprintf(`(2 * %g * asin(least(1, sqrt(
+			power(sin(radians(t.latitude - $%d) / 2), 2)
+			+ cos(radians($%d)) * cos(radians(t.latitude))
+				* power(sin(radians(t.longitude - $%d) / 2), 2)
+		))))`, earthRadiusKm, latIdx, latIdx, lngIdx)
+}
+
+// boundingBox returns the latitude/longitude window enclosing a circle of
+// radiusKm around a point, and whether the window crosses the antimeridian.
+// Longitude degrees shrink towards the poles, so the cosine is floored to keep
+// a near-polar query from dividing by zero.
+func boundingBox(lat, lng, radiusKm float64) (minLat, maxLat, minLng, maxLng float64, wraps bool) {
+	latDelta := radiusKm / kmPerDegreeLat
+	cosLat := math.Max(math.Cos(lat*math.Pi/180), 0.01)
+	lngDelta := radiusKm / (kmPerDegreeLat * cosLat)
+	minLat = math.Max(lat-latDelta, -90)
+	maxLat = math.Min(lat+latDelta, 90)
+	minLng, maxLng = lng-lngDelta, lng+lngDelta
+	// Past the antimeridian a plain BETWEEN would exclude everything on the
+	// far side, so the caller drops the longitude bounds and lets the
+	// distance filter do the work.
+	return minLat, maxLat, minLng, maxLng, minLng < -180 || maxLng > 180
+}
+
+// Nearby lists published targets within radiusKm of a point, closest first.
+//
+// A bounding box narrows the scan so the partial (latitude, longitude) index
+// is usable, then the exact great-circle distance removes the corners the box
+// includes but the circle does not.
+func (r *Repo) Nearby(ctx context.Context, f BrowseFilter, lat, lng, radiusKm float64, limit int) ([]NearbyTarget, error) {
+	var args []any
+	conds := f.where(&args)
+	add := func(cond string, v any) {
+		args = append(args, v)
+		conds = append(conds, fmt.Sprintf(cond, len(args)))
+	}
+
+	minLat, maxLat, minLng, maxLng, wraps := boundingBox(lat, lng, radiusKm)
+	conds = append(conds, "t.latitude IS NOT NULL")
+	add("t.latitude >= $%d", minLat)
+	add("t.latitude <= $%d", maxLat)
+	if !wraps {
+		add("t.longitude >= $%d", minLng)
+		add("t.longitude <= $%d", maxLng)
+	}
+
+	args = append(args, lat)
+	latIdx := len(args)
+	args = append(args, lng)
+	lngIdx := len(args)
+	distance := haversineExpr(latIdx, lngIdx)
+
+	args = append(args, radiusKm)
+	radiusIdx := len(args)
+	args = append(args, limit)
+
+	query := fmt.Sprintf(`SELECT `+targetColumns+`, `+distance+` AS distance_km`+
+		targetFrom+`
+		WHERE `+strings.Join(conds, " AND ")+` AND `+distance+` <= $%d
+		ORDER BY distance_km ASC, t.id
+		LIMIT $%d`, radiusIdx, len(args))
+
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("querying nearby targets: %w", err)
+	}
+	defer rows.Close()
+	var out []NearbyTarget
+	for rows.Next() {
+		var t NearbyTarget
+		err := rows.Scan(&t.ID, &t.TargetType, &t.CategoryID, &t.BusinessID, &t.Name, &t.Slug, &t.Description,
+			&t.CityID, &t.AreaID, &t.AddressText, &t.Latitude, &t.Longitude, &t.OnlineOnly, &t.Phone, &t.Website,
+			&t.SocialLinks, &t.VerificationStatus, &t.ModerationStatus, &t.CreatedAt, &t.UpdatedAt,
+			&t.ReviewCount, &t.AverageRating, &t.DistanceKm)
+		if err != nil {
+			return nil, fmt.Errorf("scanning nearby target: %w", err)
+		}
+		out = append(out, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating nearby targets: %w", err)
+	}
+	return out, nil
+}
+
 func (r *Repo) CreateEditSuggestion(ctx context.Context, targetID, userID uuid.UUID, changes map[string]any, note string) (uuid.UUID, error) {
 	if len(changes) == 0 {
 		return uuid.Nil, web.ErrValidation("invalid suggestion").WithDetail("changes", "at least one change required")
