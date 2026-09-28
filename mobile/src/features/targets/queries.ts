@@ -31,6 +31,22 @@ export function useTrendingTargets() {
   });
 }
 
+export function useNearbyTargets(coords: { latitude: number; longitude: number } | undefined) {
+  return useQuery({
+    enabled: !!coords,
+    // Rounded to ~100m so GPS jitter between renders doesn't invalidate the
+    // cache on every read — this is a ranked list like top-rated/trending,
+    // not a trust-critical aggregate, so the 5-minute default staleTime applies.
+    queryKey: ['targets', 'nearby', coords && Math.round(coords.latitude * 1000), coords && Math.round(coords.longitude * 1000)],
+    queryFn: async () =>
+      unwrap(
+        await apiClient.GET('/api/v1/targets/nearby', {
+          params: { query: { lat: coords!.latitude, lng: coords!.longitude } },
+        })
+      ).data,
+  });
+}
+
 export function useTarget(idOrSlug: string) {
   return useQuery({
     queryKey: ['targets', 'detail', idOrSlug],
