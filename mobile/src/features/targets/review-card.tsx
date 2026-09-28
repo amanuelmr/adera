@@ -5,6 +5,7 @@ import type { components } from '@/api/schema';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { shareReview } from '@/features/share/share';
 import { useToggleHelpful } from './queries';
 
 type ListedReview = components['schemas']['ListedReview'];
@@ -13,7 +14,7 @@ type ListedReview = components['schemas']['ListedReview'];
 // a simpler, good-enough proxy for "~5 lines" than measuring real layout.
 const COLLAPSE_AT_CHARS = 280;
 
-export function ReviewCard({ review, targetId }: { review: ListedReview; targetId: string }) {
+export function ReviewCard({ review, targetId, targetName }: { review: ListedReview; targetId: string; targetName: string }) {
   const [expanded, setExpanded] = useState(false);
   const toggleHelpful = useToggleHelpful(targetId);
 
@@ -55,16 +56,23 @@ export function ReviewCard({ review, targetId }: { review: ListedReview; targetI
         </ThemedView>
       ) : null}
 
-      <Pressable
-        onPress={() => review.id && toggleHelpful.mutate({ reviewId: review.id, voted: !!review.viewer_voted })}
-        disabled={toggleHelpful.isPending}
-        accessibilityRole="button"
-        accessibilityState={{ selected: !!review.viewer_voted }}
-        style={styles.helpfulRow}>
-        <ThemedText type="small" themeColor={review.viewer_voted ? 'text' : 'textSecondary'}>
-          👍 Helpful{review.helpful_count ? ` (${review.helpful_count})` : ''}
-        </ThemedText>
-      </Pressable>
+      <View style={styles.actionsRow}>
+        <Pressable
+          onPress={() => review.id && toggleHelpful.mutate({ reviewId: review.id, voted: !!review.viewer_voted })}
+          disabled={toggleHelpful.isPending}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !!review.viewer_voted }}
+          style={styles.helpfulRow}>
+          <ThemedText type="small" themeColor={review.viewer_voted ? 'text' : 'textSecondary'}>
+            👍 Helpful{review.helpful_count ? ` (${review.helpful_count})` : ''}
+          </ThemedText>
+        </Pressable>
+        <Pressable onPress={() => shareReview(review, targetName)} accessibilityRole="button" style={styles.helpfulRow}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Share
+          </ThemedText>
+        </Pressable>
+      </View>
     </ThemedView>
   );
 }
@@ -93,6 +101,10 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     padding: Spacing.two,
     gap: Spacing.half,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.three,
   },
   helpfulRow: {
     alignSelf: 'flex-start',

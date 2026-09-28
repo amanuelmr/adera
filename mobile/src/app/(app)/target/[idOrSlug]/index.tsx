@@ -1,6 +1,6 @@
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
@@ -20,6 +20,7 @@ import {
 } from '@/features/targets/queries';
 import { ReviewCard } from '@/features/targets/review-card';
 import { FilterChip } from '@/features/search/filter-chip';
+import { shareTarget } from '@/features/share/share';
 
 const REALITY_CHECK_CATEGORY_CODE = 'restaurant_cafe';
 
@@ -67,7 +68,16 @@ export default function TargetProfileScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <Stack.Screen options={{ title: target.data.name ?? '' }} />
+      <Stack.Screen
+        options={{
+          title: target.data.name ?? '',
+          headerRight: () => (
+            <Pressable onPress={() => shareTarget(target.data!)} accessibilityRole="button" accessibilityLabel="Share">
+              <ThemedText type="link">Share</ThemedText>
+            </Pressable>
+          ),
+        }}
+      />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <FlatList
           data={reviewItems}
@@ -137,7 +147,9 @@ export default function TargetProfileScreen() {
               </View>
             </View>
           }
-          renderItem={({ item }) => <ReviewCard review={item} targetId={target.data.id ?? ''} />}
+          renderItem={({ item }) => (
+            <ReviewCard review={item} targetId={target.data.id ?? ''} targetName={target.data.name ?? ''} />
+          )}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
           ListEmptyComponent={
             reviews.isPending ? (
