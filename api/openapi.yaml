@@ -1253,9 +1253,26 @@ paths:
       responses:
         '201':
           description: Business created.
-          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/BusinessSingle'}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/businesses/mine:
+    get:
+      tags: [businesses]
+      summary: List businesses the caller manages
+      description: |
+        Every business with a membership row for the caller, ordered by name.
+        Membership is granted only by an approved claim
+        (`POST /businesses/{id}/claims` then a moderator decision) — there is
+        no self-service way to add yourself as a member. Unpaginated: a
+        member manages a handful of businesses at most.
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: The caller's businesses.
+          content: {application/json: {schema: {$ref: '#/components/schemas/BusinessListPage'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
 
   /api/v1/businesses/{id}:
     get:
@@ -1265,7 +1282,7 @@ paths:
       responses:
         '200':
           description: Business.
-          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/BusinessSingle'}}}
         '404': {$ref: '#/components/responses/NotFound'}
     patch:
       tags: [businesses]
@@ -1281,7 +1298,7 @@ paths:
               properties:
                 description: {type: string, maxLength: 2000}
       responses:
-        '200': {description: Updated business., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '200': {description: Updated business., content: {application/json: {schema: {$ref: '#/components/schemas/BusinessSingle'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
 
@@ -2244,6 +2261,30 @@ components:
         - $ref: '#/components/schemas/DataEnvelope'
         - properties:
             data: {$ref: '#/components/schemas/VersionGate'}
+
+    Business:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        slug: {type: string}
+        description: {type: string}
+        verification_status: {type: string, enum: [unverified, claimed, verified]}
+        status: {type: string, enum: [active, suspended]}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    BusinessSingle:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data: {$ref: '#/components/schemas/Business'}
+    BusinessListPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/Business'}
 
     ReviewCreate:
       type: object

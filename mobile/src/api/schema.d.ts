@@ -2387,13 +2387,57 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["DataEnvelope"];
+                        "application/json": components["schemas"]["BusinessSingle"];
                     };
                 };
                 401: components["responses"]["Unauthorized"];
                 422: components["responses"]["ValidationError"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/businesses/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List businesses the caller manages
+         * @description Every business with a membership row for the caller, ordered by name.
+         *     Membership is granted only by an approved claim
+         *     (`POST /businesses/{id}/claims` then a moderator decision) — there is
+         *     no self-service way to add yourself as a member. Unpaginated: a
+         *     member manages a handful of businesses at most.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The caller's businesses. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BusinessListPage"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2425,7 +2469,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["DataEnvelope"];
+                        "application/json": components["schemas"]["BusinessSingle"];
                     };
                 };
                 404: components["responses"]["NotFound"];
@@ -2460,7 +2504,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["DataEnvelope"];
+                        "application/json": components["schemas"]["BusinessSingle"];
                     };
                 };
                 401: components["responses"]["Unauthorized"];
@@ -4136,6 +4180,27 @@ export interface components {
         };
         VersionGatePage: components["schemas"]["DataEnvelope"] & {
             data?: components["schemas"]["VersionGate"];
+        };
+        Business: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            slug?: string;
+            description?: string;
+            /** @enum {string} */
+            verification_status?: "unverified" | "claimed" | "verified";
+            /** @enum {string} */
+            status?: "active" | "suspended";
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        BusinessSingle: components["schemas"]["DataEnvelope"] & {
+            data?: components["schemas"]["Business"];
+        };
+        BusinessListPage: components["schemas"]["DataEnvelope"] & {
+            data?: components["schemas"]["Business"][];
         };
         ReviewCreate: {
             /** Format: uuid */

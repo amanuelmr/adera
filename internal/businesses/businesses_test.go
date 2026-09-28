@@ -121,6 +121,40 @@ func TestRepoIsMember(t *testing.T) {
 	assert.True(t, isMember)
 }
 
+func TestRepoMyBusinesses(t *testing.T) {
+	pool := testdb.New(t)
+	repo := NewRepo(pool, nil)
+	ctx := context.Background()
+	owner := seedUser(t, pool)
+	other := seedUser(t, pool)
+
+	mine, err := repo.MyBusinesses(ctx, owner)
+	require.NoError(t, err)
+	assert.Empty(t, mine, "no membership yet")
+
+	managed, err := repo.Create(ctx, "Kategna", "", owner)
+	require.NoError(t, err)
+	_, err = repo.Create(ctx, "Someone Else's Place", "", other)
+	require.NoError(t, err)
+
+	// Creating a business grants no membership (see TestRepoIsMember) — only
+	// an approved claim does, which in production is business_members' only
+	// writer. Insert directly here since claims approval isn't this
+	// package's concern.
+	_, err = pool.Exec(ctx, `
+		INSERT INTO business_members (business_id, user_id, role) VALUES ($1, $2, 'owner')`, managed.ID, owner)
+	require.NoError(t, err)
+
+	mine, err = repo.MyBusinesses(ctx, owner)
+	require.NoError(t, err)
+	require.Len(t, mine, 1)
+	assert.Equal(t, managed.ID, mine[0].ID)
+
+	othersMine, err := repo.MyBusinesses(ctx, other)
+	require.NoError(t, err)
+	assert.Empty(t, othersMine, "creating a business does not grant membership")
+}
+
 func assertValidationError(t *testing.T, err error, field string) {
 	t.Helper()
 	var webErr *web.Error
