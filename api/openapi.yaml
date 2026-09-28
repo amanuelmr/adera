@@ -1215,7 +1215,7 @@ paths:
       responses:
         '200':
           description: Evidence items.
-          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/EvidenceListPage'}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
 
@@ -1521,7 +1521,7 @@ paths:
       security: [{bearerAuth: []}]
       parameters: [{$ref: '#/components/parameters/PathID'}]
       responses:
-        '200': {description: Evidence items (access URLs valid 10 minutes)., content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}}
+        '200': {description: Evidence items (access URLs valid 10 minutes)., content: {application/json: {schema: {$ref: '#/components/schemas/EvidenceListPage'}}}}
         '403': {$ref: '#/components/responses/Forbidden'}
 
   /api/v1/moderation/evidence/{id}/decision:
@@ -2464,6 +2464,24 @@ components:
               description: Include these fields in the form, then the file as `file`.
             key: {type: string}
             expires_at: {type: string, format: date-time}
+
+    Evidence:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        review_id: {type: string, format: uuid}
+        kind: {type: string, enum: [receipt, order_screenshot, product_photo, service_result, location_qr]}
+        status: {type: string, enum: [staged, submitted, accepted, rejected]}
+        note: {type: string}
+        created_at: {type: string, format: date-time}
+        access_url: {type: string, description: Short-lived presigned GET URL.}
+    EvidenceListPage:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/Evidence'}
 
     ReportCreate:
       type: object

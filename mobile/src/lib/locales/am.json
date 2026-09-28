@@ -24,7 +24,8 @@
     "verifyEmail": "ኢሜይል አረጋግጥ",
     "yourDevices": "የእርስዎ መሳሪያዎች",
     "writeReview": "ግምገማ ጻፍ",
-    "editReview": "ግምገማ አርትዕ"
+    "editReview": "ግምገማ አርትዕ",
+    "addEvidence": "ማስረጃ ጨምር"
   },
   "auth": {
     "signInTitle": "ግባ",
@@ -75,5 +76,24 @@
   },
   "settings": {
     "language": "ቋንቋ"
+  },
+  "evidence": {
+    "title": "የማረጋገጫ ማስረጃ",
+    "privacyNotice": "ለአወያዮች ብቻ — ለሕዝብ በጭራሽ አይታይም።",
+    "body": "ይህን ግምገማ ለማረጋገጥ አወያይን ለመርዳት ደረሰኝ፣ የትዕዛዝ ስክሪንሾት ወይም ሌላ ማስረጃ ያክሉ።",
+    "kindReceipt": "ደረሰኝ",
+    "kindOrderScreenshot": "የትዕዛዝ ስክሪንሾት",
+    "kindProductPhoto": "የምርት ፎቶ",
+    "kindServiceResult": "የአገልግሎት ውጤት",
+    "kindLocationQr": "የአካባቢ QR",
+    "addButton": "ማስረጃ ጨምር",
+    "statusStaged": "በመስቀል ላይ…",
+    "statusSubmitted": "በግምገማ ላይ",
+    "statusAccepted": "ተረጋግጧል",
+    "statusRejected": "አልተቀበለም",
+    "empty": "እስካሁን ምንም ማስረጃ አልገባም።",
+    "limitReached": "ለዚህ ግምገማ የ5 ማስረጃ ፋይሎች ገደብ ላይ ደርሰዋል።",
+    "addProofPrompt": "ለማረጋገጥ ማስረጃ ይጨምሩ?",
+    "skip": "አሁን አይደለም"
   }
 }

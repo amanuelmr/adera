@@ -18,6 +18,7 @@ export default function AppLayout() {
         <Stack.Screen name="search" options={{ title: t('nav.search') }} />
         <Stack.Screen name="target/[idOrSlug]/index" options={{ title: '' }} />
         <Stack.Screen name="target/[idOrSlug]/review" options={{ title: t('nav.writeReview') }} />
+        <Stack.Screen name="review/[id]/evidence" options={{ title: t('nav.addEvidence') }} />
         <Stack.Screen name="verify" options={{ title: t('nav.verifyEmail') }} />
         <Stack.Screen name="sessions" options={{ title: t('nav.yourDevices') }} />
       </Stack>

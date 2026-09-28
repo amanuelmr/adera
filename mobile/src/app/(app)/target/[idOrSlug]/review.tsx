@@ -76,7 +76,7 @@ export default function WriteReviewScreen() {
   }
 
   const submit = useMutation({
-    mutationFn: async (): Promise<{ queued: boolean; failedPhotoCount: number }> => {
+    mutationFn: async (): Promise<{ queued: boolean; failedPhotoCount: number; reviewId?: string }> => {
       const targetId = target.data!.id!;
 
       if (isEditing) {
@@ -84,7 +84,7 @@ export default function WriteReviewScreen() {
         // online-only rather than growing the offline queue a third job type.
         if (!(await isConnected())) throw new Error('offline');
         const result = await submitReviewEdit(reviewId!, targetId, form, existingReview.data!.version!);
-        return { queued: false, failedPhotoCount: result.retryablePhotoUris.length };
+        return { queued: false, failedPhotoCount: result.retryablePhotoUris.length, reviewId };
       }
 
       if (!(await isConnected())) {
@@ -104,7 +104,7 @@ export default function WriteReviewScreen() {
             pendingPhotoUris: result.retryablePhotoUris,
           });
         }
-        return { queued: false, failedPhotoCount: result.retryablePhotoUris.length };
+        return { queued: false, failedPhotoCount: result.retryablePhotoUris.length, reviewId: result.reviewId };
       } catch (err) {
         if (err instanceof ApiError) throw err; // a real rejection — nothing offline retry can fix
         // Network dropped mid-attempt — the review may or may not have been
@@ -148,7 +148,21 @@ export default function WriteReviewScreen() {
             ? ` ${submit.data.failedPhotoCount} photo${submit.data.failedPhotoCount === 1 ? '' : 's'} couldn't be uploaded and will retry automatically.`
             : ''}
         </ThemedText>
-        <Button title={t('common.backToTarget')} onPress={() => router.replace(`/target/${idOrSlug}`)} />
+        {submit.data.reviewId ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.confirmationBody}>
+            {t('evidence.addProofPrompt')}
+          </ThemedText>
+        ) : null}
+        <View style={styles.confirmationActions}>
+          {submit.data.reviewId ? (
+            <Button
+              title={t('evidence.addButton')}
+              variant="secondary"
+              onPress={() => router.replace(`/review/${submit.data.reviewId}/evidence`)}
+            />
+          ) : null}
+          <Button title={t('common.backToTarget')} onPress={() => router.replace(`/target/${idOrSlug}`)} />
+        </View>
       </ThemedView>
     );
   }
@@ -278,6 +292,11 @@ const styles = StyleSheet.create({
   },
   confirmationBody: {
     textAlign: 'center',
+  },
+  confirmationActions: {
+    gap: Spacing.two,
+    alignSelf: 'stretch',
+    paddingHorizontal: Spacing.four,
   },
   dots: {
     flexDirection: 'row',

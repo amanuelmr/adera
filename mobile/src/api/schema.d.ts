@@ -2259,7 +2259,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["DataEnvelope"];
+                        "application/json": components["schemas"]["EvidenceListPage"];
                     };
                 };
                 401: components["responses"]["Unauthorized"];
@@ -3083,7 +3083,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["DataEnvelope"];
+                        "application/json": components["schemas"]["EvidenceListPage"];
                     };
                 };
                 403: components["responses"]["Forbidden"];
@@ -4378,6 +4378,24 @@ export interface components {
                 /** Format: date-time */
                 expires_at?: string;
             };
+        };
+        Evidence: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            review_id?: string;
+            /** @enum {string} */
+            kind?: "receipt" | "order_screenshot" | "product_photo" | "service_result" | "location_qr";
+            /** @enum {string} */
+            status?: "staged" | "submitted" | "accepted" | "rejected";
+            note?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** @description Short-lived presigned GET URL. */
+            access_url?: string;
+        };
+        EvidenceListPage: components["schemas"]["DataEnvelope"] & {
+            data?: components["schemas"]["Evidence"][];
         };
         ReportCreate: {
             /** @enum {string} */

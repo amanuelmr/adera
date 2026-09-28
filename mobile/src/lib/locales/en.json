@@ -24,7 +24,8 @@
     "verifyEmail": "Verify email",
     "yourDevices": "Your devices",
     "writeReview": "Write a review",
-    "editReview": "Edit review"
+    "editReview": "Edit review",
+    "addEvidence": "Add evidence"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -75,5 +76,24 @@
   },
   "settings": {
     "language": "Language"
+  },
+  "evidence": {
+    "title": "Verification evidence",
+    "privacyNotice": "Moderators only — never shown publicly.",
+    "body": "Add a receipt, order screenshot, or other proof to help a moderator verify this review.",
+    "kindReceipt": "Receipt",
+    "kindOrderScreenshot": "Order screenshot",
+    "kindProductPhoto": "Product photo",
+    "kindServiceResult": "Service result",
+    "kindLocationQr": "Location QR",
+    "addButton": "Add evidence",
+    "statusStaged": "Uploading…",
+    "statusSubmitted": "Under review",
+    "statusAccepted": "Verified",
+    "statusRejected": "Not accepted",
+    "empty": "No evidence submitted yet.",
+    "limitReached": "You've reached the limit of 5 evidence files for this review.",
+    "addProofPrompt": "Add proof to get verified?",
+    "skip": "Not now"
   }
 }
