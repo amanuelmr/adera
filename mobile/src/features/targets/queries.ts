@@ -69,6 +69,18 @@ export function useTargetStats(targetId: string | undefined) {
   });
 }
 
+export function useRealityCheck(targetId: string | undefined) {
+  return useQuery({
+    // Same trust-critical, network-first rule as useTargetStats — this is
+    // exactly the kind of aggregate the docs warn against showing stale.
+    staleTime: 0,
+    enabled: !!targetId,
+    queryKey: ['targets', 'reality-check', targetId],
+    queryFn: async () =>
+      unwrap(await apiClient.GET('/api/v1/targets/{id}/reality-check', { params: { path: { id: targetId! } } })).data,
+  });
+}
+
 export function useTargetReviews(targetId: string | undefined, filters: ReviewFilters) {
   return useInfiniteQuery({
     enabled: !!targetId,

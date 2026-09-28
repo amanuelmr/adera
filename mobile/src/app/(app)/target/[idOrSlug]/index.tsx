@@ -9,9 +9,19 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { CriterionBars } from '@/features/targets/criterion-bars';
 import { RatingHistogram } from '@/features/targets/rating-histogram';
-import { useCategories, useTarget, useTargetReviews, useTargetStats, type ReviewSort } from '@/features/targets/queries';
+import { RealityCheckPanel } from '@/features/targets/reality-check-panel';
+import {
+  useCategories,
+  useRealityCheck,
+  useTarget,
+  useTargetReviews,
+  useTargetStats,
+  type ReviewSort,
+} from '@/features/targets/queries';
 import { ReviewCard } from '@/features/targets/review-card';
 import { FilterChip } from '@/features/search/filter-chip';
+
+const REALITY_CHECK_CATEGORY_CODE = 'restaurant_cafe';
 
 const SORT_OPTIONS: { value: ReviewSort; label: string }[] = [
   { value: 'newest', label: 'Newest' },
@@ -25,6 +35,9 @@ export default function TargetProfileScreen() {
   const target = useTarget(idOrSlug);
   const categories = useCategories();
   const stats = useTargetStats(target.data?.id);
+  const category = categories.data?.find((c) => c.id === target.data?.category_id);
+  const showRealityCheck = category?.code === REALITY_CHECK_CATEGORY_CODE;
+  const realityCheck = useRealityCheck(showRealityCheck ? target.data?.id : undefined);
 
   const [sort, setSort] = useState<ReviewSort>('newest');
   const [rating, setRating] = useState<number>();
@@ -49,7 +62,7 @@ export default function TargetProfileScreen() {
     );
   }
 
-  const categoryName = categories.data?.find((category) => category.id === target.data.category_id)?.name;
+  const categoryName = category?.name;
   const showAggregates = !stats.data || stats.data.confidence !== 'none';
 
   return (
@@ -103,6 +116,12 @@ export default function TargetProfileScreen() {
                       <CriterionBars criteria={stats.data.criterion_averages} />
                     </View>
                   ) : null}
+                </View>
+              ) : null}
+
+              {showRealityCheck && realityCheck.data ? (
+                <View style={styles.realityCheck}>
+                  <RealityCheckPanel realityCheck={realityCheck.data} />
                 </View>
               ) : null}
 
@@ -176,6 +195,9 @@ const styles = StyleSheet.create({
   },
   criteria: {
     marginTop: Spacing.one,
+  },
+  realityCheck: {
+    marginTop: Spacing.three,
   },
   sortRow: {
     flexDirection: 'row',
