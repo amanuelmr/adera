@@ -5,8 +5,9 @@ import { apiClient, unwrap } from '@/api/client';
 const UNREAD_COUNT_KEY = ['activity', 'unread-count'];
 const LIST_KEY_PREFIX = ['activity', 'list'];
 
-export function useUnreadCount() {
+export function useUnreadCount(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: UNREAD_COUNT_KEY,
     queryFn: async () => unwrap(await apiClient.GET('/api/v1/users/me/notifications/unread-count')).data,
   });

@@ -78,7 +78,7 @@ export default function RegisterScreen() {
             disabled={!displayName || !email || !password}
           />
 
-          <Link href="/" style={styles.link}>
+          <Link href="/sign-in" style={styles.link}>
             <ThemedText type="link">{t('auth.haveAccount')}</ThemedText>
           </Link>
         </ScrollView>

@@ -1,7 +1,7 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/context';
@@ -68,6 +68,11 @@ export default function LoginScreen() {
           <Link href="/register" style={styles.link}>
             <ThemedText type="link">{t('auth.noAccount')}</ThemedText>
           </Link>
+          {router.canGoBack() ? (
+            <Pressable onPress={() => router.back()} accessibilityRole="button" style={styles.link}>
+              <ThemedText type="link">{t('auth.continueBrowsing')}</ThemedText>
+            </Pressable>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>

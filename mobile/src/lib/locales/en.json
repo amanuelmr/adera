@@ -48,7 +48,9 @@
     "verifyConfirmBody": "Enter the 6-digit code we emailed you.",
     "verifiedTitle": "Email verified",
     "verifyLink": "Verify your email",
-    "devicesLink": "Your devices"
+    "devicesLink": "Your devices",
+    "continueBrowsing": "Continue browsing",
+    "signInToContinue": "Sign in to write reviews, vote, and get updates."
   },
   "errors": {
     "invalidCredentials": "Incorrect email/phone or password.",

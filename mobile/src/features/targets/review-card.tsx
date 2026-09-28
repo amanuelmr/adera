@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import type { components } from '@/api/schema';
+import { useRequireSignIn } from '@/auth/use-require-sign-in';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -17,6 +18,7 @@ const COLLAPSE_AT_CHARS = 280;
 export function ReviewCard({ review, targetId, targetName }: { review: ListedReview; targetId: string; targetName: string }) {
   const [expanded, setExpanded] = useState(false);
   const toggleHelpful = useToggleHelpful(targetId);
+  const requireSignIn = useRequireSignIn();
 
   const rating = review.overall_rating ?? 0;
   const body = review.body ?? '';
@@ -58,7 +60,9 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
 
       <View style={styles.actionsRow}>
         <Pressable
-          onPress={() => review.id && toggleHelpful.mutate({ reviewId: review.id, voted: !!review.viewer_voted })}
+          onPress={() =>
+            requireSignIn(() => review.id && toggleHelpful.mutate({ reviewId: review.id, voted: !!review.viewer_voted }))
+          }
           disabled={toggleHelpful.isPending}
           accessibilityRole="button"
           accessibilityState={{ selected: !!review.viewer_voted }}

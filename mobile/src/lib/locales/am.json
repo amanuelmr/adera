@@ -48,7 +48,9 @@
     "verifyConfirmBody": "ወደ ኢሜይልዎ የላክንልዎትን ባለ 6 አሃዝ ኮድ ያስገቡ።",
     "verifiedTitle": "ኢሜይል ተረጋግጧል",
     "verifyLink": "ኢሜይልዎን ያረጋግጡ",
-    "devicesLink": "የእርስዎ መሳሪያዎች"
+    "devicesLink": "የእርስዎ መሳሪያዎች",
+    "continueBrowsing": "ማሰስዎን ይቀጥሉ",
+    "signInToContinue": "ግምገማ ለመጻፍ፣ ድምጽ ለመስጠት እና ማሳወቂያዎችን ለማግኘት ይግቡ።"
   },
   "errors": {
     "invalidCredentials": "ኢሜይል/ስልክ ወይም የይለፍ ቃል የተሳሳተ ነው።",

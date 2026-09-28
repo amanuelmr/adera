@@ -54,13 +54,14 @@ function AppGate() {
 function RootNavigator() {
   const { status } = useAuth();
 
+  // Reading is never gated behind auth (docs/mobile-plan.md §6): (app) is
+  // always reachable, and only its write screens are protected — see
+  // (app)/_layout.tsx. Sign-in opens over whatever the reader was looking at.
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={status === 'signedIn'}>
-        <Stack.Screen name="(app)" />
-      </Stack.Protected>
+      <Stack.Screen name="(app)" />
       <Stack.Protected guard={status === 'signedOut'}>
-        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(auth)" options={{ presentation: 'modal' }} />
       </Stack.Protected>
     </Stack>
   );
