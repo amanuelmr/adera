@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 
+import { describeEventType } from '@/features/activity/event-copy';
+
 // The backend sends data-only FCM messages on purpose
 // (internal/notifications/fcm.go: "clients translate event_type and
 // interpolate data themselves") — Android will not display anything for a
@@ -9,23 +11,6 @@ import * as TaskManager from 'expo-task-manager';
 // and terminated states (that's the point of a TaskManager task, not a
 // plain addNotificationReceivedListener, which only fires in foreground).
 export const BACKGROUND_NOTIFICATION_TASK = 'adera-background-notification';
-
-// Generic, per-event-type-prefix copy — not the real interpolated content
-// (resolving the actual target/reviewer name) that a full activity inbox
-// would show. That's Phase 2 (docs/mobile-plan.md §9); this only has to make
-// sure *something* visible happens for each backend event_type prefix
-// (see internal/*/,go's notifications.EnqueueTx call sites: response.*,
-// review.*, target.*, evidence.*, claim.*, report.*, privacy.*).
-const EVENT_COPY: Record<string, string> = {
-  response: 'You have a new response to your review.',
-  review: 'One of your reviews was updated.',
-  target: 'A place you added was updated.',
-  evidence: 'Your evidence submission was reviewed.',
-  claim: 'Your business claim status changed.',
-  report: 'A report you filed was reviewed.',
-  privacy: 'Your data request was updated.',
-};
-const DEFAULT_BODY = 'You have a new update.';
 
 // Unverified on a real device: FCM's data payload can surface either as
 // direct keys on the task payload's `data` object, or JSON-encoded under
@@ -50,8 +35,7 @@ function extractEventType(payloadData: unknown): string | undefined {
 TaskManager.defineTask<Notifications.NotificationTaskPayload>(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }) => {
   if (error || !data || 'actionIdentifier' in data) return; // a tap response, not a received message
   const eventType = extractEventType((data as { data?: unknown }).data);
-  const prefix = eventType?.split('.')[0];
-  const body = (prefix && EVENT_COPY[prefix]) || DEFAULT_BODY;
+  const body = describeEventType(eventType);
   await Notifications.scheduleNotificationAsync({ content: { title: 'Adera', body }, trigger: null });
 });
 
