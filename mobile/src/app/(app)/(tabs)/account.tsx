@@ -97,6 +97,9 @@ export default function AccountScreen() {
               <Link href="/verify" style={styles.link}>
                 <ThemedText type="link">{t('auth.verifyLink')}</ThemedText>
               </Link>
+              <Link href="/businesses" style={styles.link}>
+                <ThemedText type="link">{t('nav.yourBusinesses')}</ThemedText>
+              </Link>
               <Link href="/sessions" style={styles.link}>
                 <ThemedText type="link">{t('auth.devicesLink')}</ThemedText>
               </Link>

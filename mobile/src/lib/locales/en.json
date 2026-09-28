@@ -25,7 +25,9 @@
     "yourDevices": "Your devices",
     "writeReview": "Write a review",
     "editReview": "Edit review",
-    "addEvidence": "Add evidence"
+    "addEvidence": "Add evidence",
+    "yourBusinesses": "Your businesses",
+    "locations": "Locations"
   },
   "auth": {
     "signInTitle": "Sign in",

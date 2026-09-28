@@ -25,7 +25,9 @@
     "yourDevices": "የእርስዎ መሳሪያዎች",
     "writeReview": "ግምገማ ጻፍ",
     "editReview": "ግምገማ አርትዕ",
-    "addEvidence": "ማስረጃ ጨምር"
+    "addEvidence": "ማስረጃ ጨምር",
+    "yourBusinesses": "የእርስዎ ንግዶች",
+    "locations": "ቦታዎች"
   },
   "auth": {
     "signInTitle": "ግባ",

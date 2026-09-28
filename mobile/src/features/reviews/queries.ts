@@ -145,6 +145,29 @@ export function useMyReviews() {
   });
 }
 
+/** Owner response, posted by a member of the target's owning business. Invalidates the target's review pages (all filter variants) so the new response shows up. */
+export function usePostResponse(targetId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ reviewId, body }: { reviewId: string; body: string }) =>
+      unwrap(await apiClient.POST('/api/v1/reviews/{id}/response', { params: { path: { id: reviewId } }, body: { body } })),
+    onSuccess: () => {
+      if (targetId) queryClient.invalidateQueries({ queryKey: ['targets', 'reviews', targetId] });
+    },
+  });
+}
+
+export function useEditResponse(targetId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ responseId, body }: { responseId: string; body: string }) =>
+      unwrap(await apiClient.PUT('/api/v1/responses/{id}', { params: { path: { id: responseId } }, body: { body } })),
+    onSuccess: () => {
+      if (targetId) queryClient.invalidateQueries({ queryKey: ['targets', 'reviews', targetId] });
+    },
+  });
+}
+
 export function useDeleteReview() {
   const queryClient = useQueryClient();
   return useMutation({
