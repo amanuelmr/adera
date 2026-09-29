@@ -25,6 +25,17 @@ export class ApiError extends Error {
 
 export const apiClient = createClient<paths>({ baseUrl: apiBaseUrl });
 
+/**
+ * Whether retrying the same request later could succeed: no response at all
+ * (offline, timeout), or a status that says nothing about the request itself
+ * — 401 (the session may recover), 408, 429, 5xx. Any other 4xx is a real
+ * rejection that an unchanged retry would only repeat.
+ */
+export function isTransientFailure(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return true;
+  return err.status === 401 || err.status === 408 || err.status === 429 || err.status >= 500;
+}
+
 type Envelope = { data?: unknown; meta?: components['schemas']['PageMeta'] };
 
 /**

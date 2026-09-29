@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { apiClient, unwrap, ApiError } from '@/api/client';
+import { apiClient, unwrap, ApiError, isTransientFailure } from '@/api/client';
 import { getCurrentUserId } from '@/auth/storage';
+import { deletePersistedPhoto } from './photos';
 import { createReview, uploadPhotos } from './queries';
 import type { ReviewFormState } from './types';
 
@@ -29,31 +30,54 @@ export type HelpfulVoteJob = {
   voted: boolean;
 };
 
-export type QueueJob = ReviewSubmissionJob | HelpfulVoteJob;
+/**
+ * Set when the server rejected the job outright. The job is kept (not
+ * silently dropped) so the user, who was told "sending soon", learns it
+ * didn't go through and why; it's never retried and only leaves the queue
+ * when dismissed.
+ */
+export type JobFailure = { message: string; code?: string };
+
+export type QueueJob = (ReviewSubmissionJob | HelpfulVoteJob) & { failure?: JobFailure };
 
 let jobs: QueueJob[] | undefined;
+let hydrating: Promise<QueueJob[]> | undefined;
 const listeners = new Set<() => void>();
+const EMPTY: QueueJob[] = [];
+
+function notify(): void {
+  listeners.forEach((listener) => listener());
+}
 
 function generateJobId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
-async function hydrate(): Promise<QueueJob[]> {
-  if (!jobs) {
+// Memoized: two cold-start callers (the processor on mount and an enqueue)
+// must share one read, or the second parse overwrites the first caller's
+// freshly pushed job and the next persist() makes that loss durable.
+function hydrate(): Promise<QueueJob[]> {
+  if (jobs) return Promise.resolve(jobs);
+  hydrating ??= (async () => {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     jobs = raw ? (JSON.parse(raw) as QueueJob[]) : [];
     // Notify here too, not just from persist(): a cold start with
     // already-persisted jobs (e.g. from a previous offline session) should
     // update a subscribed pending-count badge even before anything is
     // actually re-saved.
-    listeners.forEach((listener) => listener());
-  }
-  return jobs;
+    notify();
+    return jobs;
+  })();
+  return hydrating;
 }
 
 async function persist(): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(jobs ?? []));
-  listeners.forEach((listener) => listener());
+  // A fresh array on every save, so getQueueSnapshot() changes identity
+  // whenever the queue (or a job inside it) changes — what
+  // useSyncExternalStore compares.
+  jobs = [...(jobs ?? [])];
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
+  notify();
 }
 
 /** For a UI badge/banner — call getQueueSnapshot() after hydrate() has run once (e.g. via useOfflineQueue). */
@@ -63,7 +87,7 @@ export function subscribeQueue(listener: () => void): () => void {
 }
 
 export function getQueueSnapshot(): QueueJob[] {
-  return jobs ?? [];
+  return jobs ?? EMPTY;
 }
 
 // Enqueue is only ever called from an authenticated screen (the review
@@ -80,28 +104,45 @@ async function requireCurrentUserId(): Promise<string> {
 export async function enqueueReviewSubmission(
   input: Pick<ReviewSubmissionJob, 'targetId' | 'idempotencyKey' | 'form'> & { reviewId?: string; pendingPhotoUris?: string[] }
 ): Promise<void> {
-  const [queue, userId] = await Promise.all([hydrate(), requireCurrentUserId()]);
-  queue.push({
-    type: 'review-submission',
+  const [, userId] = await Promise.all([hydrate(), requireCurrentUserId()]);
+  // Always rebuild from the live `jobs`, never the array hydrate() returned:
+  // a concurrent enqueue may have replaced it, and writing to the stale one
+  // silently drops that other job.
+  jobs = [
+    ...(jobs ?? []),
+    {
+      type: 'review-submission',
     id: generateJobId(),
     userId,
     targetId: input.targetId,
     idempotencyKey: input.idempotencyKey,
     form: input.form,
     reviewId: input.reviewId,
-    pendingPhotoUris: input.pendingPhotoUris ?? input.form.photos.map((photo) => photo.uri),
-  });
+      pendingPhotoUris: input.pendingPhotoUris ?? input.form.photos.map((photo) => photo.uri),
+    },
+  ];
   await persist();
 }
 
 export async function enqueueHelpfulVote(reviewId: string, voted: boolean): Promise<void> {
-  const [queue, userId] = await Promise.all([hydrate(), requireCurrentUserId()]);
+  const [, userId] = await Promise.all([hydrate(), requireCurrentUserId()]);
   // Last-write-wins: a newer toggle for the same review supersedes an
   // unsent older one rather than replaying both in order. Scoped to this
   // user's own prior jobs only — a different account's queued vote for the
   // same review (unlikely, but possible on a shared device) is untouched.
-  jobs = queue.filter((job) => !(job.type === 'helpful-vote' && job.reviewId === reviewId && job.userId === userId));
-  jobs.push({ type: 'helpful-vote', id: generateJobId(), userId, reviewId, voted });
+  jobs = [
+    ...(jobs ?? []).filter((job) => !(job.type === 'helpful-vote' && job.reviewId === reviewId && job.userId === userId)),
+    { type: 'helpful-vote', id: generateJobId(), userId, reviewId, voted },
+  ];
+  await persist();
+}
+
+/** Removes a failed job the user has seen, cleaning up any photos it still held. */
+export async function dismissJob(id: string): Promise<void> {
+  await hydrate();
+  const job = jobs?.find((j) => j.id === id);
+  if (job?.type === 'review-submission') job.pendingPhotoUris.forEach(deletePersistedPhoto);
+  jobs = (jobs ?? []).filter((j) => j.id !== id);
   await persist();
 }
 
@@ -121,11 +162,16 @@ export async function processQueue(): Promise<void> {
     const [queue, currentUserId] = await Promise.all([hydrate(), getCurrentUserId()]);
     if (!currentUserId) return;
     for (const job of [...queue]) {
-      if (job.userId !== currentUserId) continue;
-      const resolved = await runJob(job);
-      if (resolved && jobs) {
+      if (job.userId !== currentUserId || job.failure) continue;
+      const outcome = await runJob(job);
+      if (outcome === 'done' && jobs) {
         jobs = jobs.filter((j) => j.id !== job.id);
         await persist();
+      } else if (outcome === 'failed') {
+        await persist();
+      } else if (outcome === 'stop') {
+        // The session itself is failing — every later job would 401 too.
+        break;
       }
     }
   } finally {
@@ -133,8 +179,9 @@ export async function processQueue(): Promise<void> {
   }
 }
 
-/** Returns true when the job is done (succeeded, or failed for a reason retrying won't fix). */
-async function runJob(job: QueueJob): Promise<boolean> {
+type JobOutcome = 'done' | 'retry' | 'failed' | 'stop';
+
+async function runJob(job: QueueJob): Promise<JobOutcome> {
   try {
     if (job.type === 'helpful-vote') {
       unwrap(
@@ -142,7 +189,7 @@ async function runJob(job: QueueJob): Promise<boolean> {
           ? apiClient.PUT('/api/v1/reviews/{id}/helpful', { params: { path: { id: job.reviewId } } })
           : apiClient.DELETE('/api/v1/reviews/{id}/helpful', { params: { path: { id: job.reviewId } } }))
       );
-      return true;
+      return 'done';
     }
 
     if (!job.reviewId) {
@@ -151,10 +198,12 @@ async function runJob(job: QueueJob): Promise<boolean> {
     }
     job.pendingPhotoUris = await uploadPhotos(job.reviewId, job.pendingPhotoUris);
     await persist();
-    return job.pendingPhotoUris.length === 0;
+    return job.pendingPhotoUris.length === 0 ? 'done' : 'retry';
   } catch (err) {
-    // A real response came back (even a rejection) — offline retry can't
-    // change that outcome, so stop queuing it rather than looping forever.
-    return err instanceof ApiError;
+    if (err instanceof ApiError && err.status === 401) return 'stop';
+    if (isTransientFailure(err)) return 'retry';
+    const apiError = err as ApiError;
+    job.failure = { message: apiError.message, code: apiError.code };
+    return 'failed';
   }
 }

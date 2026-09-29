@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { apiClient, unwrap, ApiError } from '@/api/client';
+import { apiClient, unwrap, isTransientFailure } from '@/api/client';
 import { deletePersistedPhoto } from './photos';
 import type { ReviewFormState } from './types';
 
@@ -99,12 +99,12 @@ export async function uploadPhotos(reviewId: string, uris: string[]): Promise<st
       await uploadReviewPhoto(reviewId, uri);
       deletePersistedPhoto(uri);
     } catch (err) {
-      if (err instanceof ApiError) {
+      if (isTransientFailure(err)) {
+        retryable.push(uri);
+      } else {
         // The server rejected this photo outright — retrying it unchanged
         // would just fail again, so give up and clean up.
         deletePersistedPhoto(uri);
-      } else {
-        retryable.push(uri);
       }
     }
   }
