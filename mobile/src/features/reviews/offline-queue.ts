@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiClient, unwrap, ApiError, isTransientFailure } from '@/api/client';
 import { getCurrentUserId } from '@/auth/storage';
 import { deletePersistedPhoto } from './photos';
-import { createReview, uploadPhotos } from './queries';
+import { createReview, invalidateReviewCaches, uploadPhotos } from './queries';
 import type { ReviewFormState } from './types';
 
 const STORAGE_KEY = 'adera.offline-queue.v1';
@@ -198,6 +198,7 @@ async function runJob(job: QueueJob): Promise<JobOutcome> {
     }
     job.pendingPhotoUris = await uploadPhotos(job.reviewId, job.pendingPhotoUris);
     await persist();
+    invalidateReviewCaches(job.targetId, job.reviewId);
     return job.pendingPhotoUris.length === 0 ? 'done' : 'retry';
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) return 'stop';

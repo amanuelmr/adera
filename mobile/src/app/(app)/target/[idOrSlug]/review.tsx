@@ -14,7 +14,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { generateIdempotencyKey } from '@/features/reviews/idempotency';
 import { enqueueReviewSubmission } from '@/features/reviews/offline-queue';
-import { submitReview, submitReviewEdit, useCriteria, useReview } from '@/features/reviews/queries';
+import { invalidateReviewCaches, submitReview, submitReviewEdit, useCriteria, useReview } from '@/features/reviews/queries';
 import { isConnected } from '@/lib/network-status';
 import { INITIAL_REVIEW_FORM, type ReviewFormState } from '@/features/reviews/types';
 import { CriteriaStep } from '@/features/reviews/steps/criteria-step';
@@ -113,6 +113,9 @@ export default function WriteReviewScreen() {
         await enqueueReviewSubmission({ targetId, form, idempotencyKey });
         return { queued: true, failedPhotoCount: 0 };
       }
+    },
+    onSuccess: (result) => {
+      if (!result.queued) invalidateReviewCaches(target.data!.id!, result.reviewId);
     },
   });
 

@@ -8,6 +8,7 @@ jest.mock('../photos', () => ({ deletePersistedPhoto: jest.fn() }));
 jest.mock('../queries', () => ({
   createReview: jest.fn(),
   uploadPhotos: jest.fn(async () => []),
+  invalidateReviewCaches: jest.fn(),
 }));
 
 const form = { photos: [] } as never;
@@ -91,6 +92,7 @@ it('removes a job once it succeeds', async () => {
   await queue.processQueue();
 
   expect(queue.getQueueSnapshot()).toHaveLength(0);
+  expect(require('../queries').invalidateReviewCaches).toHaveBeenCalledWith('t1', 'review-1');
 });
 
 it('does not lose a job enqueued while the queue is still loading from storage', async () => {

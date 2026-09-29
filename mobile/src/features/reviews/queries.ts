@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiClient, unwrap, isTransientFailure } from '@/api/client';
+import { queryClient } from '@/lib/query-client';
 import { deletePersistedPhoto } from './photos';
 import type { ReviewFormState } from './types';
 
@@ -51,6 +52,20 @@ export async function updateReview(reviewId: string, targetId: string, form: Rev
       body: { ...buildReviewBody(targetId, form), version },
     })
   );
+}
+
+/**
+ * After a review is created or edited: the target's list, aggregates and
+ * counts, the author's own list/profile, and the review itself (whose
+ * `version` the next edit must send, or it 412s) are all out of date.
+ */
+export function invalidateReviewCaches(targetId: string, reviewId?: string): void {
+  queryClient.invalidateQueries({ queryKey: ['targets', 'reviews', targetId] });
+  queryClient.invalidateQueries({ queryKey: ['targets', 'stats', targetId] });
+  queryClient.invalidateQueries({ queryKey: ['targets', 'reality-check', targetId] });
+  queryClient.invalidateQueries({ queryKey: ['targets', 'detail'] });
+  queryClient.invalidateQueries({ queryKey: ['users', 'me'] });
+  if (reviewId) queryClient.invalidateQueries({ queryKey: ['reviews', 'detail', reviewId] });
 }
 
 export function useReview(reviewId: string | undefined) {
