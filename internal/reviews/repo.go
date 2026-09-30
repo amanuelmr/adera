@@ -178,6 +178,88 @@ func insertScores(ctx context.Context, tx pgx.Tx, reviewID uuid.UUID, scores map
 	return nil
 }
 
+// rowQuerier is satisfied by both the pool and a transaction, so the policy
+// checks below run identically inside Create's transaction and in the
+// read-only Eligibility check.
+type rowQuerier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// latestActiveReview is the user's most recent review of the target that
+// still counts toward the repeat cooldown.
+func latestActiveReview(ctx context.Context, q rowQuerier, userID, targetID uuid.UUID) (uuid.UUID, time.Time, bool, error) {
+	var id uuid.UUID
+	var at time.Time
+	err := q.QueryRow(ctx, `
+		SELECT id, created_at FROM reviews
+		WHERE user_id = $1 AND target_id = $2 AND moderation_status NOT IN ('removed', 'rejected')
+		ORDER BY created_at DESC LIMIT 1`, userID, targetID).Scan(&id, &at)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, time.Time{}, false, nil
+	}
+	if err != nil {
+		return uuid.Nil, time.Time{}, false, fmt.Errorf("checking previous review: %w", err)
+	}
+	return id, at, true, nil
+}
+
+// reviewsInLastDay counts the user's reviews in the rolling 24h cap window,
+// and when the oldest of them was written (zero when there are none).
+func reviewsInLastDay(ctx context.Context, q rowQuerier, userID uuid.UUID) (int, time.Time, error) {
+	var count int
+	var oldest *time.Time
+	if err := q.QueryRow(ctx, `
+		SELECT count(*), min(created_at) FROM reviews
+		WHERE user_id = $1 AND created_at > now() - interval '24 hours'`, userID).Scan(&count, &oldest); err != nil {
+		return 0, time.Time{}, fmt.Errorf("checking daily cap: %w", err)
+	}
+	if oldest == nil {
+		return count, time.Time{}, nil
+	}
+	return count, *oldest, nil
+}
+
+// Eligibility says whether the user can write a new review of the target
+// right now, using the same rules Create enforces — so the client can offer
+// "update your review" up front instead of failing at submit.
+type Eligibility struct {
+	Eligible bool `json:"eligible"`
+	// Reason is the error code Create would return: cooldown_active or rate_limited.
+	Reason           string     `json:"reason,omitempty"`
+	ExistingReviewID *uuid.UUID `json:"existing_review_id,omitempty"`
+	NextAllowedAt    *time.Time `json:"next_allowed_at,omitempty"`
+}
+
+func (r *Repo) Eligibility(ctx context.Context, userID, targetID uuid.UUID) (Eligibility, error) {
+	var targetStatus string
+	err := r.pool.QueryRow(ctx, `SELECT moderation_status FROM review_targets WHERE id = $1`, targetID).Scan(&targetStatus)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && targetStatus != "published") {
+		return Eligibility{}, web.ErrNotFound("target")
+	}
+	if err != nil {
+		return Eligibility{}, fmt.Errorf("loading target: %w", err)
+	}
+
+	lastID, lastAt, found, err := latestActiveReview(ctx, r.pool, userID, targetID)
+	if err != nil {
+		return Eligibility{}, err
+	}
+	if found && time.Since(lastAt) < RepeatCooldown {
+		next := lastAt.Add(RepeatCooldown)
+		return Eligibility{Reason: string(web.CodeCooldownActive), ExistingReviewID: &lastID, NextAllowedAt: &next}, nil
+	}
+
+	count, oldest, err := reviewsInLastDay(ctx, r.pool, userID)
+	if err != nil {
+		return Eligibility{}, err
+	}
+	if count >= MaxReviewsPerDay {
+		next := oldest.Add(24 * time.Hour)
+		return Eligibility{Reason: string(web.CodeRateLimited), NextAllowedAt: &next}, nil
+	}
+	return Eligibility{Eligible: true}, nil
+}
+
 // Create submits a review: target checks, cooldown, anti-flooding cap,
 // criterion validation, insert, and aggregate update — one transaction.
 // Reviews publish immediately (documented policy in docs/moderation-policy.md)
@@ -212,16 +294,11 @@ func (r *Repo) Create(ctx context.Context, userID uuid.UUID, in Input) (Review, 
 		}
 
 		// Cooldown: within the window the user updates their existing review.
-		var lastAt time.Time
-		var lastID uuid.UUID
-		err = tx.QueryRow(ctx, `
-			SELECT id, created_at FROM reviews
-			WHERE user_id = $1 AND target_id = $2 AND moderation_status NOT IN ('removed', 'rejected')
-			ORDER BY created_at DESC LIMIT 1`, userID, in.TargetID).Scan(&lastID, &lastAt)
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("checking previous review: %w", err)
+		lastID, lastAt, found, err := latestActiveReview(ctx, tx, userID, in.TargetID)
+		if err != nil {
+			return err
 		}
-		if err == nil && time.Since(lastAt) < RepeatCooldown {
+		if found && time.Since(lastAt) < RepeatCooldown {
 			return (&web.Error{
 				Status: http.StatusConflict, Code: web.CodeCooldownActive,
 				Message: "you reviewed this recently; update your existing review instead",
@@ -229,11 +306,9 @@ func (r *Repo) Create(ctx context.Context, userID uuid.UUID, in Input) (Review, 
 		}
 
 		// Anti-flooding cap.
-		var todayCount int
-		if err := tx.QueryRow(ctx, `
-			SELECT count(*) FROM reviews
-			WHERE user_id = $1 AND created_at > now() - interval '24 hours'`, userID).Scan(&todayCount); err != nil {
-			return fmt.Errorf("checking daily cap: %w", err)
+		todayCount, _, err := reviewsInLastDay(ctx, tx, userID)
+		if err != nil {
+			return err
 		}
 		if todayCount >= MaxReviewsPerDay {
 			return web.ErrRateLimited()

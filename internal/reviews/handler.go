@@ -30,6 +30,22 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("PUT /api/v1/reviews/{id}/helpful", web.RequireAuth(http.HandlerFunc(h.vote)))
 	mux.Handle("DELETE /api/v1/reviews/{id}/helpful", web.RequireAuth(http.HandlerFunc(h.unvote)))
 	mux.Handle("GET /api/v1/users/me/reviews", web.RequireAuth(http.HandlerFunc(h.listMine)))
+	mux.Handle("GET /api/v1/targets/{id}/review-eligibility", web.RequireAuth(http.HandlerFunc(h.eligibility)))
+}
+
+func (h *Handler) eligibility(w http.ResponseWriter, r *http.Request) {
+	targetID, err := web.ParseUUID(r, "id")
+	if err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	p, _ := web.PrincipalFromContext(r.Context())
+	e, err := h.repo.Eligibility(r.Context(), p.UserID, targetID)
+	if err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	web.Respond(w, http.StatusOK, e)
 }
 
 type reviewRequest struct {
