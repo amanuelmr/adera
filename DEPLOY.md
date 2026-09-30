@@ -81,6 +81,24 @@ In the service's **Environment** tab:
 
 Changing either triggers a redeploy.
 
+### Optional: email, push, and the version gate
+
+These are declared in `render.yaml` but left empty; each feature stays off
+until its variables are set.
+
+- **Email** (verification codes, password reset): `SMTP_HOST`,
+  `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`. Until these are set,
+  verification returns `503 verification_unavailable` and users who forget
+  their password cannot reset it.
+- **Push**: in Firebase, create a service-account key for the project the
+  Android app is registered in. Upload it under **Environment → Secret
+  Files** (e.g. as `fcm-service-account.json`), then set
+  `FCM_CREDENTIALS_FILE=/etc/secrets/fcm-service-account.json`. Set the
+  variable only after the file exists — the API won't start if it points at
+  a missing file.
+- **Version gate**: `APP_ANDROID_MIN_VERSION`, `APP_ANDROID_LATEST_VERSION`,
+  `APP_ANDROID_STORE_URL`. Versions are plain semver (`1.2.0`, not `v1.2.0`).
+
 ## 5. Point a domain at it
 
 Render issues `adera-api.onrender.com` and serves TLS on it. For a custom
