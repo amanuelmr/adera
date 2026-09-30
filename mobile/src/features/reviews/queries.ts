@@ -66,6 +66,19 @@ export function invalidateReviewCaches(targetId: string, reviewId?: string): voi
   queryClient.invalidateQueries({ queryKey: ['targets', 'detail'] });
   queryClient.invalidateQueries({ queryKey: ['users', 'me'] });
   if (reviewId) queryClient.invalidateQueries({ queryKey: ['reviews', 'detail', reviewId] });
+  queryClient.invalidateQueries({ queryKey: ['reviews', 'eligibility', targetId] });
+}
+
+/** Advisory pre-check of the cooldown / daily cap; submit still enforces them. */
+export function useReviewEligibility(targetId: string | undefined) {
+  return useQuery({
+    enabled: !!targetId,
+    staleTime: 0,
+    queryKey: ['reviews', 'eligibility', targetId],
+    queryFn: async () =>
+      unwrap(await apiClient.GET('/api/v1/targets/{id}/review-eligibility', { params: { path: { id: targetId! } } }))
+        .data,
+  });
 }
 
 export function useReview(reviewId: string | undefined) {

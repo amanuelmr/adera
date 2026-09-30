@@ -1,10 +1,8 @@
-import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useRequireSignIn } from '@/auth/use-require-sign-in';
-import { Button } from '@/components/button';
 import { QueryError } from '@/components/query-error';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -22,6 +20,7 @@ import {
 } from '@/features/targets/queries';
 import { ReviewCard } from '@/features/targets/review-card';
 import { FilterChip } from '@/features/search/filter-chip';
+import { WriteReviewCta } from '@/features/reviews/write-review-cta';
 import { shareTarget } from '@/features/share/share';
 
 const REALITY_CHECK_CATEGORY_CODE = 'restaurant_cafe';
@@ -36,7 +35,6 @@ const SORT_OPTIONS: { value: ReviewSort; label: string }[] = [
 export default function TargetProfileScreen() {
   const { idOrSlug } = useLocalSearchParams<{ idOrSlug: string }>();
   const target = useTarget(idOrSlug);
-  const requireSignIn = useRequireSignIn();
   const categories = useCategories();
   const stats = useTargetStats(target.data?.id);
   const category = categories.data?.find((c) => c.id === target.data?.category_id);
@@ -168,12 +166,7 @@ export default function TargetProfileScreen() {
           ListFooterComponent={reviews.isFetchingNextPage ? <ActivityIndicator style={styles.footer} /> : null}
         />
 
-        <View style={styles.ctaBar}>
-          <Button
-            title="Write a review"
-            onPress={() => requireSignIn(() => router.push(`/target/${idOrSlug}/review`))}
-          />
-        </View>
+        <WriteReviewCta targetId={target.data.id} idOrSlug={idOrSlug} />
       </SafeAreaView>
     </ThemedView>
   );
@@ -227,8 +220,5 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingVertical: Spacing.three,
-  },
-  ctaBar: {
-    padding: Spacing.three,
   },
 });

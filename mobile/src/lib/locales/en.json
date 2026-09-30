@@ -134,5 +134,8 @@
   },
   "category": {
     "empty": "Nothing in this category yet."
+  },
+  "review": {
+    "updateYours": "Update your review"
   }
 }
