@@ -162,5 +162,17 @@
       "duplicate": "የተደገመ ግምገማ",
       "manipulated_evidence": "የተቀነባበረ ፎቶ ወይም ማስረጃ"
     }
+  },
+  "account": {
+    "reviewCount_one": "{{count}} ግምገማ",
+    "reviewCount_other": "{{count}} ግምገማዎች",
+    "joined": "የተቀላቀሉት {{date}}",
+    "emailVerified": "✓ ኢሜይል ተረጋግጧል"
+  },
+  "sessions": {
+    "thisDevice": "ይህ መሳሪያ",
+    "lastUsed": "ለመጨረሻ ጊዜ የተጠቀሙት {{when}}",
+    "lastUsedUnknown": "የመጨረሻ አጠቃቀም አይታወቅም",
+    "unknownDevice": "ያልታወቀ መሳሪያ"
   }
 }

@@ -14,6 +14,7 @@ import { FilterChip } from '@/features/search/filter-chip';
 import { useProfile, useUpdateProfile } from '@/features/profile/queries';
 import { MyReviewCard } from '@/features/reviews/my-review-card';
 import { useMyReviews } from '@/features/reviews/queries';
+import { formatDate } from '@/lib/format';
 import { SUPPORTED_LANGUAGES, setAppLanguage, type AppLanguage } from '@/lib/i18n';
 
 const LANGUAGE_NAMES: Record<AppLanguage, string> = { en: 'English', am: 'አማርኛ' };
@@ -98,12 +99,12 @@ function SignedInAccount() {
                 <View style={styles.profile}>
                   <ThemedText type="title">{profile.data.display_name}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {profile.data.review_count ?? 0} review{profile.data.review_count === 1 ? '' : 's'}
-                    {profile.data.created_at ? ` · Joined ${new Date(profile.data.created_at).toLocaleDateString()}` : ''}
+                    {t('account.reviewCount', { count: profile.data.review_count ?? 0 })}
+                    {profile.data.created_at ? ` · ${t('account.joined', { date: formatDate(profile.data.created_at) })}` : ''}
                   </ThemedText>
                   {profile.data.email_verified ? (
                     <ThemedText type="small" themeColor="textSecondary">
-                      ✓ Email verified
+                      {t('account.emailVerified')}
                     </ThemedText>
                   ) : null}
                 </View>

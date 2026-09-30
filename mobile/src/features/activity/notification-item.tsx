@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/theme';
+import { formatDateTime, formatRelative } from '@/lib/format';
 import { describeEventType } from './event-copy';
 import type { components } from '@/api/schema';
 
@@ -20,8 +21,8 @@ export function NotificationItem({ notification, onPress }: { notification: Noti
       {unread ? <View style={[styles.dot, { backgroundColor: theme.text }]} /> : <View style={styles.dot} />}
       <View style={styles.body}>
         <ThemedText type={unread ? 'smallBold' : 'small'}>{describeEventType(notification.event_type)}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {new Date(notification.created_at).toLocaleString()}
+        <ThemedText type="small" themeColor="textSecondary" accessibilityLabel={formatDateTime(notification.created_at)}>
+          {formatRelative(notification.created_at)}
         </ThemedText>
       </View>
     </Pressable>

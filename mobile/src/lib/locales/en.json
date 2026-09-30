@@ -162,5 +162,17 @@
       "duplicate": "Duplicate review",
       "manipulated_evidence": "Manipulated photo or evidence"
     }
+  },
+  "account": {
+    "reviewCount_one": "{{count}} review",
+    "reviewCount_other": "{{count}} reviews",
+    "joined": "Joined {{date}}",
+    "emailVerified": "✓ Email verified"
+  },
+  "sessions": {
+    "thisDevice": "This device",
+    "lastUsed": "Last used {{when}}",
+    "lastUsedUnknown": "Last use unknown",
+    "unknownDevice": "Unknown device"
   }
 }
