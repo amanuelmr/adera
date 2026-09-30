@@ -30,6 +30,11 @@ const (
 // rejected, so it can be deleted instead of retried.
 var errTokenGone = errors.New("device token no longer registered")
 
+// errMessageRejected marks a message FCM refused for its own content (bad
+// payload, oversized data): the token is fine and an unchanged retry would
+// fail identically, so the event is dropped, loudly, without pruning.
+var errMessageRejected = errors.New("fcm rejected the message")
+
 // deviceRegistry is the slice of Service the push provider needs, kept narrow
 // so the provider can be tested without a database.
 type deviceRegistry interface {
@@ -156,6 +161,8 @@ func (p *FCMProvider) Send(ctx context.Context, event OutboxEvent) error {
 			delivered++
 		case errors.Is(err, errTokenGone):
 			stale = append(stale, token)
+		case errors.Is(err, errMessageRejected):
+			slog.ErrorContext(ctx, "fcm rejected push message", "event_id", event.ID, "error", err)
 		default:
 			failures = append(failures, err)
 		}
@@ -174,7 +181,8 @@ func (p *FCMProvider) Send(ctx context.Context, event OutboxEvent) error {
 	if len(failures) > 0 {
 		return fmt.Errorf("pushing to %d device(s): %w", len(failures), errors.Join(failures...))
 	}
-	// Every token was permanently gone; a retry cannot change that.
+	// Every token was permanently gone or the message itself was rejected;
+	// a retry cannot change either.
 	return nil
 }
 
@@ -230,30 +238,65 @@ func (p *FCMProvider) sendToToken(ctx context.Context, token string, data map[st
 	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
 
-	switch {
-	case resp.StatusCode < 300:
+	if resp.StatusCode < 300 {
 		return nil
+	}
+	fcmErr := parseFCMError(respBody)
+	switch {
+	case fcmErr.tokenGone(resp.StatusCode):
+		return errTokenGone
 	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
 		// The cached token may have been revoked; drop it so the next
 		// attempt mints a fresh one.
 		p.invalidateAccessToken()
 		return fmt.Errorf("fcm rejected credentials: %s", resp.Status)
-	case isTokenGone(resp.StatusCode, respBody):
-		return errTokenGone
+	case resp.StatusCode == http.StatusBadRequest:
+		return fmt.Errorf("%w: %s", errMessageRejected, truncateError(errors.New(string(respBody))))
 	default:
 		return fmt.Errorf("fcm returned %s: %s", resp.Status, truncateError(errors.New(string(respBody))))
 	}
 }
 
-// isTokenGone reports whether FCM permanently rejected the device token.
-func isTokenGone(status int, body []byte) bool {
-	if status != http.StatusNotFound && status != http.StatusBadRequest {
-		return false
+// fcmError is the FCM v1 error body. The top-level status is a generic gRPC
+// code (INVALID_ARGUMENT covers both a bad token and a bad payload); the
+// specific cause is in details — an FcmError errorCode, or a BadRequest
+// field violation naming the offending field.
+type fcmError struct {
+	Error struct {
+		Status  string `json:"status"`
+		Details []struct {
+			ErrorCode       string `json:"errorCode"`
+			FieldViolations []struct {
+				Field string `json:"field"`
+			} `json:"fieldViolations"`
+		} `json:"details"`
+	} `json:"error"`
+}
+
+func parseFCMError(body []byte) fcmError {
+	var e fcmError
+	_ = json.Unmarshal(body, &e) // an unparseable body just classifies by status code
+	return e
+}
+
+// tokenGone reports whether FCM permanently rejected the device token itself
+// — never merely the message — so the token is safe to prune.
+func (e fcmError) tokenGone(status int) bool {
+	if status == http.StatusNotFound || e.Error.Status == "UNREGISTERED" {
+		return true
 	}
-	text := string(body)
-	return strings.Contains(text, "UNREGISTERED") ||
-		strings.Contains(text, "NOT_FOUND") ||
-		strings.Contains(text, "INVALID_ARGUMENT")
+	for _, d := range e.Error.Details {
+		switch d.ErrorCode {
+		case "UNREGISTERED", "SENDER_ID_MISMATCH":
+			return true
+		}
+		for _, v := range d.FieldViolations {
+			if v.Field == "message.token" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // ensureAccessToken returns a cached OAuth2 access token, minting a new one

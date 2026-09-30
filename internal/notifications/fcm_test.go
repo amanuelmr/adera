@@ -274,3 +274,68 @@ func TestFCMPropagatesRegistryFailure(t *testing.T) {
 
 	assert.Error(t, err, "a database failure must leave the event for retry")
 }
+
+func TestFCMClassifiesErrorsBeforePruning(t *testing.T) {
+	cases := []struct {
+		name       string
+		status     int
+		body       string
+		wantPruned bool
+		wantRetry  bool
+	}{
+		{
+			name:       "invalid token field violation prunes",
+			status:     http.StatusBadRequest,
+			body:       `{"error":{"status":"INVALID_ARGUMENT","details":[{"@type":"type.googleapis.com/google.rpc.BadRequest","fieldViolations":[{"field":"message.token","description":"Invalid registration token"}]}]}}`,
+			wantPruned: true,
+		},
+		{
+			// The regression: one oversized payload must not wipe every
+			// recipient's device registration.
+			name:   "invalid payload keeps the token and is not retried",
+			status: http.StatusBadRequest,
+			body:   `{"error":{"status":"INVALID_ARGUMENT","details":[{"@type":"type.googleapis.com/google.firebase.fcm.v1.FcmError","errorCode":"INVALID_ARGUMENT"},{"@type":"type.googleapis.com/google.rpc.BadRequest","fieldViolations":[{"field":"message.data","description":"too big"}]}]}}`,
+		},
+		{
+			name:       "unregistered error code prunes",
+			status:     http.StatusNotFound,
+			body:       `{"error":{"status":"NOT_FOUND","details":[{"@type":"type.googleapis.com/google.firebase.fcm.v1.FcmError","errorCode":"UNREGISTERED"}]}}`,
+			wantPruned: true,
+		},
+		{
+			name:       "sender id mismatch prunes instead of retrying as a credential error",
+			status:     http.StatusForbidden,
+			body:       `{"error":{"status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.firebase.fcm.v1.FcmError","errorCode":"SENDER_ID_MISMATCH"}]}}`,
+			wantPruned: true,
+		},
+		{
+			name:      "other permission errors are credential problems and retried",
+			status:    http.StatusForbidden,
+			body:      `{"error":{"status":"PERMISSION_DENIED"}}`,
+			wantRetry: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := newFCMServer(t)
+			srv.status.Store(int32(tc.status))
+			srv.body.Store(tc.body)
+			user := uuid.New()
+			reg := &fakeRegistry{tokens: map[uuid.UUID][]string{user: {"device-a"}}}
+			p := newTestProvider(t, reg, srv)
+
+			err := p.Send(context.Background(), testEvent(t, user))
+
+			if tc.wantRetry {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			if tc.wantPruned {
+				assert.Equal(t, []string{"device-a"}, reg.deleted)
+			} else {
+				assert.Empty(t, reg.deleted)
+			}
+		})
+	}
+}
