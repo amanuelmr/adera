@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryError } from '@/components/query-error';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -34,6 +35,8 @@ export default function BusinessTargetsScreen() {
           ListEmptyComponent={
             targets.isPending ? (
               <ActivityIndicator style={styles.centered} />
+            ) : targets.isError ? (
+              <QueryError onRetry={() => targets.refetch()} retrying={targets.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
                 No published locations yet.

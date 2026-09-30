@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
+import { QueryError } from '@/components/query-error';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -66,6 +67,8 @@ export default function ActivityScreen() {
           ListEmptyComponent={
             notifications.isPending ? (
               <ActivityIndicator style={styles.centered} />
+            ) : notifications.isError ? (
+              <QueryError onRetry={() => notifications.refetch()} retrying={notifications.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
                 {unreadOnly ? "You're all caught up." : 'Nothing here yet.'}

@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryError } from '@/components/query-error';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -32,6 +33,8 @@ export default function BusinessTargetReviewsScreen() {
           ListEmptyComponent={
             reviews.isPending ? (
               <ActivityIndicator style={styles.centered} />
+            ) : reviews.isError ? (
+              <QueryError onRetry={() => reviews.refetch()} retrying={reviews.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
                 No reviews yet.

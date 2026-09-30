@@ -17,7 +17,8 @@
     "confirm": "Confirm",
     "updateNow": "Update now",
     "backToTarget": "Back to target",
-    "resetPassword": "Reset password"
+    "resetPassword": "Reset password",
+    "retry": "Try again"
   },
   "nav": {
     "search": "Search",
@@ -62,7 +63,8 @@
     "reviewRateLimited": "You've submitted a few reviews already today — try again later.",
     "reviewStale": "This review changed since you started editing. Go back and try again.",
     "reviewGeneric": "Couldn't submit your review. Check your connection and try again.",
-    "reviewOffline": "You need a connection to update a review."
+    "reviewOffline": "You need a connection to update a review.",
+    "loadFailed": "Couldn't load this. Check your connection and try again."
   },
   "disclosure": {
     "title": "One more thing",

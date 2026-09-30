@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryError } from '@/components/query-error';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -37,6 +38,8 @@ export default function MyBusinessesScreen() {
           ListEmptyComponent={
             businesses.isPending ? (
               <ActivityIndicator style={styles.centered} />
+            ) : businesses.isError ? (
+              <QueryError onRetry={() => businesses.refetch()} retrying={businesses.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
                 You don&apos;t manage any businesses yet.

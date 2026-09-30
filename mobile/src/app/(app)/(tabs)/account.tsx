@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/context';
 import { Button } from '@/components/button';
+import { QueryError } from '@/components/query-error';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -108,6 +109,8 @@ function SignedInAccount() {
                 </View>
               ) : profile.isPending ? (
                 <ActivityIndicator />
+              ) : profile.isError ? (
+                <QueryError onRetry={() => profile.refetch()} retrying={profile.isRefetching} />
               ) : null}
 
               <ThemedText type="smallBold">Your reviews</ThemedText>
@@ -116,6 +119,8 @@ function SignedInAccount() {
           ListEmptyComponent={
             reviews.isPending ? (
               <ActivityIndicator style={styles.centered} />
+            ) : reviews.isError ? (
+              <QueryError onRetry={() => reviews.refetch()} retrying={reviews.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
                 You haven&apos;t written any reviews yet.

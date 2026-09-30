@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
 import { Button } from '@/components/button';
+import { QueryError } from '@/components/query-error';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -105,6 +106,8 @@ export default function EvidenceScreen() {
           <View style={styles.list}>
             {evidence.isPending ? (
               <ActivityIndicator />
+            ) : evidence.isError ? (
+              <QueryError onRetry={() => evidence.refetch()} retrying={evidence.isRefetching} />
             ) : items.length === 0 ? (
               <ThemedText type="small" themeColor="textSecondary">
                 {t('evidence.empty')}
