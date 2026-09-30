@@ -189,6 +189,21 @@ func (r *Repo) Create(ctx context.Context, in CreateInput) (Target, error) {
 	return t, nil
 }
 
+// MergedInto returns the surviving target a merged target now points to,
+// so old links can redirect instead of 404ing.
+func (r *Repo) MergedInto(ctx context.Context, id uuid.UUID) (*uuid.UUID, error) {
+	var into *uuid.UUID
+	err := r.pool.QueryRow(ctx, `
+		SELECT merged_into_id FROM review_targets WHERE id = $1 AND moderation_status = 'merged'`, id).Scan(&into)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("loading merge target: %w", err)
+	}
+	return into, nil
+}
+
 // GetByIDOrSlug loads one target with its aliases.
 func (r *Repo) GetByIDOrSlug(ctx context.Context, idOrSlug string) (Target, error) {
 	var (
