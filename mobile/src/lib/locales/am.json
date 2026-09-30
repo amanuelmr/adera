@@ -71,7 +71,25 @@
     "relationshipQuestion": "ከዚህ ንግድ ጋር ግንኙነት አለዎት?",
     "details": "ዝርዝሮች",
     "detailsOptional": "ዝርዝሮች (አማራጭ)",
-    "detailsPlaceholder": "በአጭሩ ያብራሩ"
+    "detailsPlaceholder": "በአጭሩ ያብራሩ",
+    "badgeIncentive": "ለዚህ ግምገማ {{value}} ተቀብሏል",
+    "badgeConnection": "ከንግዱ ጋር ያለው ግንኙነት፦ {{value}}",
+    "incentive": {
+      "discount": "ቅናሽ",
+      "free_product_or_service": "ነጻ ምርት ወይም አገልግሎት",
+      "payment": "ክፍያ",
+      "contest_entry": "የውድድር ተሳትፎ",
+      "loyalty_points": "የታማኝነት ነጥቦች",
+      "other": "ሌላ ነገር"
+    },
+    "connection": {
+      "current_employee": "የአሁን ሰራተኛ",
+      "former_employee": "የቀድሞ ሰራተኛ",
+      "owner_or_executive": "ባለቤት ወይም ሥራ አስፈጻሚ",
+      "family_or_friend": "የባለቤቱ ቤተሰብ ወይም ጓደኛ",
+      "business_partner": "የንግድ አጋር",
+      "other": "ሌላ"
+    }
   },
   "updateRequired": {
     "title": "ማዘመን ያስፈልጋል",

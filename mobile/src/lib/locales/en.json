@@ -71,7 +71,25 @@
     "relationshipQuestion": "Do you have a relationship with this business?",
     "details": "Details",
     "detailsOptional": "Details (optional)",
-    "detailsPlaceholder": "Briefly explain"
+    "detailsPlaceholder": "Briefly explain",
+    "badgeIncentive": "Received {{value}} for this review",
+    "badgeConnection": "Connection to the business: {{value}}",
+    "incentive": {
+      "discount": "a discount",
+      "free_product_or_service": "a free product or service",
+      "payment": "payment",
+      "contest_entry": "a contest entry",
+      "loyalty_points": "loyalty points",
+      "other": "something else"
+    },
+    "connection": {
+      "current_employee": "current employee",
+      "former_employee": "former employee",
+      "owner_or_executive": "owner or executive",
+      "family_or_friend": "family or friend of the owner",
+      "business_partner": "business partner",
+      "other": "other"
+    }
   },
   "updateRequired": {
     "title": "Update required",

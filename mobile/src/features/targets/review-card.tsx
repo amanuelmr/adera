@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import type { components } from '@/api/schema';
@@ -34,6 +35,8 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
           {'☆'.repeat(Math.max(0, 5 - rating))}
         </ThemedText>
       </View>
+
+      <DisclosureLabel review={review} />
 
       {review.title ? <ThemedText type="smallBold">{review.title}</ThemedText> : null}
       <ThemedText type="small">{shownBody}</ThemedText>
@@ -81,7 +84,36 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
   );
 }
 
+// Required on every public surface (docs/moderation-policy.md §6): any
+// incentive or material connection other than `none` is labeled, never hidden.
+function DisclosureLabel({ review }: { review: ListedReview }) {
+  const { t } = useTranslation();
+  const incentive = review.incentive_type && review.incentive_type !== 'none' ? review.incentive_type : undefined;
+  const connection =
+    review.material_connection && review.material_connection !== 'none' ? review.material_connection : undefined;
+  if (!incentive && !connection) return null;
+
+  return (
+    <ThemedView type="backgroundSelected" style={styles.disclosure} accessibilityRole="text">
+      {incentive ? (
+        <ThemedText type="smallBold">{t('disclosure.badgeIncentive', { value: t(`disclosure.incentive.${incentive}`) })}</ThemedText>
+      ) : null}
+      {connection ? (
+        <ThemedText type="smallBold">
+          {t('disclosure.badgeConnection', { value: t(`disclosure.connection.${connection}`) })}
+        </ThemedText>
+      ) : null}
+      {review.disclosure_details ? <ThemedText type="small">{review.disclosure_details}</ThemedText> : null}
+    </ThemedView>
+  );
+}
+
 const styles = StyleSheet.create({
+  disclosure: {
+    borderRadius: Spacing.two,
+    padding: Spacing.two,
+    gap: Spacing.half,
+  },
   card: {
     borderRadius: Spacing.two,
     padding: Spacing.three,
