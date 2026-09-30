@@ -131,5 +131,8 @@
   },
   "owner": {
     "alreadyResponded": "Someone else from your business already responded. Their response is shown below — edit it if needed."
+  },
+  "category": {
+    "empty": "Nothing in this category yet."
   }
 }

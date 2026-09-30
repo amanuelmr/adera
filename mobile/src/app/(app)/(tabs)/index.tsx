@@ -47,7 +47,7 @@ export default function DiscoverScreen() {
             renderItem={(category) => (
               <CategoryTile
                 name={category.name ?? 'Unnamed'}
-                onPress={() => router.push({ pathname: '/search', params: { category: category.id ?? '' } })}
+                onPress={() => category.id && router.push(`/category/${category.id}`)}
               />
             )}
           />
