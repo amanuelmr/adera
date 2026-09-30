@@ -25,6 +25,8 @@ export function MyReviewCard({ review }: { review: ListedReview }) {
   const deleteReview = useDeleteReview();
   const rating = review.overall_rating ?? 0;
   const isPublished = review.moderation_status === 'published';
+  // The server refuses new evidence on these (internal/media/media.go).
+  const acceptsEvidence = review.moderation_status !== 'rejected' && review.moderation_status !== 'removed';
 
   function confirmDelete() {
     Alert.alert('Delete this review?', 'This can’t be undone.', [
@@ -59,11 +61,13 @@ export function MyReviewCard({ review }: { review: ListedReview }) {
           variant="secondary"
           onPress={() => router.push(`/target/${review.target_id}/review?reviewId=${review.id}`)}
         />
-        <Button
-          title={t('evidence.addButton')}
-          variant="secondary"
-          onPress={() => router.push(`/review/${review.id}/evidence`)}
-        />
+        {acceptsEvidence ? (
+          <Button
+            title={t('evidence.addButton')}
+            variant="secondary"
+            onPress={() => router.push(`/review/${review.id}/evidence`)}
+          />
+        ) : null}
         <Button title="Delete" variant="secondary" onPress={confirmDelete} loading={deleteReview.isPending} />
       </View>
     </ThemedView>

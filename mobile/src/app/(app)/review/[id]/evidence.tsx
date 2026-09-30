@@ -12,7 +12,12 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { FilterChip } from '@/features/search/filter-chip';
 import { pickAndCompressPhoto } from '@/features/reviews/photos';
-import { useEvidence, useSubmitEvidence, type EvidenceKind } from '@/features/reviews/evidence-queries';
+import {
+  countsTowardEvidenceLimit,
+  useEvidence,
+  useSubmitEvidence,
+  type EvidenceKind,
+} from '@/features/reviews/evidence-queries';
 
 const MAX_EVIDENCE = 5;
 
@@ -41,19 +46,25 @@ export default function EvidenceScreen() {
 
   const [kind, setKind] = useState<NonNullable<EvidenceKind>>('receipt');
   const [pickError, setPickError] = useState<string>();
+  const [picking, setPicking] = useState(false);
 
   const items = evidence.data ?? [];
-  const atLimit = items.length >= MAX_EVIDENCE;
+  const atLimit = items.filter(countsTowardEvidenceLimit).length >= MAX_EVIDENCE;
 
   async function addEvidence() {
     setPickError(undefined);
-    const picked = await pickAndCompressPhoto();
-    if ('error' in picked) {
-      setPickError(picked.error);
-      return;
+    setPicking(true);
+    try {
+      const picked = await pickAndCompressPhoto();
+      if ('error' in picked) {
+        setPickError(picked.error);
+        return;
+      }
+      if ('canceled' in picked) return;
+      submitEvidence.mutate({ kind, localUri: picked.uri });
+    } finally {
+      setPicking(false);
     }
-    if ('canceled' in picked) return;
-    submitEvidence.mutate({ kind, localUri: picked.uri });
   }
 
   const submitError = submitEvidence.error
@@ -89,7 +100,7 @@ export default function EvidenceScreen() {
               {t('evidence.limitReached')}
             </ThemedText>
           ) : (
-            <Button title={t('evidence.addButton')} onPress={addEvidence} loading={submitEvidence.isPending} />
+            <Button title={t('evidence.addButton')} onPress={addEvidence} loading={picking || submitEvidence.isPending} />
           )}
 
           {pickError ? (
