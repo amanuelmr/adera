@@ -123,7 +123,9 @@
     "checkStore": "Please check the Play Store for the latest version."
   },
   "settings": {
-    "language": "Language"
+    "language": "Language",
+    "dataSaver": "Data saver",
+    "dataSaverBody": "Show review photos only when you tap to load them."
   },
   "evidence": {
     "title": "Verification evidence",
@@ -228,7 +230,9 @@
     "showLess": "Show less",
     "readMore": "Read more",
     "ownerResponse": "Owner response",
-    "helpful": "Helpful"
+    "helpful": "Helpful",
+    "showPhotos_one": "Show {{count}} photo",
+    "showPhotos_other": "Show {{count}} photos"
   },
   "report": {
     "title": "Report review",

@@ -123,7 +123,9 @@
     "checkStore": "እባክዎ የቅርብ ጊዜውን ስሪት ለማግኘት Play Store ን ይመልከቱ።"
   },
   "settings": {
-    "language": "ቋንቋ"
+    "language": "ቋንቋ",
+    "dataSaver": "ዳታ ቆጣቢ",
+    "dataSaverBody": "የግምገማ ፎቶዎችን ሲጫኑ ብቻ አሳይ።"
   },
   "evidence": {
     "title": "የማረጋገጫ ማስረጃ",
@@ -228,7 +230,9 @@
     "showLess": "ያነሰ አሳይ",
     "readMore": "ተጨማሪ ያንብቡ",
     "ownerResponse": "የባለቤቱ ምላሽ",
-    "helpful": "ጠቃሚ"
+    "helpful": "ጠቃሚ",
+    "showPhotos_one": "{{count}} ፎቶ አሳይ",
+    "showPhotos_other": "{{count}} ፎቶዎችን አሳይ"
   },
   "report": {
     "title": "ግምገማ ሪፖርት አድርግ",

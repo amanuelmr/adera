@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { shareReview } from '@/features/share/share';
+import { useSettings } from '@/lib/settings';
 import { useToggleHelpful } from './queries';
 
 type ListedReview = components['schemas']['ListedReview'];
@@ -19,6 +20,8 @@ const COLLAPSE_AT_CHARS = 280;
 
 export function ReviewCard({ review, targetId, targetName }: { review: ListedReview; targetId: string; targetName: string }) {
   const [expanded, setExpanded] = useState(false);
+  const [photosRequested, setPhotosRequested] = useState(false);
+  const { dataSaver } = useSettings();
   const toggleHelpful = useToggleHelpful(targetId);
   const requireSignIn = useRequireSignIn();
   const { t } = useTranslation();
@@ -49,11 +52,18 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
       ) : null}
 
       {review.media && review.media.length > 0 ? (
-        <View style={styles.mediaRow}>
-          {review.media.map((item) => (
-            <Image key={item.id} source={{ uri: item.thumb_url ?? item.url }} style={styles.thumbnail} />
-          ))}
-        </View>
+        dataSaver && !photosRequested ? (
+          // Data saver: nothing is downloaded until the reader asks.
+          <Pressable onPress={() => setPhotosRequested(true)} accessibilityRole="button" style={styles.helpfulRow}>
+            <ThemedText type="linkPrimary">{t('review.showPhotos', { count: review.media.length })}</ThemedText>
+          </Pressable>
+        ) : (
+          <View style={styles.mediaRow}>
+            {review.media.map((item) => (
+              <Image key={item.id} source={{ uri: item.thumb_url ?? item.url }} style={styles.thumbnail} />
+            ))}
+          </View>
+        )
       ) : null}
 
       {review.business_response ? (
