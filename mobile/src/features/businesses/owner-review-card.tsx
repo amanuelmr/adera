@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import type { components } from '@/api/schema';
@@ -18,15 +19,26 @@ export function OwnerReviewCard({ review, targetId }: { review: ListedReview; ta
   const editResponse = useEditResponse(targetId);
   const existing = review.business_response;
 
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
+  const [alreadyResponded, setAlreadyResponded] = useState(false);
   const [draft, setDraft] = useState(existing?.body ?? '');
 
   const rating = review.overall_rating ?? 0;
   const mutation = existing ? editResponse : postResponse;
 
   function startEditing() {
+    postResponse.reset();
+    editResponse.reset();
+    setAlreadyResponded(false);
     setDraft(existing?.body ?? '');
     setEditing(true);
+  }
+
+  function cancel() {
+    postResponse.reset();
+    editResponse.reset();
+    setEditing(false);
   }
 
   function save() {
@@ -35,7 +47,18 @@ export function OwnerReviewCard({ review, targetId }: { review: ListedReview; ta
     if (existing?.id) {
       editResponse.mutate({ responseId: existing.id, body: draft.trim() }, { onSuccess: onDone });
     } else {
-      postResponse.mutate({ reviewId: review.id, body: draft.trim() }, { onSuccess: onDone });
+      postResponse.mutate(
+        { reviewId: review.id, body: draft.trim() },
+        {
+          onSuccess: onDone,
+          onError: (err) => {
+            if (err instanceof ApiError && err.status === 409) {
+              setEditing(false);
+              setAlreadyResponded(true);
+            }
+          },
+        }
+      );
     }
   }
 
@@ -51,6 +74,12 @@ export function OwnerReviewCard({ review, targetId }: { review: ListedReview; ta
 
       {review.title ? <ThemedText type="smallBold">{review.title}</ThemedText> : null}
       <ThemedText type="small">{review.body}</ThemedText>
+
+      {alreadyResponded ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          {t('owner.alreadyResponded')}
+        </ThemedText>
+      ) : null}
 
       {existing && !editing ? (
         <ThemedView type="backgroundSelected" style={styles.response}>
@@ -76,7 +105,7 @@ export function OwnerReviewCard({ review, targetId }: { review: ListedReview; ta
             </ThemedText>
           ) : null}
           <View style={styles.actions}>
-            <Button title="Cancel" variant="secondary" onPress={() => setEditing(false)} />
+            <Button title="Cancel" variant="secondary" onPress={cancel} />
             <Button title="Save" onPress={save} loading={mutation.isPending} disabled={!draft.trim()} />
           </View>
         </View>

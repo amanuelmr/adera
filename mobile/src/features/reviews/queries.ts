@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { apiClient, unwrap, isTransientFailure } from '@/api/client';
+import { ApiError, apiClient, unwrap, isTransientFailure } from '@/api/client';
 import { queryClient } from '@/lib/query-client';
 import { deletePersistedPhoto } from './photos';
 import type { ReviewFormState } from './types';
@@ -168,6 +168,14 @@ export function usePostResponse(targetId: string | undefined) {
       unwrap(await apiClient.POST('/api/v1/reviews/{id}/response', { params: { path: { id: reviewId } }, body: { body } })),
     onSuccess: () => {
       if (targetId) queryClient.invalidateQueries({ queryKey: ['targets', 'reviews', targetId] });
+    },
+    onError: (err) => {
+      // 409: another member of the business responded first. Refetch so the
+      // card shows that response (editable) instead of retrying a POST that
+      // can only fail again.
+      if (targetId && err instanceof ApiError && err.status === 409) {
+        queryClient.invalidateQueries({ queryKey: ['targets', 'reviews', targetId] });
+      }
     },
   });
 }

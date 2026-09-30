@@ -128,5 +128,8 @@
     "blockedBody": "Location is turned off for Adera. Turn it on in Settings to see what’s nearby.",
     "errorBody": "Couldn't get your location. Check that location is on and try again.",
     "openSettings": "Open settings"
+  },
+  "owner": {
+    "alreadyResponded": "Someone else from your business already responded. Their response is shown below — edit it if needed."
   }
 }
