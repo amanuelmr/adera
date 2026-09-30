@@ -44,3 +44,6 @@ example
 
 # Firebase config for push — provided via EAS file env var GOOGLE_SERVICES_JSON
 google-services.json
+
+# Google Play service account for `eas submit` — never commit
+play-service-account.json
