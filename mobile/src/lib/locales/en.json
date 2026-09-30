@@ -18,7 +18,9 @@
     "updateNow": "Update now",
     "backToTarget": "Back to target",
     "resetPassword": "Reset password",
-    "retry": "Try again"
+    "retry": "Try again",
+    "optional": "Optional",
+    "share": "Share"
   },
   "nav": {
     "search": "Search",
@@ -65,7 +67,8 @@
     "reviewStale": "This review changed since you started editing. Go back and try again.",
     "reviewGeneric": "Couldn't submit your review. Check your connection and try again.",
     "reviewOffline": "You need a connection to update a review.",
-    "loadFailed": "Couldn't load this. Check your connection and try again."
+    "loadFailed": "Couldn't load this. Check your connection and try again.",
+    "validation": "Some details need fixing. Check your entries and try again."
   },
   "disclosure": {
     "title": "One more thing",
@@ -92,6 +95,24 @@
       "family_or_friend": "family or friend of the owner",
       "business_partner": "business partner",
       "other": "other"
+    },
+    "incentiveOption": {
+      "none": "None",
+      "discount": "Discount",
+      "free_product_or_service": "Free product/service",
+      "payment": "Payment",
+      "contest_entry": "Contest entry",
+      "loyalty_points": "Loyalty points",
+      "other": "Other"
+    },
+    "connectionOption": {
+      "none": "None",
+      "current_employee": "Current employee",
+      "former_employee": "Former employee",
+      "owner_or_executive": "Owner/executive",
+      "family_or_friend": "Family or friend of owner",
+      "business_partner": "Business partner",
+      "other": "Other"
     }
   },
   "updateRequired": {
@@ -137,7 +158,61 @@
     "empty": "Nothing in this category yet."
   },
   "review": {
-    "updateYours": "Update your review"
+    "updateYours": "Update your review",
+    "contextTitle": "A bit of context",
+    "whenLabel": "When was this? (optional)",
+    "discoveryLabel": "How did you find this place?",
+    "expectationLabel": "Did it match what you saw online?",
+    "priceLabel": "Price paid (optional)",
+    "ratingTitle": "Overall, how was it?",
+    "ratingLabel": "Overall rating",
+    "criteriaError": "Couldn't load rating criteria — you can still continue without them.",
+    "criteriaNone": "Nothing else to rate for this category.",
+    "criteriaTitle": "Rate a few specifics",
+    "criterion": "Criterion",
+    "textTitle": "Tell us more",
+    "titlePlaceholder": "Title (optional)",
+    "bodyPlaceholder": "What happened? What should other people know?",
+    "charsNeeded_one": "{{count}} more character needed",
+    "charsNeeded_other": "{{count}} more characters needed",
+    "rating": {
+      "1": "Poor",
+      "2": "Fair",
+      "3": "Good",
+      "4": "Very good",
+      "5": "Excellent"
+    },
+    "discovery": {
+      "tiktok": "TikTok",
+      "instagram": "Instagram",
+      "youtube": "YouTube",
+      "facebook": "Facebook",
+      "telegram": "Telegram",
+      "friend": "A friend",
+      "google_maps": "Google Maps",
+      "walk_in": "Walked in",
+      "other": "Other"
+    },
+    "expectation": {
+      "better": "Better than expected",
+      "as_expected": "As expected",
+      "worse": "Worse than expected",
+      "very_different": "Very different"
+    },
+    "queuedTitle": "Saved — sending soon",
+    "updatedTitle": "Review updated",
+    "thanksTitle": "Thanks for your review!",
+    "queuedBody": "You're offline right now. We'll send this the moment you're back online.",
+    "liveBody": "It's live on {{name}}'s page.",
+    "photosRetrying_one": "{{count}} photo couldn't be uploaded and will retry automatically.",
+    "photosRetrying_other": "{{count}} photos couldn't be uploaded and will retry automatically.",
+    "loadReviewFailed": "Couldn't load this review. Check your connection and try again.",
+    "loadTargetFailed": "Couldn't load this place. Check your connection and try again.",
+    "anonymous": "Anonymous",
+    "showLess": "Show less",
+    "readMore": "Read more",
+    "ownerResponse": "Owner response",
+    "helpful": "Helpful"
   },
   "report": {
     "title": "Report review",
@@ -174,5 +249,67 @@
     "lastUsed": "Last used {{when}}",
     "lastUsedUnknown": "Last use unknown",
     "unknownDevice": "Unknown device"
+  },
+  "photos": {
+    "permissionDenied": "Photo library access is needed to add a picture.",
+    "add": "Add photo",
+    "remove": "Remove photo"
+  },
+  "myReviews": {
+    "deleteTitle": "Delete this review?",
+    "deleteBody": "This can’t be undone.",
+    "status": {
+      "pending": "Pending review",
+      "published": "Published",
+      "under_review": "Under review",
+      "rejected": "Rejected",
+      "hidden": "Hidden",
+      "removed": "Removed"
+    }
+  },
+  "rating": {
+    "outOfFive": "Rated {{rating}} out of 5",
+    "summary_one": "Rated {{rating}} out of 5 from {{count}} review",
+    "summary_other": "Rated {{rating}} out of 5 from {{count}} reviews",
+    "notYetRated": "Not yet rated",
+    "noReviewsYet": "No reviews yet"
+  },
+  "realityCheck": {
+    "title": "Reality Check",
+    "question": "Did this place match what people expected going in?",
+    "trend": "Recent reviews average {{recent}}, vs {{overall}} overall ({{arrow}}{{delta}}).",
+    "matched": "{{percent}}% said it matched or exceeded expectations",
+    "notEnough_one": "{{count}} person shared how it compared to what they saw online — not enough yet for percentages.",
+    "notEnough_other": "{{count}} people shared how it compared to what they saw online — not enough yet for percentages.",
+    "noneYet": "No one who found this place on social media has reviewed it yet.",
+    "caveatNone": "Based on very few reviews so far — take this as an early signal, not a verdict.",
+    "caveatLow": "Based on a small number of reviews so far."
+  },
+  "target": {
+    "statsFailed": "Couldn't load ratings right now.",
+    "notEnoughReviews": "Not enough reviews yet for reliable stats.",
+    "noReviewsAtRating": "No reviews at that rating.",
+    "beFirst": "Be the first to review.",
+    "sort": {
+      "newest": "Newest",
+      "highest": "Highest rated",
+      "lowest": "Lowest rated",
+      "most_helpful": "Most helpful"
+    }
+  },
+  "tabs": {
+    "home": "Home",
+    "activity": "Activity",
+    "account": "Account"
+  },
+  "events": {
+    "response": "You have a new response to your review.",
+    "review": "One of your reviews was updated.",
+    "target": "A place you added was updated.",
+    "evidence": "Your evidence submission was reviewed.",
+    "claim": "Your business claim status changed.",
+    "report": "A report you filed was reviewed.",
+    "privacy": "Your data request was updated.",
+    "default": "You have a new update."
   }
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -14,41 +15,42 @@ export function CriteriaStep({
   scores: Record<string, number>;
   onChange: (code: string, rating: number) => void;
 }) {
+  const { t } = useTranslation();
   const criteria = useCriteria(categoryId);
 
   if (criteria.isPending) return <ActivityIndicator />;
   if (criteria.isError) {
     return (
       <ThemedText type="small" themeColor="textSecondary">
-        Couldn&apos;t load rating criteria — you can still continue without them.
+        {t('review.criteriaError')}
       </ThemedText>
     );
   }
   if (criteria.data.length === 0) {
     return (
       <ThemedText type="small" themeColor="textSecondary">
-        Nothing else to rate for this category.
+        {t('review.criteriaNone')}
       </ThemedText>
     );
   }
 
   return (
     <View style={styles.container}>
-      <ThemedText type="subtitle">Rate a few specifics</ThemedText>
+      <ThemedText type="subtitle">{t('review.criteriaTitle')}</ThemedText>
       {criteria.data.map((criterion) => (
         <View key={criterion.code} style={styles.row}>
           <View style={styles.label}>
             <ThemedText type="smallBold">{criterion.name}</ThemedText>
             {criterion.required === false ? (
               <ThemedText type="small" themeColor="textSecondary">
-                Optional
+                {t('common.optional')}
               </ThemedText>
             ) : null}
           </View>
           <StarPicker
             value={criterion.code ? scores[criterion.code] : undefined}
             onChange={(rating) => criterion.code && onChange(criterion.code, rating)}
-            label={criterion.name ?? 'Criterion'}
+            label={criterion.name ?? t('review.criterion')}
           />
         </View>
       ))}

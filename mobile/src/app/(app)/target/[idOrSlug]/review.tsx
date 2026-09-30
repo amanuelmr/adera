@@ -131,7 +131,7 @@ export default function WriteReviewScreen() {
     return (
       <ThemedView style={styles.centered}>
         <ThemedText type="small" themeColor="textSecondary">
-          Couldn&apos;t load this {isEditing ? 'review' : 'target'}. Check your connection and try again.
+          {t(isEditing ? 'review.loadReviewFailed' : 'review.loadTargetFailed')}
         </ThemedText>
       </ThemedView>
     );
@@ -141,15 +141,11 @@ export default function WriteReviewScreen() {
     return (
       <ThemedView style={styles.centered}>
         <ThemedText type="subtitle">
-          {submit.data.queued ? 'Saved — sending soon' : isEditing ? 'Review updated' : 'Thanks for your review!'}
+          {t(submit.data.queued ? 'review.queuedTitle' : isEditing ? 'review.updatedTitle' : 'review.thanksTitle')}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.confirmationBody}>
-          {submit.data.queued
-            ? "You're offline right now. We'll send this the moment you're back online."
-            : `It's live on ${target.data.name}'s page.`}
-          {submit.data.failedPhotoCount > 0
-            ? ` ${submit.data.failedPhotoCount} photo${submit.data.failedPhotoCount === 1 ? '' : 's'} couldn't be uploaded and will retry automatically.`
-            : ''}
+          {submit.data.queued ? t('review.queuedBody') : t('review.liveBody', { name: target.data.name })}
+          {submit.data.failedPhotoCount > 0 ? ` ${t('review.photosRetrying', { count: submit.data.failedPhotoCount })}` : ''}
         </ThemedText>
         {submit.data.reviewId ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.confirmationBody}>

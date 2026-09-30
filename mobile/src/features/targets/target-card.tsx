@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -14,10 +15,11 @@ export type TargetCardProps = {
 };
 
 export function TargetCard({ name, averageRating, reviewCount, badge, onPress, style }: TargetCardProps) {
+  const { t } = useTranslation();
   const ratingLabel =
     averageRating != null
-      ? `Rated ${averageRating.toFixed(1)} out of 5 from ${reviewCount} review${reviewCount === 1 ? '' : 's'}`
-      : 'Not yet rated';
+      ? t('rating.summary', { rating: averageRating.toFixed(1), count: reviewCount })
+      : t('rating.notYetRated');
 
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${name}. ${ratingLabel}`}>
@@ -27,7 +29,7 @@ export function TargetCard({ name, averageRating, reviewCount, badge, onPress, s
             {name}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {averageRating != null ? `★ ${averageRating.toFixed(1)} (${reviewCount})` : 'No reviews yet'}
+            {averageRating != null ? `★ ${averageRating.toFixed(1)} (${reviewCount})` : t('rating.noReviewsYet')}
           </ThemedText>
           {badge ? (
             <ThemedText type="small" themeColor="textSecondary">

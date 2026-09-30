@@ -18,7 +18,9 @@
     "updateNow": "አሁን አዘምን",
     "backToTarget": "ወደ ገጹ ተመለስ",
     "resetPassword": "የይለፍ ቃል ዳግም አስጀምር",
-    "retry": "እንደገና ይሞክሩ"
+    "retry": "እንደገና ይሞክሩ",
+    "optional": "አማራጭ",
+    "share": "አጋራ"
   },
   "nav": {
     "search": "ፈልግ",
@@ -65,7 +67,8 @@
     "reviewStale": "ይህ ግምገማ እርስዎ ማርትዕ ከጀመሩ ጀምሮ ተቀይሯል። ተመልሰው እንደገና ይሞክሩ።",
     "reviewGeneric": "ግምገማዎን ማስገባት አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
     "reviewOffline": "ግምገማ ለማዘመን ግንኙነት ያስፈልግዎታል።",
-    "loadFailed": "ይህን መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።"
+    "loadFailed": "ይህን መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
+    "validation": "አንዳንድ ዝርዝሮች መስተካከል አለባቸው። ያስገቡትን ያረጋግጡ እና እንደገና ይሞክሩ።"
   },
   "disclosure": {
     "title": "አንድ ተጨማሪ ነገር",
@@ -89,6 +92,24 @@
       "current_employee": "የአሁን ሰራተኛ",
       "former_employee": "የቀድሞ ሰራተኛ",
       "owner_or_executive": "ባለቤት ወይም ሥራ አስፈጻሚ",
+      "family_or_friend": "የባለቤቱ ቤተሰብ ወይም ጓደኛ",
+      "business_partner": "የንግድ አጋር",
+      "other": "ሌላ"
+    },
+    "incentiveOption": {
+      "none": "ምንም",
+      "discount": "ቅናሽ",
+      "free_product_or_service": "ነጻ ምርት/አገልግሎት",
+      "payment": "ክፍያ",
+      "contest_entry": "የውድድር ተሳትፎ",
+      "loyalty_points": "የታማኝነት ነጥቦች",
+      "other": "ሌላ"
+    },
+    "connectionOption": {
+      "none": "ምንም",
+      "current_employee": "የአሁን ሰራተኛ",
+      "former_employee": "የቀድሞ ሰራተኛ",
+      "owner_or_executive": "ባለቤት/ሥራ አስፈጻሚ",
       "family_or_friend": "የባለቤቱ ቤተሰብ ወይም ጓደኛ",
       "business_partner": "የንግድ አጋር",
       "other": "ሌላ"
@@ -137,7 +158,61 @@
     "empty": "በዚህ ምድብ ውስጥ እስካሁን ምንም የለም።"
   },
   "review": {
-    "updateYours": "ግምገማዎን ያዘምኑ"
+    "updateYours": "ግምገማዎን ያዘምኑ",
+    "contextTitle": "ትንሽ አውድ",
+    "whenLabel": "መቼ ነበር? (አማራጭ)",
+    "discoveryLabel": "ይህን ቦታ እንዴት አገኙት?",
+    "expectationLabel": "በመስመር ላይ ካዩት ጋር ተመሳስሏል?",
+    "priceLabel": "የከፈሉት ዋጋ (አማራጭ)",
+    "ratingTitle": "በአጠቃላይ እንዴት ነበር?",
+    "ratingLabel": "አጠቃላይ ደረጃ",
+    "criteriaError": "የደረጃ መስፈርቶችን መጫን አልተቻለም — ያለእነሱ መቀጠል ይችላሉ።",
+    "criteriaNone": "ለዚህ ምድብ ሌላ የሚገመገም ነገር የለም።",
+    "criteriaTitle": "ጥቂት ዝርዝሮችን ይገምግሙ",
+    "criterion": "መስፈርት",
+    "textTitle": "ተጨማሪ ይንገሩን",
+    "titlePlaceholder": "ርዕስ (አማራጭ)",
+    "bodyPlaceholder": "ምን ሆነ? ሌሎች ሰዎች ምን ማወቅ አለባቸው?",
+    "charsNeeded_one": "{{count}} ተጨማሪ ፊደል ያስፈልጋል",
+    "charsNeeded_other": "{{count}} ተጨማሪ ፊደሎች ያስፈልጋሉ",
+    "rating": {
+      "1": "ደካማ",
+      "2": "መካከለኛ",
+      "3": "ጥሩ",
+      "4": "በጣም ጥሩ",
+      "5": "እጅግ በጣም ጥሩ"
+    },
+    "discovery": {
+      "tiktok": "TikTok",
+      "instagram": "Instagram",
+      "youtube": "YouTube",
+      "facebook": "Facebook",
+      "telegram": "Telegram",
+      "friend": "ጓደኛ",
+      "google_maps": "Google Maps",
+      "walk_in": "በአጋጣሚ ገባሁ",
+      "other": "ሌላ"
+    },
+    "expectation": {
+      "better": "ከጠበቅሁት የተሻለ",
+      "as_expected": "እንደጠበቅሁት",
+      "worse": "ከጠበቅሁት የባሰ",
+      "very_different": "በጣም የተለየ"
+    },
+    "queuedTitle": "ተቀምጧል — በቅርቡ ይላካል",
+    "updatedTitle": "ግምገማው ተዘምኗል",
+    "thanksTitle": "ስለ ግምገማዎ እናመሰግናለን!",
+    "queuedBody": "አሁን ከመስመር ውጭ ነዎት። ልክ መስመር ላይ ሲመለሱ እንልከዋለን።",
+    "liveBody": "በ{{name}} ገጽ ላይ ታትሟል።",
+    "photosRetrying_one": "{{count}} ፎቶ መስቀል አልተቻለም እና በራሱ እንደገና ይሞከራል።",
+    "photosRetrying_other": "{{count}} ፎቶዎችን መስቀል አልተቻለም እና በራሳቸው እንደገና ይሞከራሉ።",
+    "loadReviewFailed": "ይህን ግምገማ መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
+    "loadTargetFailed": "ይህን ቦታ መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
+    "anonymous": "ስም-አልባ",
+    "showLess": "ያነሰ አሳይ",
+    "readMore": "ተጨማሪ ያንብቡ",
+    "ownerResponse": "የባለቤቱ ምላሽ",
+    "helpful": "ጠቃሚ"
   },
   "report": {
     "title": "ግምገማ ሪፖርት አድርግ",
@@ -174,5 +249,67 @@
     "lastUsed": "ለመጨረሻ ጊዜ የተጠቀሙት {{when}}",
     "lastUsedUnknown": "የመጨረሻ አጠቃቀም አይታወቅም",
     "unknownDevice": "ያልታወቀ መሳሪያ"
+  },
+  "photos": {
+    "permissionDenied": "ፎቶ ለመጨመር የፎቶ ማከማቻ ፍቃድ ያስፈልጋል።",
+    "add": "ፎቶ ጨምር",
+    "remove": "ፎቶ አስወግድ"
+  },
+  "myReviews": {
+    "deleteTitle": "ይህ ግምገማ ይሰረዝ?",
+    "deleteBody": "ይህ ሊቀለበስ አይችልም።",
+    "status": {
+      "pending": "በመጠባበቅ ላይ",
+      "published": "ታትሟል",
+      "under_review": "በግምገማ ላይ",
+      "rejected": "ውድቅ ተደርጓል",
+      "hidden": "ተደብቋል",
+      "removed": "ተወግዷል"
+    }
+  },
+  "rating": {
+    "outOfFive": "ከ5 {{rating}} ተሰጥቷል",
+    "summary_one": "ከ{{count}} ግምገማ ከ5 {{rating}}",
+    "summary_other": "ከ{{count}} ግምገማዎች ከ5 {{rating}}",
+    "notYetRated": "እስካሁን ደረጃ አልተሰጠውም",
+    "noReviewsYet": "እስካሁን ግምገማ የለም"
+  },
+  "realityCheck": {
+    "title": "የእውነታ ማረጋገጫ",
+    "question": "ይህ ቦታ ሰዎች ከጠበቁት ጋር ተመሳስሏል?",
+    "trend": "የቅርብ ጊዜ ግምገማዎች አማካይ {{recent}}፣ አጠቃላይ {{overall}} ({{arrow}}{{delta}})።",
+    "matched": "{{percent}}% እንደጠበቁት ወይም ከዚያ በላይ ነው ብለዋል",
+    "notEnough_one": "{{count}} ሰው በመስመር ላይ ካየው ጋር እንዴት እንደተነጻጸረ አጋርቷል — ለመቶኛ ገና በቂ አይደለም።",
+    "notEnough_other": "{{count}} ሰዎች በመስመር ላይ ካዩት ጋር እንዴት እንደተነጻጸረ አጋርተዋል — ለመቶኛ ገና በቂ አይደለም።",
+    "noneYet": "ይህን ቦታ በማህበራዊ ሚዲያ ያገኘ ማንም እስካሁን አልገመገመውም።",
+    "caveatNone": "እስካሁን በጣም ጥቂት ግምገማዎች ላይ የተመሰረተ ነው — እንደ ቀደምት ምልክት እንጂ እንደ ፍርድ አይውሰዱት።",
+    "caveatLow": "እስካሁን በጥቂት ግምገማዎች ላይ የተመሰረተ ነው።"
+  },
+  "target": {
+    "statsFailed": "ደረጃዎችን አሁን መጫን አልተቻለም።",
+    "notEnoughReviews": "ለአስተማማኝ ስታቲስቲክስ ገና በቂ ግምገማዎች የሉም።",
+    "noReviewsAtRating": "በዚያ ደረጃ ምንም ግምገማ የለም።",
+    "beFirst": "የመጀመሪያው ገምጋሚ ይሁኑ።",
+    "sort": {
+      "newest": "አዲስ",
+      "highest": "ከፍተኛ ደረጃ",
+      "lowest": "ዝቅተኛ ደረጃ",
+      "most_helpful": "በጣም ጠቃሚ"
+    }
+  },
+  "tabs": {
+    "home": "መነሻ",
+    "activity": "እንቅስቃሴ",
+    "account": "መለያ"
+  },
+  "events": {
+    "response": "ለግምገማዎ አዲስ ምላሽ አለዎት።",
+    "review": "ከግምገማዎችዎ አንዱ ተዘምኗል።",
+    "target": "ያከሉት ቦታ ተዘምኗል።",
+    "evidence": "ያስገቡት ማስረጃ ተገምግሟል።",
+    "claim": "የንግድ ይገባኛል ጥያቄዎ ሁኔታ ተቀይሯል።",
+    "report": "ያቀረቡት ሪፖርት ተገምግሟል።",
+    "privacy": "የውሂብ ጥያቄዎ ተዘምኗል።",
+    "default": "አዲስ መረጃ አለዎት።"
   }
 }

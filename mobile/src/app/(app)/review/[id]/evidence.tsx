@@ -57,7 +57,7 @@ export default function EvidenceScreen() {
     try {
       const picked = await pickAndCompressPhoto();
       if ('error' in picked) {
-        setPickError(picked.error);
+        setPickError(t('photos.permissionDenied'));
         return;
       }
       if ('canceled' in picked) return;

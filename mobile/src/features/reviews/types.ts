@@ -45,49 +45,43 @@ export const SOCIAL_DISCOVERY_SOURCES = new Set<components['schemas']['Discovery
   'telegram',
 ]);
 
-export const DISCOVERY_SOURCE_LABELS: Record<components['schemas']['DiscoverySource'], string> = {
-  tiktok: 'TikTok',
-  instagram: 'Instagram',
-  youtube: 'YouTube',
-  facebook: 'Facebook',
-  telegram: 'Telegram',
-  friend: 'A friend',
-  google_maps: 'Google Maps',
-  walk_in: 'Walked in',
-  other: 'Other',
-};
+// Display labels live in the locale files (review.discovery.*, etc.), keyed
+// by these values — see the step components.
+export const DISCOVERY_SOURCES: components['schemas']['DiscoverySource'][] = [
+  'tiktok',
+  'instagram',
+  'youtube',
+  'facebook',
+  'telegram',
+  'friend',
+  'google_maps',
+  'walk_in',
+  'other',
+];
 
-export const EXPECTATION_MATCH_LABELS: Record<components['schemas']['ExpectationMatch'], string> = {
-  better: 'Better than expected',
-  as_expected: 'As expected',
-  worse: 'Worse than expected',
-  very_different: 'Very different',
-};
+export const EXPECTATION_MATCHES: components['schemas']['ExpectationMatch'][] = [
+  'better',
+  'as_expected',
+  'worse',
+  'very_different',
+];
 
-export const INCENTIVE_TYPE_LABELS: Record<components['schemas']['IncentiveType'], string> = {
-  none: 'None',
-  discount: 'Discount',
-  free_product_or_service: 'Free product/service',
-  payment: 'Payment',
-  contest_entry: 'Contest entry',
-  loyalty_points: 'Loyalty points',
-  other: 'Other',
-};
+export const INCENTIVE_TYPES: components['schemas']['IncentiveType'][] = [
+  'none',
+  'discount',
+  'free_product_or_service',
+  'payment',
+  'contest_entry',
+  'loyalty_points',
+  'other',
+];
 
-export const MATERIAL_CONNECTION_LABELS: Record<components['schemas']['MaterialConnection'], string> = {
-  none: 'None',
-  current_employee: 'Current employee',
-  former_employee: 'Former employee',
-  owner_or_executive: 'Owner/executive',
-  family_or_friend: 'Family or friend of owner',
-  business_partner: 'Business partner',
-  other: 'Other',
-};
-
-export const RATING_LABELS: Record<number, string> = {
-  1: 'Poor',
-  2: 'Fair',
-  3: 'Good',
-  4: 'Very good',
-  5: 'Excellent',
-};
+export const MATERIAL_CONNECTIONS: components['schemas']['MaterialConnection'][] = [
+  'none',
+  'current_employee',
+  'former_employee',
+  'owner_or_executive',
+  'family_or_friend',
+  'business_partner',
+  'other',
+];

@@ -19,10 +19,13 @@ export function friendlyAuthError(err: unknown): string {
         return i18n.t('errors.rateLimited');
       case 'verification_unavailable':
         return i18n.t('errors.verificationUnavailable');
-      case 'validation_failed':
-        return Object.values(err.details ?? {})[0] ?? err.message;
+      case 'validation_failed': {
+        // Field messages come from the server in English only.
+        const detail = Object.values(err.details ?? {})[0];
+        return detail && i18n.language === 'en' ? detail : i18n.t('errors.validation');
+      }
       default:
-        return err.message;
+        return i18n.t('errors.generic');
     }
   }
   return i18n.t('errors.generic');

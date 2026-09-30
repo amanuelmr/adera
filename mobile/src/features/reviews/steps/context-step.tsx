@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import type { components } from '@/api/schema';
@@ -5,14 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ChipGroup } from '../chip-group';
-import { DISCOVERY_SOURCE_LABELS, EXPECTATION_MATCH_LABELS, SOCIAL_DISCOVERY_SOURCES } from '../types';
-
-const DISCOVERY_SOURCE_OPTIONS = (Object.keys(DISCOVERY_SOURCE_LABELS) as (keyof typeof DISCOVERY_SOURCE_LABELS)[]).map(
-  (value) => ({ value, label: DISCOVERY_SOURCE_LABELS[value] })
-);
-const EXPECTATION_MATCH_OPTIONS = (Object.keys(EXPECTATION_MATCH_LABELS) as (keyof typeof EXPECTATION_MATCH_LABELS)[]).map(
-  (value) => ({ value, label: EXPECTATION_MATCH_LABELS[value] })
-);
+import { DISCOVERY_SOURCES, EXPECTATION_MATCHES, SOCIAL_DISCOVERY_SOURCES } from '../types';
 
 export function ContextStep({
   experienceDate,
@@ -34,14 +28,17 @@ export function ContextStep({
   onChangePricePaid: (value: string) => void;
 }) {
   const theme = useTheme();
+  const { t } = useTranslation();
+  const discoveryOptions = DISCOVERY_SOURCES.map((value) => ({ value, label: t(`review.discovery.${value}`) }));
+  const expectationOptions = EXPECTATION_MATCHES.map((value) => ({ value, label: t(`review.expectation.${value}`) }));
   const isSocial = discoverySource ? SOCIAL_DISCOVERY_SOURCES.has(discoverySource) : false;
 
   return (
     <View style={styles.container}>
-      <ThemedText type="subtitle">A bit of context</ThemedText>
+      <ThemedText type="subtitle">{t('review.contextTitle')}</ThemedText>
 
       <View style={styles.field}>
-        <ThemedText type="smallBold">When was this? (optional)</ThemedText>
+        <ThemedText type="smallBold">{t('review.whenLabel')}</ThemedText>
         <TextInput
           value={experienceDate}
           onChangeText={onChangeExperienceDate}
@@ -53,9 +50,9 @@ export function ContextStep({
       </View>
 
       <View style={styles.field}>
-        <ThemedText type="smallBold">How did you find this place?</ThemedText>
+        <ThemedText type="smallBold">{t('review.discoveryLabel')}</ThemedText>
         <ChipGroup
-          options={DISCOVERY_SOURCE_OPTIONS}
+          options={discoveryOptions}
           value={discoverySource}
           onChange={(value) => {
             onChangeDiscoverySource(value);
@@ -66,13 +63,13 @@ export function ContextStep({
 
       {isSocial ? (
         <View style={styles.field}>
-          <ThemedText type="smallBold">Did it match what you saw online?</ThemedText>
-          <ChipGroup options={EXPECTATION_MATCH_OPTIONS} value={expectationMatch} onChange={onChangeExpectationMatch} />
+          <ThemedText type="smallBold">{t('review.expectationLabel')}</ThemedText>
+          <ChipGroup options={expectationOptions} value={expectationMatch} onChange={onChangeExpectationMatch} />
         </View>
       ) : null}
 
       <View style={styles.field}>
-        <ThemedText type="smallBold">Price paid (optional)</ThemedText>
+        <ThemedText type="smallBold">{t('review.priceLabel')}</ThemedText>
         <TextInput
           value={pricePaid}
           onChangeText={onChangePricePaid}

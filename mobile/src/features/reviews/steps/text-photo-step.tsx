@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -26,23 +27,24 @@ export function TextPhotoStep({
   onChangePhotos: (photos: PickedPhoto[]) => void;
 }) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const [photoError, setPhotoError] = useState<string>();
 
   async function addPhoto() {
     setPhotoError(undefined);
     const result = await pickAndCompressPhoto();
-    if ('error' in result) setPhotoError(result.error);
+    if ('error' in result) setPhotoError(t('photos.permissionDenied'));
     else if ('uri' in result) onChangePhotos([...photos, { uri: result.uri }]);
   }
 
   return (
     <View style={styles.container}>
-      <ThemedText type="subtitle">Tell us more</ThemedText>
+      <ThemedText type="subtitle">{t('review.textTitle')}</ThemedText>
 
       <TextInput
         value={title}
         onChangeText={onChangeTitle}
-        placeholder="Title (optional)"
+        placeholder={t('review.titlePlaceholder')}
         placeholderTextColor={theme.textSecondary}
         maxLength={120}
         style={[styles.titleInput, { color: theme.text, backgroundColor: theme.backgroundElement }]}
@@ -51,14 +53,16 @@ export function TextPhotoStep({
       <TextInput
         value={body}
         onChangeText={onChangeBody}
-        placeholder="What happened? What should other people know?"
+        placeholder={t('review.bodyPlaceholder')}
         placeholderTextColor={theme.textSecondary}
         multiline
         maxLength={5000}
         style={[styles.bodyInput, { color: theme.text, backgroundColor: theme.backgroundElement }]}
       />
       <ThemedText type="small" themeColor="textSecondary">
-        {body.length < MIN_BODY_LENGTH ? `${MIN_BODY_LENGTH - body.length} more characters needed` : `${body.length}/5000`}
+        {body.length < MIN_BODY_LENGTH
+          ? t('review.charsNeeded', { count: MIN_BODY_LENGTH - body.length })
+          : `${body.length}/5000`}
       </ThemedText>
 
       <View style={styles.photosRow}>
@@ -71,7 +75,7 @@ export function TextPhotoStep({
                 onChangePhotos(photos.filter((_, i) => i !== index));
               }}
               accessibilityRole="button"
-              accessibilityLabel="Remove photo"
+              accessibilityLabel={t('photos.remove')}
               style={[styles.removeButton, { backgroundColor: theme.background }]}>
               <ThemedText type="smallBold">×</ThemedText>
             </Pressable>
@@ -81,7 +85,7 @@ export function TextPhotoStep({
           <Pressable
             onPress={addPhoto}
             accessibilityRole="button"
-            accessibilityLabel="Add photo"
+            accessibilityLabel={t('photos.add')}
             style={[styles.addPhoto, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText type="title">+</ThemedText>
           </Pressable>

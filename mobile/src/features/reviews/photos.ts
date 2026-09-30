@@ -17,12 +17,12 @@ export function downscaleFor(width: number, height: number): { width: number } |
   return width >= height ? { width: MAX_DIMENSION } : { height: MAX_DIMENSION };
 }
 
-export type PickPhotoResult = { uri: string } | { error: string } | { canceled: true };
+export type PickPhotoResult = { uri: string } | { error: 'permission' } | { canceled: true };
 
 export async function pickAndCompressPhoto(): Promise<PickPhotoResult> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
-    return { error: 'Photo library access is needed to add a picture.' };
+    return { error: 'permission' };
   }
 
   const picked = await ImagePicker.launchImageLibraryAsync({
