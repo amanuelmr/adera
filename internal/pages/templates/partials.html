@@ -1,0 +1,22 @@
+{{define "review"}}
+<article class="review">
+  <header>
+    <strong>{{.Reviewer}}</strong>
+    <span class="stars" role="img" aria-label="{{.B.T "review.ratedOutOf5" "rating" .Rating}}">{{stars .Rating}}</span>
+  </header>
+  <p class="meta"><a href="{{.Permalink}}">{{.Date}}</a>{{if .Edited}} · {{.B.T "review.edited"}}{{end}}{{if .Verified}} · <span class="badge">{{.B.T "review.verifiedBadge"}}</span>{{end}}</p>
+  {{if or .Incentive .Connection}}
+  <p class="disclosure">{{if .Incentive}}<strong>{{.Incentive}}</strong>{{end}}{{if and .Incentive .Connection}}<br>{{end}}{{if .Connection}}<strong>{{.Connection}}</strong>{{end}}{{if .DisclosureDetails}}<br>{{.DisclosureDetails}}{{end}}</p>
+  {{end}}
+  {{if .Title}}<h3>{{.Title}}</h3>{{end}}
+  <p class="body">{{.Body}}</p>
+  {{if .Media}}<p class="media">{{range .Media}}<img src="{{if .ThumbURL}}{{.ThumbURL}}{{else}}{{.URL}}{{end}}" width="96" height="96" loading="lazy" alt="">{{end}}</p>{{end}}
+  {{if .Response}}
+  <div class="response">
+    <strong>{{.B.T "review.ownerResponse"}}</strong> <span class="meta">{{.Response.Date}}</span>
+    <p>{{.Response.Body}}</p>
+  </div>
+  {{end}}
+  {{if .Helpful}}<p class="meta">{{.B.T "review.helpful" "count" .Helpful}}</p>{{end}}
+</article>
+{{end}}

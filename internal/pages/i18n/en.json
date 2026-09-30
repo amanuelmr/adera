@@ -1,0 +1,122 @@
+{
+  "siteName": "Adera",
+  "tagline": "Honest reviews of places in Ethiopia",
+  "langSwitch": "አማርኛ",
+  "banner": {
+    "text": "Write reviews, vote, and get updates in the Adera app.",
+    "install": "Get the app",
+    "dismiss": "Not now"
+  },
+  "footer": {
+    "trust": "How Adera works",
+    "openApp": "Open in the app"
+  },
+  "target": {
+    "reviews_one": "{{count}} review",
+    "reviews_other": "{{count}} reviews",
+    "ratedSummary": "Rated {{rating}} out of 5 from {{count}} reviews",
+    "notEnough": "Not enough reviews yet for a reliable rating.",
+    "noReviews": "No reviews yet.",
+    "noReviewsAtRating": "No reviews at that rating.",
+    "filterAll": "All ratings",
+    "showingRating": "Showing {{stars}} reviews",
+    "older": "Older reviews",
+    "writeInApp": "Write a review in the app",
+    "verified": "Verified reviews average {{rating}}",
+    "histogramRow_one": "{{stars}}: {{count}} review",
+    "histogramRow_other": "{{stars}}: {{count}} reviews"
+  },
+  "review": {
+    "ownerResponse": "Owner response",
+    "helpful": "{{count}} found this helpful",
+    "verifiedBadge": "Verified",
+    "ratedOutOf5": "Rated {{rating}} out of 5",
+    "reviewOf": "Review of {{name}}",
+    "seeAll": "See all reviews of {{name}}",
+    "edited": "edited"
+  },
+  "disclosure": {
+    "incentive": "Received {{value}} for this review",
+    "connection": "Connection to the business: {{value}}",
+    "incentiveValue": {
+      "discount": "a discount",
+      "free_product_or_service": "a free product or service",
+      "payment": "payment",
+      "contest_entry": "a contest entry",
+      "loyalty_points": "loyalty points",
+      "other": "something else"
+    },
+    "connectionValue": {
+      "current_employee": "current employee",
+      "former_employee": "former employee",
+      "owner_or_executive": "owner or executive",
+      "family_or_friend": "family or friend of the owner",
+      "business_partner": "business partner",
+      "other": "other"
+    }
+  },
+  "notFound": {
+    "title": "Not found",
+    "body": "This page doesn't exist, or it was removed.",
+    "home": "How Adera works"
+  },
+  "trust": {
+    "title": "How Adera works",
+    "intro": "Adera is built so that reviews can be trusted — by readers, reviewers, and businesses alike. This page explains the rules every review and rating follows.",
+    "sections": [
+      {
+        "title": "The rating you see is never adjusted",
+        "paragraphs": [
+          "The average shown for a place is the plain average of its published reviews, rounded to two decimals. We never boost or lower it.",
+          "The full star distribution is always shown, so you can see how many people gave one star and how many gave five.",
+          "Rankings such as “top rated” use a separate, public formula that pulls places with few reviews toward a neutral 3.5, so one five-star review can’t beat a hundred good ones. That score is never shown as the rating."
+        ]
+      },
+      {
+        "title": "Small numbers are labeled as small",
+        "paragraphs": [
+          "Percentages such as “would recommend” are only shown once at least 5 people have answered. Below that, we show the counts instead.",
+          "Every rating carries a confidence level based on how many reviews it rests on: very few (under 3), low (under 10), medium (under 30), or high."
+        ]
+      },
+      {
+        "title": "What “verified” means",
+        "paragraphs": [
+          "A review is only labeled verified after a moderator has checked private proof — a receipt, an order screenshot, or a location code. A photo on its own adds context but does not make a review verified.",
+          "Proof is stored privately, is visible only to the reviewer and our moderators, and is never shown publicly."
+        ]
+      },
+      {
+        "title": "Paid or connected reviews are labeled",
+        "paragraphs": [
+          "Reviewers are asked whether they received anything for their review or have a connection to the business. Any answer other than “no” appears as a label on the review — the review stays, and readers can judge for themselves."
+        ]
+      },
+      {
+        "title": "Businesses can respond, not remove",
+        "paragraphs": [
+          "A business can post one public response to each review and can report a review it believes breaks the rules. There is no way — paid or otherwise — for a business to delete, change, or hide a customer’s review."
+        ]
+      },
+      {
+        "title": "How moderation works",
+        "paragraphs": [
+          "Reviews are published straight away. Reports never hide a review automatically; only a moderator’s decision can, and every decision is recorded.",
+          "You can report a review for spam, a made-up experience, a hidden conflict of interest, harassment, hate speech, sharing personal information, an unsupported accusation, being off-topic, being a duplicate, or manipulated evidence."
+        ]
+      },
+      {
+        "title": "Limits that keep reviews fair",
+        "paragraphs": [
+          "Each person can review a place once every 30 days — after that they update their existing review — and can post at most 5 reviews a day."
+        ]
+      },
+      {
+        "title": "Reality Check",
+        "paragraphs": [
+          "For restaurants and cafés, people who found a place on social media are asked whether it matched what they saw online. We show the combined answers — never accusations against a particular creator — and only as percentages once at least 5 people have answered."
+        ]
+      }
+    ]
+  }
+}

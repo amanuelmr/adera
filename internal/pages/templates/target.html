@@ -1,0 +1,28 @@
+{{define "content"}}
+<h1>{{.Target.Name}}</h1>
+{{if or .Category .Target.AddressText}}<p class="meta">{{if .Category}}{{.Category}}{{end}}{{if and .Category .Target.AddressText}} · {{end}}{{.Target.AddressText}}</p>{{end}}
+
+<section class="aggregate" aria-label="{{.T "target.reviews" "count" .ReviewCount}}">
+{{if .ShowAggregate}}
+  <p class="average"><span aria-hidden="true">{{.Average}} ★</span><span class="sr">{{.T "target.ratedSummary" "rating" .Average "count" .ReviewCount}}</span> <span class="meta" aria-hidden="true">{{.T "target.reviews" "count" .ReviewCount}}</span></p>
+  {{if .VerifiedAverage}}<p class="meta">{{.T "target.verified" "rating" .VerifiedAverage}}</p>{{end}}
+  <ol class="histogram">
+  {{range .Histogram}}
+    <li><a href="{{.URL}}"{{if .Active}} aria-current="true"{{end}} aria-label="{{$.T "target.histogramRow" "stars" (stars .Stars) "count" .Count}}"><span class="label">{{.Stars}}★</span><span class="bar"><span class="w{{.Width}}"></span></span><span class="count">{{.Count}}</span></a></li>
+  {{end}}
+  </ol>
+{{else}}
+  <p class="meta">{{.T "target.notEnough"}} {{.T "target.reviews" "count" .ReviewCount}}</p>
+{{end}}
+</section>
+
+{{if .Rating}}<p class="filter">{{.T "target.showingRating" "stars" (stars .Rating)}} · <a href="{{.AllRatingsURL}}">{{.T "target.filterAll"}}</a></p>{{end}}
+
+<section class="reviews">
+{{range .Reviews}}{{template "review" .}}{{else}}
+  <p class="meta">{{if $.Rating}}{{$.T "target.noReviewsAtRating"}}{{else}}{{$.T "target.noReviews"}}{{end}}</p>
+{{end}}
+</section>
+{{if .NextURL}}<p><a class="button" href="{{.NextURL}}">{{.T "target.older"}}</a></p>{{end}}
+{{if .AppLink}}<p><a class="button primary" href="{{.AppLink}}">{{.T "target.writeInApp"}}</a></p>{{end}}
+{{end}}

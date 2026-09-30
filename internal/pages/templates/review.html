@@ -1,0 +1,6 @@
+{{define "content"}}
+<p class="meta"><a href="{{.AllURL}}">{{.Target.Name}}</a>{{if .Target.AddressText}} · {{.Target.AddressText}}{{end}}</p>
+<h1 class="sr">{{.T "review.reviewOf" "name" .Target.Name}}</h1>
+{{template "review" .Review}}
+<p><a class="button" href="{{.AllURL}}">{{.T "review.seeAll" "name" .Target.Name}}</a></p>
+{{end}}

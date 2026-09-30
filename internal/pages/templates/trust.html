@@ -1,0 +1,10 @@
+{{define "content"}}
+<h1>{{.T "trust.title"}}</h1>
+<p class="lead">{{.T "trust.intro"}}</p>
+{{range .Sections}}
+<section>
+  <h2>{{.Title}}</h2>
+  {{range .Paragraphs}}<p>{{.}}</p>{{end}}
+</section>
+{{end}}
+{{end}}

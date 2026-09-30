@@ -20,6 +20,7 @@ import (
 	"github.com/adera-platform/backend/internal/media"
 	"github.com/adera-platform/backend/internal/moderation"
 	"github.com/adera-platform/backend/internal/notifications"
+	"github.com/adera-platform/backend/internal/pages"
 	"github.com/adera-platform/backend/internal/platform/config"
 	"github.com/adera-platform/backend/internal/platform/ratelimit"
 	"github.com/adera-platform/backend/internal/platform/security"
@@ -101,6 +102,22 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 		},
 	}).Routes(mux)
 	registerDocs(mux)
+
+	// The embedded templates are code, not input: failing to parse them is a
+	// build defect, surfaced at startup (and by every test that builds the API).
+	webPages, err := pages.NewHandler(
+		pages.Dependencies{Targets: targetsRepo, Ratings: ratingsRepo, Reviews: reviewsRepo, Categories: categoriesRepo},
+		pages.Config{
+			BaseURL:              cfg.BaseURL,
+			StoragePublicBaseURL: cfg.StoragePublicBaseURL,
+			AndroidStoreURL:      cfg.AndroidStoreURL,
+			AndroidPackage:       cfg.AndroidPackage,
+			AndroidCertSHA256s:   cfg.AndroidCertSHA256s,
+		})
+	if err != nil {
+		panic(err)
+	}
+	webPages.Routes(mux)
 
 	// Operational endpoints (no auth; restrict /metrics at the network layer
 	// in production deployments).
