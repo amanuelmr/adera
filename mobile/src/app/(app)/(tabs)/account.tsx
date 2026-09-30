@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/context';
 import { Button } from '@/components/button';
+import { QueryError } from '@/components/query-error';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -18,7 +19,51 @@ import { SUPPORTED_LANGUAGES, setAppLanguage, type AppLanguage } from '@/lib/i18
 const LANGUAGE_NAMES: Record<AppLanguage, string> = { en: 'English', am: 'አማርኛ' };
 
 export default function AccountScreen() {
+  const { status } = useAuth();
+  return status === 'signedIn' ? <SignedInAccount /> : <SignedOutAccount />;
+}
+
+function LanguagePicker({ onChange }: { onChange: (language: AppLanguage) => void }) {
   const { t, i18n } = useTranslation();
+  return (
+    <>
+      <ThemedText type="smallBold">{t('settings.language')}</ThemedText>
+      <View style={styles.languageRow}>
+        {SUPPORTED_LANGUAGES.map((language) => (
+          <FilterChip
+            key={language}
+            label={LANGUAGE_NAMES[language]}
+            selected={i18n.language === language}
+            onPress={() => onChange(language)}
+          />
+        ))}
+      </View>
+    </>
+  );
+}
+
+function SignedOutAccount() {
+  const { t } = useTranslation();
+  return (
+    <ThemedView style={styles.container}>
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <View style={[styles.list, styles.settings]}>
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('auth.signInToContinue')}
+          </ThemedText>
+          <View style={styles.actions}>
+            <Button title={t('common.signIn')} onPress={() => router.push('/sign-in')} />
+            <Button title={t('common.createAccount')} variant="secondary" onPress={() => router.push('/register')} />
+          </View>
+          <LanguagePicker onChange={(language) => setAppLanguage(language)} />
+        </View>
+      </SafeAreaView>
+    </ThemedView>
+  );
+}
+
+function SignedInAccount() {
+  const { t } = useTranslation();
   const { logout, logoutAll } = useAuth();
   const profile = useProfile();
   const updateProfile = useUpdateProfile();
@@ -64,6 +109,8 @@ export default function AccountScreen() {
                 </View>
               ) : profile.isPending ? (
                 <ActivityIndicator />
+              ) : profile.isError ? (
+                <QueryError onRetry={() => profile.refetch()} retrying={profile.isRefetching} />
               ) : null}
 
               <ThemedText type="smallBold">Your reviews</ThemedText>
@@ -72,6 +119,8 @@ export default function AccountScreen() {
           ListEmptyComponent={
             reviews.isPending ? (
               <ActivityIndicator style={styles.centered} />
+            ) : reviews.isError ? (
+              <QueryError onRetry={() => reviews.refetch()} retrying={reviews.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
                 You haven&apos;t written any reviews yet.
@@ -82,20 +131,13 @@ export default function AccountScreen() {
             <View style={styles.settings}>
               {reviews.isFetchingNextPage ? <ActivityIndicator /> : null}
 
-              <ThemedText type="smallBold">{t('settings.language')}</ThemedText>
-              <View style={styles.languageRow}>
-                {SUPPORTED_LANGUAGES.map((language) => (
-                  <FilterChip
-                    key={language}
-                    label={LANGUAGE_NAMES[language]}
-                    selected={i18n.language === language}
-                    onPress={() => changeLanguage(language)}
-                  />
-                ))}
-              </View>
+              <LanguagePicker onChange={changeLanguage} />
 
               <Link href="/verify" style={styles.link}>
                 <ThemedText type="link">{t('auth.verifyLink')}</ThemedText>
+              </Link>
+              <Link href="/businesses" style={styles.link}>
+                <ThemedText type="link">{t('nav.yourBusinesses')}</ThemedText>
               </Link>
               <Link href="/sessions" style={styles.link}>
                 <ThemedText type="link">{t('auth.devicesLink')}</ThemedText>

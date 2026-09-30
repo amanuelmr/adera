@@ -55,6 +55,35 @@ func NewRepo(pool *pgxpool.Pool, notificationService *notifications.Service) *Re
 // (claims approval grants membership atomically).
 func (r *Repo) Pool() *pgxpool.Pool { return r.pool }
 
+// MyBusinesses lists every business the user has a membership row for
+// (granted only by an approved claim — see internal/claims). Ordered by name
+// since a member typically manages a handful of businesses at most, not
+// enough to need pagination.
+func (r *Repo) MyBusinesses(ctx context.Context, userID uuid.UUID) ([]Business, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT `+businessColumns+`
+		FROM businesses
+		WHERE id IN (SELECT business_id FROM business_members WHERE user_id = $1)
+		ORDER BY name`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("querying member businesses: %w", err)
+	}
+	defer rows.Close()
+
+	out := []Business{}
+	for rows.Next() {
+		b, err := scanBusiness(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scanning member business: %w", err)
+		}
+		out = append(out, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating member businesses: %w", err)
+	}
+	return out, nil
+}
+
 // IsMember reports whether the user has an approved membership.
 func (r *Repo) IsMember(ctx context.Context, businessID, userID uuid.UUID) (bool, error) {
 	var ok bool

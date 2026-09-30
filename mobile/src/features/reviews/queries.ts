@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { apiClient, unwrap, ApiError } from '@/api/client';
+import { apiClient, unwrap, isTransientFailure } from '@/api/client';
+import { queryClient } from '@/lib/query-client';
 import { deletePersistedPhoto } from './photos';
 import type { ReviewFormState } from './types';
 
@@ -53,6 +54,20 @@ export async function updateReview(reviewId: string, targetId: string, form: Rev
   );
 }
 
+/**
+ * After a review is created or edited: the target's list, aggregates and
+ * counts, the author's own list/profile, and the review itself (whose
+ * `version` the next edit must send, or it 412s) are all out of date.
+ */
+export function invalidateReviewCaches(targetId: string, reviewId?: string): void {
+  queryClient.invalidateQueries({ queryKey: ['targets', 'reviews', targetId] });
+  queryClient.invalidateQueries({ queryKey: ['targets', 'stats', targetId] });
+  queryClient.invalidateQueries({ queryKey: ['targets', 'reality-check', targetId] });
+  queryClient.invalidateQueries({ queryKey: ['targets', 'detail'] });
+  queryClient.invalidateQueries({ queryKey: ['users', 'me'] });
+  if (reviewId) queryClient.invalidateQueries({ queryKey: ['reviews', 'detail', reviewId] });
+}
+
 export function useReview(reviewId: string | undefined) {
   return useQuery({
     enabled: !!reviewId,
@@ -99,12 +114,12 @@ export async function uploadPhotos(reviewId: string, uris: string[]): Promise<st
       await uploadReviewPhoto(reviewId, uri);
       deletePersistedPhoto(uri);
     } catch (err) {
-      if (err instanceof ApiError) {
+      if (isTransientFailure(err)) {
+        retryable.push(uri);
+      } else {
         // The server rejected this photo outright — retrying it unchanged
         // would just fail again, so give up and clean up.
         deletePersistedPhoto(uri);
-      } else {
-        retryable.push(uri);
       }
     }
   }
@@ -142,6 +157,29 @@ export function useMyReviews() {
     queryFn: async ({ pageParam }) =>
       unwrap(await apiClient.GET('/api/v1/users/me/reviews', { params: { query: { cursor: pageParam } } })),
     getNextPageParam: (lastPage) => (lastPage.meta?.has_more ? lastPage.meta.next_cursor : undefined),
+  });
+}
+
+/** Owner response, posted by a member of the target's owning business. Invalidates the target's review pages (all filter variants) so the new response shows up. */
+export function usePostResponse(targetId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ reviewId, body }: { reviewId: string; body: string }) =>
+      unwrap(await apiClient.POST('/api/v1/reviews/{id}/response', { params: { path: { id: reviewId } }, body: { body } })),
+    onSuccess: () => {
+      if (targetId) queryClient.invalidateQueries({ queryKey: ['targets', 'reviews', targetId] });
+    },
+  });
+}
+
+export function useEditResponse(targetId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ responseId, body }: { responseId: string; body: string }) =>
+      unwrap(await apiClient.PUT('/api/v1/responses/{id}', { params: { path: { id: responseId } }, body: { body } })),
+    onSuccess: () => {
+      if (targetId) queryClient.invalidateQueries({ queryKey: ['targets', 'reviews', targetId] });
+    },
   });
 }
 

@@ -2,6 +2,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet } from 'react-native';
 
+import { QueryError } from '@/components/query-error';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -24,9 +25,7 @@ export function DiscoverSection<T>({ title, query, emptyLabel, keyExtractor, ren
       {query.isPending ? (
         <ActivityIndicator style={styles.centered} />
       ) : query.isError ? (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-          Couldn&apos;t load {title.toLowerCase()}. Pull down to retry.
-        </ThemedText>
+        <QueryError onRetry={() => query.refetch()} retrying={query.isRefetching} />
       ) : query.data.length === 0 ? (
         <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
           {emptyLabel}

@@ -1,17 +1,30 @@
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useRequireSignIn } from '@/auth/use-require-sign-in';
 import { Button } from '@/components/button';
+import { QueryError } from '@/components/query-error';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { CriterionBars } from '@/features/targets/criterion-bars';
 import { RatingHistogram } from '@/features/targets/rating-histogram';
-import { useCategories, useTarget, useTargetReviews, useTargetStats, type ReviewSort } from '@/features/targets/queries';
+import { RealityCheckPanel } from '@/features/targets/reality-check-panel';
+import {
+  useCategories,
+  useRealityCheck,
+  useTarget,
+  useTargetReviews,
+  useTargetStats,
+  type ReviewSort,
+} from '@/features/targets/queries';
 import { ReviewCard } from '@/features/targets/review-card';
 import { FilterChip } from '@/features/search/filter-chip';
+import { shareTarget } from '@/features/share/share';
+
+const REALITY_CHECK_CATEGORY_CODE = 'restaurant_cafe';
 
 const SORT_OPTIONS: { value: ReviewSort; label: string }[] = [
   { value: 'newest', label: 'Newest' },
@@ -23,8 +36,12 @@ const SORT_OPTIONS: { value: ReviewSort; label: string }[] = [
 export default function TargetProfileScreen() {
   const { idOrSlug } = useLocalSearchParams<{ idOrSlug: string }>();
   const target = useTarget(idOrSlug);
+  const requireSignIn = useRequireSignIn();
   const categories = useCategories();
   const stats = useTargetStats(target.data?.id);
+  const category = categories.data?.find((c) => c.id === target.data?.category_id);
+  const showRealityCheck = category?.code === REALITY_CHECK_CATEGORY_CODE;
+  const realityCheck = useRealityCheck(showRealityCheck ? target.data?.id : undefined);
 
   const [sort, setSort] = useState<ReviewSort>('newest');
   const [rating, setRating] = useState<number>();
@@ -49,12 +66,21 @@ export default function TargetProfileScreen() {
     );
   }
 
-  const categoryName = categories.data?.find((category) => category.id === target.data.category_id)?.name;
+  const categoryName = category?.name;
   const showAggregates = !stats.data || stats.data.confidence !== 'none';
 
   return (
     <ThemedView style={styles.container}>
-      <Stack.Screen options={{ title: target.data.name ?? '' }} />
+      <Stack.Screen
+        options={{
+          title: target.data.name ?? '',
+          headerRight: () => (
+            <Pressable onPress={() => shareTarget(target.data!)} accessibilityRole="button" accessibilityLabel="Share">
+              <ThemedText type="link">Share</ThemedText>
+            </Pressable>
+          ),
+        }}
+      />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <FlatList
           data={reviewItems}
@@ -106,6 +132,12 @@ export default function TargetProfileScreen() {
                 </View>
               ) : null}
 
+              {showRealityCheck && realityCheck.data ? (
+                <View style={styles.realityCheck}>
+                  <RealityCheckPanel realityCheck={realityCheck.data} />
+                </View>
+              ) : null}
+
               <View style={styles.sortRow}>
                 {SORT_OPTIONS.map((option) => (
                   <FilterChip
@@ -118,11 +150,15 @@ export default function TargetProfileScreen() {
               </View>
             </View>
           }
-          renderItem={({ item }) => <ReviewCard review={item} targetId={target.data.id ?? ''} />}
+          renderItem={({ item }) => (
+            <ReviewCard review={item} targetId={target.data.id ?? ''} targetName={target.data.name ?? ''} />
+          )}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
           ListEmptyComponent={
             reviews.isPending ? (
               <ActivityIndicator style={styles.centered} />
+            ) : reviews.isError ? (
+              <QueryError onRetry={() => reviews.refetch()} retrying={reviews.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
                 {rating ? 'No reviews at that rating.' : 'Be the first to review.'}
@@ -133,7 +169,10 @@ export default function TargetProfileScreen() {
         />
 
         <View style={styles.ctaBar}>
-          <Button title="Write a review" onPress={() => router.push(`/target/${idOrSlug}/review`)} />
+          <Button
+            title="Write a review"
+            onPress={() => requireSignIn(() => router.push(`/target/${idOrSlug}/review`))}
+          />
         </View>
       </SafeAreaView>
     </ThemedView>
@@ -176,6 +215,9 @@ const styles = StyleSheet.create({
   },
   criteria: {
     marginTop: Spacing.one,
+  },
+  realityCheck: {
+    marginTop: Spacing.three,
   },
   sortRow: {
     flexDirection: 'row',

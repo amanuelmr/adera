@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { Alert, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { components } from '@/api/schema';
 import { Button } from '@/components/button';
@@ -20,6 +21,7 @@ const MODERATION_LABELS: Record<NonNullable<ListedReview['moderation_status']>, 
 };
 
 export function MyReviewCard({ review }: { review: ListedReview }) {
+  const { t } = useTranslation();
   const deleteReview = useDeleteReview();
   const rating = review.overall_rating ?? 0;
   const isPublished = review.moderation_status === 'published';
@@ -56,6 +58,11 @@ export function MyReviewCard({ review }: { review: ListedReview }) {
           title="Edit"
           variant="secondary"
           onPress={() => router.push(`/target/${review.target_id}/review?reviewId=${review.id}`)}
+        />
+        <Button
+          title={t('evidence.addButton')}
+          variant="secondary"
+          onPress={() => router.push(`/review/${review.id}/evidence`)}
         />
         <Button title="Delete" variant="secondary" onPress={confirmDelete} loading={deleteReview.isPending} />
       </View>

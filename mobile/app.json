@@ -44,7 +44,13 @@
           "defaultChannel": "default"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Adera uses your location to show places rated near you."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

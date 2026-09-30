@@ -1,8 +1,15 @@
-import { useSyncExternalStore } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 
-import { getQueueSnapshot, subscribeQueue } from './offline-queue';
+import { getQueueSnapshot, subscribeQueue, type QueueJob } from './offline-queue';
 
-/** Pending-sync count for a visible indicator (docs/mobile-plan.md §5). */
-export function usePendingSyncCount(): number {
-  return useSyncExternalStore(subscribeQueue, () => getQueueSnapshot().length);
+/** Pending and server-rejected jobs, for a visible indicator (docs/mobile-plan.md §5). */
+export function useOfflineQueue(): { pendingCount: number; failedJobs: QueueJob[] } {
+  const queue = useSyncExternalStore(subscribeQueue, getQueueSnapshot);
+  return useMemo(
+    () => ({
+      pendingCount: queue.filter((job) => !job.failure).length,
+      failedJobs: queue.filter((job) => job.failure),
+    }),
+    [queue]
+  );
 }

@@ -31,7 +31,7 @@ export default function ResetPasswordScreen() {
       unwrap(result);
       // Resetting revokes every session (internal/auth), so the user signs
       // in fresh rather than being auto-logged-in here.
-      router.replace('/');
+      router.replace('/sign-in');
     } catch (err) {
       setError(friendlyAuthError(err));
     } finally {

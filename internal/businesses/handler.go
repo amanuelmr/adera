@@ -17,6 +17,7 @@ func NewHandler(repo *Repo) *Handler { return &Handler{repo: repo} }
 
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST /api/v1/businesses", web.RequireAuth(http.HandlerFunc(h.create)))
+	mux.Handle("GET /api/v1/businesses/mine", web.RequireAuth(http.HandlerFunc(h.mine)))
 	mux.HandleFunc("GET /api/v1/businesses/{id}", h.get)
 	mux.Handle("PATCH /api/v1/businesses/{id}", web.RequireAuth(http.HandlerFunc(h.update)))
 	mux.Handle("GET /api/v1/businesses/{id}/stats", web.RequireAuth(http.HandlerFunc(h.stats)))
@@ -59,6 +60,16 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.Respond(w, http.StatusCreated, b)
+}
+
+func (h *Handler) mine(w http.ResponseWriter, r *http.Request) {
+	p, _ := web.PrincipalFromContext(r.Context())
+	list, err := h.repo.MyBusinesses(r.Context(), p.UserID)
+	if err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	web.Respond(w, http.StatusOK, list)
 }
 
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) {

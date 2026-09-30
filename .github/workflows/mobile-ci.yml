@@ -36,5 +36,7 @@ jobs:
         run: npx tsc --noEmit
       - name: Lint
         run: npx expo lint
+      - name: Test
+        run: npm test -- --ci
       - name: expo-doctor
         run: npx expo-doctor

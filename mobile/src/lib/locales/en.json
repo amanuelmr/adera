@@ -17,14 +17,18 @@
     "confirm": "Confirm",
     "updateNow": "Update now",
     "backToTarget": "Back to target",
-    "resetPassword": "Reset password"
+    "resetPassword": "Reset password",
+    "retry": "Try again"
   },
   "nav": {
     "search": "Search",
     "verifyEmail": "Verify email",
     "yourDevices": "Your devices",
     "writeReview": "Write a review",
-    "editReview": "Edit review"
+    "editReview": "Edit review",
+    "addEvidence": "Add evidence",
+    "yourBusinesses": "Your businesses",
+    "locations": "Locations"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -45,7 +49,9 @@
     "verifyConfirmBody": "Enter the 6-digit code we emailed you.",
     "verifiedTitle": "Email verified",
     "verifyLink": "Verify your email",
-    "devicesLink": "Your devices"
+    "devicesLink": "Your devices",
+    "continueBrowsing": "Continue browsing",
+    "signInToContinue": "Sign in to write reviews, vote, and get updates."
   },
   "errors": {
     "invalidCredentials": "Incorrect email/phone or password.",
@@ -57,7 +63,8 @@
     "reviewRateLimited": "You've submitted a few reviews already today — try again later.",
     "reviewStale": "This review changed since you started editing. Go back and try again.",
     "reviewGeneric": "Couldn't submit your review. Check your connection and try again.",
-    "reviewOffline": "You need a connection to update a review."
+    "reviewOffline": "You need a connection to update a review.",
+    "loadFailed": "Couldn't load this. Check your connection and try again."
   },
   "disclosure": {
     "title": "One more thing",
@@ -66,7 +73,25 @@
     "relationshipQuestion": "Do you have a relationship with this business?",
     "details": "Details",
     "detailsOptional": "Details (optional)",
-    "detailsPlaceholder": "Briefly explain"
+    "detailsPlaceholder": "Briefly explain",
+    "badgeIncentive": "Received {{value}} for this review",
+    "badgeConnection": "Connection to the business: {{value}}",
+    "incentive": {
+      "discount": "a discount",
+      "free_product_or_service": "a free product or service",
+      "payment": "payment",
+      "contest_entry": "a contest entry",
+      "loyalty_points": "loyalty points",
+      "other": "something else"
+    },
+    "connection": {
+      "current_employee": "current employee",
+      "former_employee": "former employee",
+      "owner_or_executive": "owner or executive",
+      "family_or_friend": "family or friend of the owner",
+      "business_partner": "business partner",
+      "other": "other"
+    }
   },
   "updateRequired": {
     "title": "Update required",
@@ -75,5 +100,24 @@
   },
   "settings": {
     "language": "Language"
+  },
+  "evidence": {
+    "title": "Verification evidence",
+    "privacyNotice": "Moderators only — never shown publicly.",
+    "body": "Add a receipt, order screenshot, or other proof to help a moderator verify this review.",
+    "kindReceipt": "Receipt",
+    "kindOrderScreenshot": "Order screenshot",
+    "kindProductPhoto": "Product photo",
+    "kindServiceResult": "Service result",
+    "kindLocationQr": "Location QR",
+    "addButton": "Add evidence",
+    "statusStaged": "Uploading…",
+    "statusSubmitted": "Under review",
+    "statusAccepted": "Verified",
+    "statusRejected": "Not accepted",
+    "empty": "No evidence submitted yet.",
+    "limitReached": "You've reached the limit of 5 evidence files for this review.",
+    "addProofPrompt": "Add proof to get verified?",
+    "skip": "Not now"
   }
 }

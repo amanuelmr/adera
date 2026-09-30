@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { apiClient, unwrap } from '@/api/client';
 import type { components } from '@/api/schema';
 import { unregisterCurrentDevice } from '@/features/push/register';
+import { queryClient } from '@/lib/query-client';
 import { onForcedSignOut } from './events';
 import { clearTokens, getAccessToken, getRefreshToken, setCurrentUserId, setTokens } from './storage';
 // Registers the auth middleware (token attachment + refresh-on-401) on
@@ -43,7 +44,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  useEffect(() => onForcedSignOut(() => setStatus('signedOut')), []);
+  // Cached queries include per-account data (profile, own reviews,
+  // viewer_voted, notifications) — dropped on every account change so the
+  // next person on this device never sees the previous one's.
+  useEffect(
+    () =>
+      onForcedSignOut(() => {
+        queryClient.clear();
+        setStatus('signedOut');
+      }),
+    []
+  );
 
   const register = useCallback(async (input: RegisterInput) => {
     const result = await apiClient.POST('/api/v1/auth/register', {
@@ -61,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     await setTokens({ accessToken: data.tokens.access_token, refreshToken: data.tokens.refresh_token });
     await setCurrentUserId(data.user.id);
+    queryClient.clear();
     setStatus('signedIn');
   }, []);
 
@@ -72,11 +84,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     await setTokens({ accessToken: data.tokens.access_token, refreshToken: data.tokens.refresh_token });
     await setCurrentUserId(data.user.id);
+    queryClient.clear();
     setStatus('signedIn');
   }, []);
 
   const signOutLocally = useCallback(async () => {
     await clearTokens();
+    queryClient.clear();
     setStatus('signedOut');
   }, []);
 

@@ -13,15 +13,24 @@ import { clearTokens, getAccessToken, getRefreshToken, setTokens } from './stora
  */
 const AUTH_EXEMPT_SCHEMA_PATHS = new Set(['/api/v1/auth/login', '/api/v1/auth/register', '/api/v1/auth/refresh']);
 
+// Device unregistration runs *inside* a failed refresh (performRefresh) and
+// during logout. If its 401 triggered a refresh, it would await the very
+// refresh that is awaiting it — a deadlock. It's best-effort anyway.
+function skipsRefreshOn401(schemaPath: string, method: string): boolean {
+  return schemaPath === '/api/v1/users/me/devices' && method === 'DELETE';
+}
+
 /**
  * Single-flight guard: the backend's refresh rotation is single-use with
  * family revocation (internal/auth/service.go), so two concurrent refresh
  * calls would revoke every session and force-logout the user. Every caller
  * during a refresh awaits this same promise instead of firing its own call.
  */
-let refreshInFlight: Promise<string | null> | null = null;
+type RefreshOutcome = { kind: 'refreshed'; accessToken: string } | { kind: 'dead' } | { kind: 'transient' };
 
-async function refreshAccessToken(): Promise<string | null> {
+let refreshInFlight: Promise<RefreshOutcome> | null = null;
+
+async function refreshAccessToken(): Promise<RefreshOutcome> {
   if (!refreshInFlight) {
     refreshInFlight = performRefresh().finally(() => {
       refreshInFlight = null;
@@ -30,11 +39,16 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
-async function performRefresh(): Promise<string | null> {
+async function performRefresh(): Promise<RefreshOutcome> {
   const refreshToken = await getRefreshToken();
-  if (!refreshToken) return null;
+  if (!refreshToken) return { kind: 'dead' };
 
   const result = await apiClient.POST('/api/v1/auth/refresh', { body: { refresh_token: refreshToken } });
+  // Only a 401 means the refresh token itself is dead. A 429 or 5xx says
+  // nothing about the session — signing out on those turns a backend blip
+  // into a forced logout.
+  if (result.error && result.response.status !== 401) return { kind: 'transient' };
+
   const newAccessToken = result.data?.data?.access_token;
   const newRefreshToken = result.data?.data?.refresh_token;
   if (result.error || !newAccessToken || !newRefreshToken) {
@@ -45,11 +59,11 @@ async function performRefresh(): Promise<string | null> {
     // authenticated call can be made again for this session.
     await unregisterCurrentDevice();
     await clearTokens();
-    return null;
+    return { kind: 'dead' };
   }
 
   await setTokens({ accessToken: newAccessToken, refreshToken: newRefreshToken });
-  return newAccessToken;
+  return { kind: 'refreshed', accessToken: newAccessToken };
 }
 
 // Requests are cloned here (before fetch consumes the body) so a 401 retry
@@ -68,22 +82,28 @@ export const authMiddleware: Middleware = {
     return request;
   },
 
-  async onResponse({ response, schemaPath, id }) {
+  async onResponse({ request, response, schemaPath, id }) {
     const pristine = pristineRequests.get(id);
     pristineRequests.delete(id);
 
-    if (response.status !== 401 || AUTH_EXEMPT_SCHEMA_PATHS.has(schemaPath) || !pristine) {
+    if (
+      response.status !== 401 ||
+      AUTH_EXEMPT_SCHEMA_PATHS.has(schemaPath) ||
+      skipsRefreshOn401(schemaPath, request.method) ||
+      !pristine
+    ) {
       return undefined;
     }
 
-    const accessToken = await refreshAccessToken();
-    if (!accessToken) {
+    const outcome = await refreshAccessToken();
+    if (outcome.kind === 'dead') {
       emitForcedSignOut();
       return undefined;
     }
+    if (outcome.kind === 'transient') return undefined;
 
     const headers = new Headers(pristine.headers);
-    headers.set('Authorization', `Bearer ${accessToken}`);
+    headers.set('Authorization', `Bearer ${outcome.accessToken}`);
     return fetch(new Request(pristine, { headers }));
   },
 

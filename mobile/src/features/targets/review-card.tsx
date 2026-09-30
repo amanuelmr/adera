@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import type { components } from '@/api/schema';
+import { useRequireSignIn } from '@/auth/use-require-sign-in';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { shareReview } from '@/features/share/share';
 import { useToggleHelpful } from './queries';
 
 type ListedReview = components['schemas']['ListedReview'];
@@ -13,9 +16,10 @@ type ListedReview = components['schemas']['ListedReview'];
 // a simpler, good-enough proxy for "~5 lines" than measuring real layout.
 const COLLAPSE_AT_CHARS = 280;
 
-export function ReviewCard({ review, targetId }: { review: ListedReview; targetId: string }) {
+export function ReviewCard({ review, targetId, targetName }: { review: ListedReview; targetId: string; targetName: string }) {
   const [expanded, setExpanded] = useState(false);
   const toggleHelpful = useToggleHelpful(targetId);
+  const requireSignIn = useRequireSignIn();
 
   const rating = review.overall_rating ?? 0;
   const body = review.body ?? '';
@@ -31,6 +35,8 @@ export function ReviewCard({ review, targetId }: { review: ListedReview; targetI
           {'☆'.repeat(Math.max(0, 5 - rating))}
         </ThemedText>
       </View>
+
+      <DisclosureLabel review={review} />
 
       {review.title ? <ThemedText type="smallBold">{review.title}</ThemedText> : null}
       <ThemedText type="small">{shownBody}</ThemedText>
@@ -55,21 +61,59 @@ export function ReviewCard({ review, targetId }: { review: ListedReview; targetI
         </ThemedView>
       ) : null}
 
-      <Pressable
-        onPress={() => review.id && toggleHelpful.mutate({ reviewId: review.id, voted: !!review.viewer_voted })}
-        disabled={toggleHelpful.isPending}
-        accessibilityRole="button"
-        accessibilityState={{ selected: !!review.viewer_voted }}
-        style={styles.helpfulRow}>
-        <ThemedText type="small" themeColor={review.viewer_voted ? 'text' : 'textSecondary'}>
-          👍 Helpful{review.helpful_count ? ` (${review.helpful_count})` : ''}
+      <View style={styles.actionsRow}>
+        <Pressable
+          onPress={() =>
+            requireSignIn(() => review.id && toggleHelpful.mutate({ reviewId: review.id, voted: !!review.viewer_voted }))
+          }
+          disabled={toggleHelpful.isPending}
+          accessibilityRole="button"
+          accessibilityState={{ selected: !!review.viewer_voted }}
+          style={styles.helpfulRow}>
+          <ThemedText type="small" themeColor={review.viewer_voted ? 'text' : 'textSecondary'}>
+            👍 Helpful{review.helpful_count ? ` (${review.helpful_count})` : ''}
+          </ThemedText>
+        </Pressable>
+        <Pressable onPress={() => shareReview(review, targetName)} accessibilityRole="button" style={styles.helpfulRow}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Share
+          </ThemedText>
+        </Pressable>
+      </View>
+    </ThemedView>
+  );
+}
+
+// Required on every public surface (docs/moderation-policy.md §6): any
+// incentive or material connection other than `none` is labeled, never hidden.
+function DisclosureLabel({ review }: { review: ListedReview }) {
+  const { t } = useTranslation();
+  const incentive = review.incentive_type && review.incentive_type !== 'none' ? review.incentive_type : undefined;
+  const connection =
+    review.material_connection && review.material_connection !== 'none' ? review.material_connection : undefined;
+  if (!incentive && !connection) return null;
+
+  return (
+    <ThemedView type="backgroundSelected" style={styles.disclosure} accessibilityRole="text">
+      {incentive ? (
+        <ThemedText type="smallBold">{t('disclosure.badgeIncentive', { value: t(`disclosure.incentive.${incentive}`) })}</ThemedText>
+      ) : null}
+      {connection ? (
+        <ThemedText type="smallBold">
+          {t('disclosure.badgeConnection', { value: t(`disclosure.connection.${connection}`) })}
         </ThemedText>
-      </Pressable>
+      ) : null}
+      {review.disclosure_details ? <ThemedText type="small">{review.disclosure_details}</ThemedText> : null}
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
+  disclosure: {
+    borderRadius: Spacing.two,
+    padding: Spacing.two,
+    gap: Spacing.half,
+  },
   card: {
     borderRadius: Spacing.two,
     padding: Spacing.three,
@@ -93,6 +137,10 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     padding: Spacing.two,
     gap: Spacing.half,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.three,
   },
   helpfulRow: {
     alignSelf: 'flex-start',

@@ -7,6 +7,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { CategoryTile } from '@/features/targets/category-tile';
 import { DiscoverSection } from '@/features/targets/discover-section';
+import { NearMeSection } from '@/features/targets/near-me-section';
 import { TargetCard } from '@/features/targets/target-card';
 import { useCategories, useTopRatedTargets, useTrendingTargets } from '@/features/targets/queries';
 import { PendingSyncBanner } from '@/features/reviews/pending-sync-banner';
@@ -35,6 +36,8 @@ export default function DiscoverScreen() {
           </ThemedView>
 
           <PendingSyncBanner />
+
+          <NearMeSection />
 
           <DiscoverSection
             title="Categories"

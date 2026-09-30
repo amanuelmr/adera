@@ -21,15 +21,23 @@ Notifications.setNotificationHandler({
 export function PushRegistration() {
   useEffect(() => {
     let unsubscribeRotation: (() => void) | undefined;
-    setupPushNotifications().then((unsubscribe) => {
-      unsubscribeRotation = unsubscribe;
-    });
+    let unmounted = false;
+    setupPushNotifications()
+      .then((unsubscribe) => {
+        // Unmounted (signed out) before setup finished — don't leak the listener.
+        if (unmounted) unsubscribe?.();
+        else unsubscribeRotation = unsubscribe;
+      })
+      // Without google-services.json (or with no Play Services) the native
+      // token call rejects; push is simply unavailable, not an app error.
+      .catch((err) => console.warn('Push notifications unavailable', err));
 
     // Tap handling beyond opening the app is Phase 2 (activity inbox,
     // docs/mobile-plan.md §9) — there's no in-app destination to route to yet.
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(() => {});
 
     return () => {
+      unmounted = true;
       unsubscribeRotation?.();
       responseSubscription.remove();
     };

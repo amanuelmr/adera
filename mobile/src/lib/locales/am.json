@@ -17,14 +17,18 @@
     "confirm": "አረጋግጥ",
     "updateNow": "አሁን አዘምን",
     "backToTarget": "ወደ ገጹ ተመለስ",
-    "resetPassword": "የይለፍ ቃል ዳግም አስጀምር"
+    "resetPassword": "የይለፍ ቃል ዳግም አስጀምር",
+    "retry": "እንደገና ይሞክሩ"
   },
   "nav": {
     "search": "ፈልግ",
     "verifyEmail": "ኢሜይል አረጋግጥ",
     "yourDevices": "የእርስዎ መሳሪያዎች",
     "writeReview": "ግምገማ ጻፍ",
-    "editReview": "ግምገማ አርትዕ"
+    "editReview": "ግምገማ አርትዕ",
+    "addEvidence": "ማስረጃ ጨምር",
+    "yourBusinesses": "የእርስዎ ንግዶች",
+    "locations": "ቦታዎች"
   },
   "auth": {
     "signInTitle": "ግባ",
@@ -45,7 +49,9 @@
     "verifyConfirmBody": "ወደ ኢሜይልዎ የላክንልዎትን ባለ 6 አሃዝ ኮድ ያስገቡ።",
     "verifiedTitle": "ኢሜይል ተረጋግጧል",
     "verifyLink": "ኢሜይልዎን ያረጋግጡ",
-    "devicesLink": "የእርስዎ መሳሪያዎች"
+    "devicesLink": "የእርስዎ መሳሪያዎች",
+    "continueBrowsing": "ማሰስዎን ይቀጥሉ",
+    "signInToContinue": "ግምገማ ለመጻፍ፣ ድምጽ ለመስጠት እና ማሳወቂያዎችን ለማግኘት ይግቡ።"
   },
   "errors": {
     "invalidCredentials": "ኢሜይል/ስልክ ወይም የይለፍ ቃል የተሳሳተ ነው።",
@@ -57,7 +63,8 @@
     "reviewRateLimited": "ዛሬ ቀደም ብለው ጥቂት ግምገማዎችን አስገብተዋል — በኋላ ይሞክሩ።",
     "reviewStale": "ይህ ግምገማ እርስዎ ማርትዕ ከጀመሩ ጀምሮ ተቀይሯል። ተመልሰው እንደገና ይሞክሩ።",
     "reviewGeneric": "ግምገማዎን ማስገባት አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
-    "reviewOffline": "ግምገማ ለማዘመን ግንኙነት ያስፈልግዎታል።"
+    "reviewOffline": "ግምገማ ለማዘመን ግንኙነት ያስፈልግዎታል።",
+    "loadFailed": "ይህን መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።"
   },
   "disclosure": {
     "title": "አንድ ተጨማሪ ነገር",
@@ -66,7 +73,25 @@
     "relationshipQuestion": "ከዚህ ንግድ ጋር ግንኙነት አለዎት?",
     "details": "ዝርዝሮች",
     "detailsOptional": "ዝርዝሮች (አማራጭ)",
-    "detailsPlaceholder": "በአጭሩ ያብራሩ"
+    "detailsPlaceholder": "በአጭሩ ያብራሩ",
+    "badgeIncentive": "ለዚህ ግምገማ {{value}} ተቀብሏል",
+    "badgeConnection": "ከንግዱ ጋር ያለው ግንኙነት፦ {{value}}",
+    "incentive": {
+      "discount": "ቅናሽ",
+      "free_product_or_service": "ነጻ ምርት ወይም አገልግሎት",
+      "payment": "ክፍያ",
+      "contest_entry": "የውድድር ተሳትፎ",
+      "loyalty_points": "የታማኝነት ነጥቦች",
+      "other": "ሌላ ነገር"
+    },
+    "connection": {
+      "current_employee": "የአሁን ሰራተኛ",
+      "former_employee": "የቀድሞ ሰራተኛ",
+      "owner_or_executive": "ባለቤት ወይም ሥራ አስፈጻሚ",
+      "family_or_friend": "የባለቤቱ ቤተሰብ ወይም ጓደኛ",
+      "business_partner": "የንግድ አጋር",
+      "other": "ሌላ"
+    }
   },
   "updateRequired": {
     "title": "ማዘመን ያስፈልጋል",
@@ -75,5 +100,24 @@
   },
   "settings": {
     "language": "ቋንቋ"
+  },
+  "evidence": {
+    "title": "የማረጋገጫ ማስረጃ",
+    "privacyNotice": "ለአወያዮች ብቻ — ለሕዝብ በጭራሽ አይታይም።",
+    "body": "ይህን ግምገማ ለማረጋገጥ አወያይን ለመርዳት ደረሰኝ፣ የትዕዛዝ ስክሪንሾት ወይም ሌላ ማስረጃ ያክሉ።",
+    "kindReceipt": "ደረሰኝ",
+    "kindOrderScreenshot": "የትዕዛዝ ስክሪንሾት",
+    "kindProductPhoto": "የምርት ፎቶ",
+    "kindServiceResult": "የአገልግሎት ውጤት",
+    "kindLocationQr": "የአካባቢ QR",
+    "addButton": "ማስረጃ ጨምር",
+    "statusStaged": "በመስቀል ላይ…",
+    "statusSubmitted": "በግምገማ ላይ",
+    "statusAccepted": "ተረጋግጧል",
+    "statusRejected": "አልተቀበለም",
+    "empty": "እስካሁን ምንም ማስረጃ አልገባም።",
+    "limitReached": "ለዚህ ግምገማ የ5 ማስረጃ ፋይሎች ገደብ ላይ ደርሰዋል።",
+    "addProofPrompt": "ለማረጋገጥ ማስረጃ ይጨምሩ?",
+    "skip": "አሁን አይደለም"
   }
 }

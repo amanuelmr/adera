@@ -43,3 +43,31 @@ services:
 
       - key: STORAGE_ENABLED
         value: "false"
+
+      # Everything below is optional and left unset (sync: false) until you
+      # fill it in on the dashboard — each feature stays off while its
+      # variables are empty. See DEPLOY.md step 4.
+
+      # Email verification and password reset. Without SMTP_HOST, verification
+      # returns 503 and a forgotten password cannot be reset.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_ADDRESS
+        sync: false
+
+      # Push. Upload the Firebase service-account JSON as a Render Secret File;
+      # it's mounted at /etc/secrets/<filename>, which is what this points at.
+      - key: FCM_CREDENTIALS_FILE
+        sync: false
+
+      # Version gate for GET /api/v1/app/version. Plain semver (1.2.0, no "v").
+      - key: APP_ANDROID_MIN_VERSION
+        sync: false
+      - key: APP_ANDROID_LATEST_VERSION
+        sync: false
+      - key: APP_ANDROID_STORE_URL
+        sync: false

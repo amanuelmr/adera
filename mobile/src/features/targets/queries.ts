@@ -31,6 +31,22 @@ export function useTrendingTargets() {
   });
 }
 
+export function useNearbyTargets(coords: { latitude: number; longitude: number } | undefined) {
+  return useQuery({
+    enabled: !!coords,
+    // Rounded to ~100m so GPS jitter between renders doesn't invalidate the
+    // cache on every read — this is a ranked list like top-rated/trending,
+    // not a trust-critical aggregate, so the 5-minute default staleTime applies.
+    queryKey: ['targets', 'nearby', coords && Math.round(coords.latitude * 1000), coords && Math.round(coords.longitude * 1000)],
+    queryFn: async () =>
+      unwrap(
+        await apiClient.GET('/api/v1/targets/nearby', {
+          params: { query: { lat: coords!.latitude, lng: coords!.longitude } },
+        })
+      ).data,
+  });
+}
+
 export function useTarget(idOrSlug: string) {
   return useQuery({
     queryKey: ['targets', 'detail', idOrSlug],
@@ -50,6 +66,18 @@ export function useTargetStats(targetId: string | undefined) {
     queryKey: ['targets', 'stats', targetId],
     queryFn: async () =>
       unwrap(await apiClient.GET('/api/v1/targets/{id}/stats', { params: { path: { id: targetId! } } })).data,
+  });
+}
+
+export function useRealityCheck(targetId: string | undefined) {
+  return useQuery({
+    // Same trust-critical, network-first rule as useTargetStats — this is
+    // exactly the kind of aggregate the docs warn against showing stale.
+    staleTime: 0,
+    enabled: !!targetId,
+    queryKey: ['targets', 'reality-check', targetId],
+    queryFn: async () =>
+      unwrap(await apiClient.GET('/api/v1/targets/{id}/reality-check', { params: { path: { id: targetId! } } })).data,
   });
 }
 
