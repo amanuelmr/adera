@@ -69,3 +69,14 @@ it('labels every review-form option the API accepts', () => {
     for (const star of ['1', '2', '3', '4', '5']) expect(dict.review.rating).toHaveProperty(star);
   }
 });
+
+// An Amharic value identical to its English is almost always a string that
+// was copied over and never translated. Brand names are the exception.
+const SAME_IN_BOTH = new Set(['tiktok', 'instagram', 'youtube', 'facebook', 'telegram', 'google_maps'].map((k) => `review.discovery.${k}`));
+
+it('translates every Amharic string rather than copying the English', () => {
+  const untranslated = keyPaths(en).filter(
+    (key) => !SAME_IN_BOTH.has(key) && lookup(am, key) === lookup(en, key)
+  );
+  expect(untranslated).toEqual([]);
+});
