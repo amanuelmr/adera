@@ -7,6 +7,16 @@ import * as ImagePicker from 'expo-image-picker';
 const MAX_DIMENSION = 1600;
 const COMPRESS_QUALITY = 0.7;
 
+/**
+ * Caps the longest edge at MAX_DIMENSION, keeping aspect ratio (one side
+ * given, the other derived). Portraits and tall screenshots are capped by
+ * height, not left full size. Never upscales.
+ */
+export function downscaleFor(width: number, height: number): { width: number } | { height: number } | undefined {
+  if (Math.max(width, height) <= MAX_DIMENSION) return undefined;
+  return width >= height ? { width: MAX_DIMENSION } : { height: MAX_DIMENSION };
+}
+
 export type PickPhotoResult = { uri: string } | { error: string } | { canceled: true };
 
 export async function pickAndCompressPhoto(): Promise<PickPhotoResult> {
@@ -23,11 +33,8 @@ export async function pickAndCompressPhoto(): Promise<PickPhotoResult> {
   if (!asset) return { canceled: true };
 
   const context = ImageManipulator.manipulate(asset.uri);
-  // Only downscale — resizing a smaller image up would inflate it for no
-  // quality gain.
-  if (asset.width > MAX_DIMENSION) {
-    context.resize({ width: MAX_DIMENSION });
-  }
+  const resize = downscaleFor(asset.width, asset.height);
+  if (resize) context.resize(resize);
   const rendered = await context.renderAsync();
   const result = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: COMPRESS_QUALITY });
 
