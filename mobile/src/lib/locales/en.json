@@ -28,7 +28,8 @@
     "editReview": "Edit review",
     "addEvidence": "Add evidence",
     "yourBusinesses": "Your businesses",
-    "locations": "Locations"
+    "locations": "Locations",
+    "reportReview": "Report review"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -137,5 +138,29 @@
   },
   "review": {
     "updateYours": "Update your review"
+  },
+  "report": {
+    "title": "Report review",
+    "body": "Tell moderators what's wrong. Reports are private and never hide a review automatically.",
+    "reasonLabel": "Reason",
+    "detailsLabel": "Details (optional)",
+    "detailsPlaceholder": "What should the moderator know?",
+    "submit": "Send report",
+    "sent": "Thanks — a moderator will look at it.",
+    "already": "You've already reported this review.",
+    "rateLimited": "You've sent a lot of reports — try again later.",
+    "action": "Report",
+    "reasons": {
+      "spam": "Spam or advertising",
+      "fake_experience": "Didn't really happen",
+      "conflict_of_interest": "Written by someone connected to the business",
+      "harassment": "Harassment",
+      "hate_speech": "Hate speech",
+      "personal_information": "Shares someone's personal information",
+      "unsupported_accusation": "Accuses someone without support",
+      "irrelevant": "Not about this place",
+      "duplicate": "Duplicate review",
+      "manipulated_evidence": "Manipulated photo or evidence"
+    }
   }
 }

@@ -28,7 +28,8 @@
     "editReview": "ግምገማ አርትዕ",
     "addEvidence": "ማስረጃ ጨምር",
     "yourBusinesses": "የእርስዎ ንግዶች",
-    "locations": "ቦታዎች"
+    "locations": "ቦታዎች",
+    "reportReview": "ግምገማ ሪፖርት አድርግ"
   },
   "auth": {
     "signInTitle": "ግባ",
@@ -137,5 +138,29 @@
   },
   "review": {
     "updateYours": "ግምገማዎን ያዘምኑ"
+  },
+  "report": {
+    "title": "ግምገማ ሪፖርት አድርግ",
+    "body": "ችግሩን ለአወያዮች ይንገሩ። ሪፖርቶች ግላዊ ናቸው እና ግምገማን በራሳቸው አይደብቁም።",
+    "reasonLabel": "ምክንያት",
+    "detailsLabel": "ዝርዝሮች (አማራጭ)",
+    "detailsPlaceholder": "አወያዩ ምን ማወቅ አለበት?",
+    "submit": "ሪፖርት ላክ",
+    "sent": "እናመሰግናለን — አወያይ ይመለከተዋል።",
+    "already": "ይህን ግምገማ አስቀድመው ሪፖርት አድርገዋል።",
+    "rateLimited": "ብዙ ሪፖርቶችን ልከዋል — በኋላ ይሞክሩ።",
+    "action": "ሪፖርት",
+    "reasons": {
+      "spam": "አይፈለጌ መልእክት ወይም ማስታወቂያ",
+      "fake_experience": "በእውነት ያልተከሰተ",
+      "conflict_of_interest": "ከንግዱ ጋር ግንኙነት ባለው ሰው የተጻፈ",
+      "harassment": "ትንኮሳ",
+      "hate_speech": "የጥላቻ ንግግር",
+      "personal_information": "የሌላ ሰው ግላዊ መረጃ ያጋራል",
+      "unsupported_accusation": "ያለማስረጃ ሰውን ይከሳል",
+      "irrelevant": "ስለዚህ ቦታ አይደለም",
+      "duplicate": "የተደገመ ግምገማ",
+      "manipulated_evidence": "የተቀነባበረ ፎቶ ወይም ማስረጃ"
+    }
   }
 }

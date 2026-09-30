@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
@@ -20,6 +21,7 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
   const [expanded, setExpanded] = useState(false);
   const toggleHelpful = useToggleHelpful(targetId);
   const requireSignIn = useRequireSignIn();
+  const { t } = useTranslation();
 
   const rating = review.overall_rating ?? 0;
   const body = review.body ?? '';
@@ -74,7 +76,15 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
             👍 Helpful{review.helpful_count ? ` (${review.helpful_count})` : ''}
           </ThemedText>
         </Pressable>
-        <Pressable onPress={() => shareReview(review, targetName)} accessibilityRole="button" style={styles.helpfulRow}>
+        <Pressable
+          onPress={() => requireSignIn(() => review.id && router.push(`/review/${review.id}/report`))}
+          accessibilityRole="button"
+          style={styles.helpfulRow}>
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('report.action')}
+          </ThemedText>
+        </Pressable>
+                <Pressable onPress={() => shareReview(review, targetName)} accessibilityRole="button" style={styles.helpfulRow}>
           <ThemedText type="small" themeColor="textSecondary">
             Share
           </ThemedText>

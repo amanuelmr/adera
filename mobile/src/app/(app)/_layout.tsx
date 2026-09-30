@@ -28,6 +28,7 @@ export default function AppLayout() {
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="target/[idOrSlug]/review" options={{ title: t('nav.writeReview') }} />
           <Stack.Screen name="review/[id]/evidence" options={{ title: t('nav.addEvidence') }} />
+          <Stack.Screen name="review/[id]/report" options={{ title: t('nav.reportReview') }} />
           <Stack.Screen name="businesses/index" options={{ title: t('nav.yourBusinesses') }} />
           <Stack.Screen name="businesses/[id]/index" options={{ title: t('nav.locations') }} />
           <Stack.Screen name="businesses/[id]/targets/[targetId]" options={{ title: '' }} />
