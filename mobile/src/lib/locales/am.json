@@ -20,7 +20,8 @@
     "resetPassword": "የይለፍ ቃል ዳግም አስጀምር",
     "retry": "እንደገና ይሞክሩ",
     "optional": "አማራጭ",
-    "share": "አጋራ"
+    "share": "አጋራ",
+    "unnamed": "ስም የሌለው"
   },
   "nav": {
     "search": "ፈልግ",
@@ -149,7 +150,9 @@
     "deniedBody": "የአካባቢ ፍቃድ ተከልክሏል — በአቅራቢያ ያሉትን ለማየት ይፍቀዱ።",
     "blockedBody": "ለAdera አካባቢ ጠፍቷል። በአቅራቢያ ያሉትን ለማየት በቅንብሮች ውስጥ ያብሩት።",
     "errorBody": "አካባቢዎን ማግኘት አልተቻለም። አካባቢ መብራቱን ያረጋግጡ እና እንደገና ይሞክሩ።",
-    "openSettings": "ቅንብሮችን ክፈት"
+    "openSettings": "ቅንብሮችን ክፈት",
+    "empty": "እስካሁን በአቅራቢያ ምንም የለም።",
+    "distance": "{{km}} ኪ.ሜ ርቀት"
   },
   "owner": {
     "alreadyResponded": "ከንግድዎ ሌላ ሰው አስቀድሞ ምላሽ ሰጥቷል። ምላሹ ከታች ይታያል — ካስፈለገ ያርትዑት።"
@@ -311,5 +314,44 @@
     "report": "ያቀረቡት ሪፖርት ተገምግሟል።",
     "privacy": "የውሂብ ጥያቄዎ ተዘምኗል።",
     "default": "አዲስ መረጃ አለዎት።"
+  },
+  "search": {
+    "placeholder": "ምግብ ቤቶችን፣ ሳሎኖችን፣ ሻጮችን ይፈልጉ…",
+    "category": "ምድብ",
+    "filters": "ማጣሪያዎች",
+    "filtersLabel_one": "ማጣሪያዎች፣ {{count}} ንቁ",
+    "filtersLabel_other": "ማጣሪያዎች፣ {{count}} ንቁ",
+    "filtersLabel_zero": "ማጣሪያዎች",
+    "verified": "የተረጋገጠ",
+    "minChars": "ለመፈለግ ቢያንስ 2 ፊደሎችን ይጻፉ።",
+    "failed": "አሁን መፈለግ አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
+    "noMatches": "ለ“{{query}}” ምንም ውጤት የለም። ሰፋ ያለ ቦታ ወይም የተለየ አጻጻፍ ይሞክሩ።",
+    "closeFilters": "ማጣሪያዎችን ዝጋ",
+    "typeLabel": "ዓይነት",
+    "minRating": "ዝቅተኛ ደረጃ",
+    "verification": "ማረጋገጫ",
+    "verifiedOnly": "የተረጋገጡ ብቻ",
+    "clearAll": "ሁሉንም አጽዳ",
+    "apply": "ተግብር",
+    "type": {
+      "business": "ንግድ",
+      "location": "ቦታ",
+      "online_seller": "የመስመር ላይ ሻጭ",
+      "product": "ምርት",
+      "service": "አገልግሎት",
+      "repair_provider": "ጥገና አቅራቢ",
+      "restaurant": "ምግብ ቤት",
+      "cafe": "ካፌ"
+    }
+  },
+  "discover": {
+    "categories": "ምድቦች",
+    "noCategories": "እስካሁን ምድቦች የሉም።",
+    "topRated": "ከፍተኛ ደረጃ",
+    "noTopRated": "እስካሁን ደረጃ የተሰጠው የለም።",
+    "trending": "ተወዳጅ",
+    "noTrending": "እስካሁን ተወዳጅ የለም።",
+    "thisMonth_one": "በዚህ ወር {{count}} ግምገማ",
+    "thisMonth_other": "በዚህ ወር {{count}} ግምገማዎች"
   }
 }

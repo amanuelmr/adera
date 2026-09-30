@@ -51,20 +51,21 @@ export function NearMeSection() {
 }
 
 function NearMeResults({ latitude, longitude }: { latitude: number; longitude: number }) {
+  const { t } = useTranslation();
   const nearby = useNearbyTargets({ latitude, longitude });
 
   return (
     <DiscoverSection
-      title="Near me"
+      title={t('nearMe.title')}
       query={nearby}
-      emptyLabel="Nothing nearby yet."
+      emptyLabel={t('nearMe.empty')}
       keyExtractor={(target) => target.id ?? target.slug ?? ''}
       renderItem={(target) => (
         <TargetCard
-          name={target.name ?? 'Unnamed'}
+          name={target.name ?? t('common.unnamed')}
           averageRating={target.average_rating ?? null}
           reviewCount={target.review_count ?? 0}
-          badge={target.distance_km != null ? `${target.distance_km.toFixed(1)} km away` : undefined}
+          badge={target.distance_km != null ? t('nearMe.distance', { km: target.distance_km.toFixed(1) }) : undefined}
           onPress={() => router.push(`/target/${target.slug ?? target.id}`)}
         />
       )}

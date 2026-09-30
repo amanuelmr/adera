@@ -9,6 +9,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useCategories, useCategoryTargets } from '@/features/targets/queries';
 import { TargetCard } from '@/features/targets/target-card';
+import { categoryName } from '@/features/targets/category-name';
 
 export default function CategoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -19,7 +20,7 @@ export default function CategoryScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <Stack.Screen options={{ title: category?.name ?? '' }} />
+      <Stack.Screen options={{ title: categoryName(category) ?? '' }} />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <FlatList
           data={targets.data ?? []}

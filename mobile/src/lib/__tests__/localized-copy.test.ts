@@ -42,3 +42,17 @@ it('labels every moderation status and review sort order in both languages', () 
     for (const s of sorts) expect(dict.target.sort).toHaveProperty(s);
   }
 });
+
+it('shows category names in the app language, falling back to the default name', async () => {
+  const { initI18n } = require('../i18n');
+  await initI18n();
+  const { categoryName } = require('@/features/targets/category-name');
+  const category = { name: 'Restaurants & Cafés', name_translations: { am: 'ምግብ ቤቶች እና ካፌዎች', en: 'Restaurants & Cafés' } };
+  expect(categoryName(category)).toBe('ምግብ ቤቶች እና ካፌዎች');
+  expect(categoryName({ name: 'Untranslated' })).toBe('Untranslated');
+});
+
+it('labels every target type offered in search filters', () => {
+  const { TARGET_TYPES } = require('@/features/search/types');
+  for (const dict of [en, am]) for (const type of TARGET_TYPES) expect(dict.search.type).toHaveProperty(type);
+});

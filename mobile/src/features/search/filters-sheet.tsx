@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import type { components } from '@/api/schema';
@@ -8,7 +9,8 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useCategories } from '@/features/targets/queries';
 import { FilterChip } from './filter-chip';
-import { MIN_RATING_OPTIONS, TARGET_TYPE_LABELS, type SearchFilters } from './types';
+import { MIN_RATING_OPTIONS, TARGET_TYPES, type SearchFilters } from './types';
+import { categoryName } from '@/features/targets/category-name';
 
 export type FiltersSheetProps = {
   visible: boolean;
@@ -21,6 +23,7 @@ export type FiltersSheetProps = {
 // no extra native dependency, at the cost of no drag-to-dismiss. Revisit if
 // the plain version feels wrong on-device.
 export function FiltersSheet({ visible, filters, onApply, onClose }: FiltersSheetProps) {
+  const { t } = useTranslation();
   const categories = useCategories();
   const [draft, setDraft] = useState(filters);
 
@@ -48,36 +51,36 @@ export function FiltersSheet({ visible, filters, onApply, onClose }: FiltersShee
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close filters" />
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={t('search.closeFilters')} />
       <ThemedView style={styles.sheet}>
         <ScrollView contentContainerStyle={styles.content}>
-          <ThemedText type="subtitle">Filters</ThemedText>
+          <ThemedText type="subtitle">{t('search.filters')}</ThemedText>
 
-          <ThemedText type="smallBold">Category</ThemedText>
+          <ThemedText type="smallBold">{t('search.category')}</ThemedText>
           <View style={styles.row}>
             {(categories.data ?? []).map((category) => (
               <FilterChip
                 key={category.id}
-                label={category.name ?? 'Unnamed'}
+                label={categoryName(category) ?? t('common.unnamed')}
                 selected={draft.category === category.id}
                 onPress={() => toggleCategory(category.id ?? '')}
               />
             ))}
           </View>
 
-          <ThemedText type="smallBold">Type</ThemedText>
+          <ThemedText type="smallBold">{t('search.typeLabel')}</ThemedText>
           <View style={styles.row}>
-            {(Object.keys(TARGET_TYPE_LABELS) as (keyof typeof TARGET_TYPE_LABELS)[]).map((type) => (
+            {TARGET_TYPES.map((type) => (
               <FilterChip
                 key={type}
-                label={TARGET_TYPE_LABELS[type]}
+                label={t(`search.type.${type}`)}
                 selected={draft.type === type}
                 onPress={() => toggleType(type)}
               />
             ))}
           </View>
 
-          <ThemedText type="smallBold">Minimum rating</ThemedText>
+          <ThemedText type="smallBold">{t('search.minRating')}</ThemedText>
           <View style={styles.row}>
             {MIN_RATING_OPTIONS.map((rating) => (
               <FilterChip
@@ -89,10 +92,10 @@ export function FiltersSheet({ visible, filters, onApply, onClose }: FiltersShee
             ))}
           </View>
 
-          <ThemedText type="smallBold">Verification</ThemedText>
+          <ThemedText type="smallBold">{t('search.verification')}</ThemedText>
           <View style={styles.row}>
             <FilterChip
-              label="Verified only"
+              label={t('search.verifiedOnly')}
               selected={!!draft.verified}
               onPress={() => setDraft((prev) => ({ ...prev, verified: prev.verified ? undefined : true }))}
             />
@@ -100,8 +103,8 @@ export function FiltersSheet({ visible, filters, onApply, onClose }: FiltersShee
         </ScrollView>
 
         <View style={styles.actions}>
-          <Button title="Clear all" variant="secondary" onPress={() => setDraft({})} />
-          <Button title="Apply" onPress={() => onApply(draft)} />
+          <Button title={t('search.clearAll')} variant="secondary" onPress={() => setDraft({})} />
+          <Button title={t('search.apply')} onPress={() => onApply(draft)} />
         </View>
       </ThemedView>
     </Modal>

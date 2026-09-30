@@ -20,7 +20,8 @@
     "resetPassword": "Reset password",
     "retry": "Try again",
     "optional": "Optional",
-    "share": "Share"
+    "share": "Share",
+    "unnamed": "Unnamed"
   },
   "nav": {
     "search": "Search",
@@ -149,7 +150,9 @@
     "deniedBody": "Location access was denied — allow it to see what’s nearby.",
     "blockedBody": "Location is turned off for Adera. Turn it on in Settings to see what’s nearby.",
     "errorBody": "Couldn't get your location. Check that location is on and try again.",
-    "openSettings": "Open settings"
+    "openSettings": "Open settings",
+    "empty": "Nothing nearby yet.",
+    "distance": "{{km}} km away"
   },
   "owner": {
     "alreadyResponded": "Someone else from your business already responded. Their response is shown below — edit it if needed."
@@ -311,5 +314,44 @@
     "report": "A report you filed was reviewed.",
     "privacy": "Your data request was updated.",
     "default": "You have a new update."
+  },
+  "search": {
+    "placeholder": "Search restaurants, salons, sellers…",
+    "category": "Category",
+    "filters": "Filters",
+    "filtersLabel_one": "Filters, {{count}} active",
+    "filtersLabel_other": "Filters, {{count}} active",
+    "filtersLabel_zero": "Filters",
+    "verified": "Verified",
+    "minChars": "Type at least 2 characters to search.",
+    "failed": "Couldn't search right now. Check your connection and try again.",
+    "noMatches": "No matches for “{{query}}”. Try a wider area or different spelling.",
+    "closeFilters": "Close filters",
+    "typeLabel": "Type",
+    "minRating": "Minimum rating",
+    "verification": "Verification",
+    "verifiedOnly": "Verified only",
+    "clearAll": "Clear all",
+    "apply": "Apply",
+    "type": {
+      "business": "Business",
+      "location": "Location",
+      "online_seller": "Online seller",
+      "product": "Product",
+      "service": "Service",
+      "repair_provider": "Repair provider",
+      "restaurant": "Restaurant",
+      "cafe": "Café"
+    }
+  },
+  "discover": {
+    "categories": "Categories",
+    "noCategories": "No categories yet.",
+    "topRated": "Top rated",
+    "noTopRated": "Nothing rated yet.",
+    "trending": "Trending",
+    "noTrending": "Nothing trending yet.",
+    "thisMonth_one": "{{count}} review this month",
+    "thisMonth_other": "{{count}} reviews this month"
   }
 }

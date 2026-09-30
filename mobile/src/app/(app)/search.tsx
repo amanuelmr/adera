@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,16 +7,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { categoryName } from '@/features/targets/category-name';
 import { FilterChip } from '@/features/search/filter-chip';
 import { FiltersSheet } from '@/features/search/filters-sheet';
 import { useSearchTargets } from '@/features/search/queries';
 import type { SearchFilters } from '@/features/search/types';
-import { TARGET_TYPE_LABELS } from '@/features/search/types';
 import { useCategories } from '@/features/targets/queries';
 import { TargetCard } from '@/features/targets/target-card';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function SearchScreen() {
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{ category?: string }>();
   const categories = useCategories();
   const theme = useTheme();
@@ -34,7 +36,7 @@ export default function SearchScreen() {
   const results = useSearchTargets(debouncedQuery, filters);
   // Discover links over a category id only; the name is derived here rather
   // than stored, so it can never drift from the categories list.
-  const categoryName = categories.data?.find((category) => category.id === filters.category)?.name;
+  const selectedCategory = categoryName(categories.data?.find((category) => category.id === filters.category));
   const activeFilterCount = Object.values(filters).filter((value) => value !== undefined).length;
 
   return (
@@ -45,17 +47,20 @@ export default function SearchScreen() {
             autoFocus
             value={query}
             onChangeText={setQuery}
-            placeholder="Search restaurants, salons, sellers…"
+            placeholder={t('search.placeholder')}
             placeholderTextColor={theme.textSecondary}
             style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
-            accessibilityLabel="Search"
+            accessibilityLabel={t('nav.search')}
           />
           <Pressable
             onPress={() => setSheetVisible(true)}
             accessibilityRole="button"
-            accessibilityLabel={`Filters${activeFilterCount ? `, ${activeFilterCount} active` : ''}`}
+            accessibilityLabel={t('search.filtersLabel', { count: activeFilterCount })}
             style={[styles.filterButton, { backgroundColor: theme.backgroundElement }]}>
-            <ThemedText type="smallBold">Filters{activeFilterCount ? ` (${activeFilterCount})` : ''}</ThemedText>
+            <ThemedText type="smallBold">
+              {t('search.filters')}
+              {activeFilterCount ? ` (${activeFilterCount})` : ''}
+            </ThemedText>
           </Pressable>
         </View>
 
@@ -63,14 +68,14 @@ export default function SearchScreen() {
           <View style={styles.chipsRow}>
             {filters.category ? (
               <FilterChip
-                label={categoryName ?? 'Category'}
+                label={selectedCategory ?? t('search.category')}
                 selected
                 onPress={() => setFilters((prev) => ({ ...prev, category: undefined }))}
               />
             ) : null}
             {filters.type ? (
               <FilterChip
-                label={TARGET_TYPE_LABELS[filters.type]}
+                label={t(`search.type.${filters.type}`)}
                 selected
                 onPress={() => setFilters((prev) => ({ ...prev, type: undefined }))}
               />
@@ -83,24 +88,24 @@ export default function SearchScreen() {
               />
             ) : null}
             {filters.verified ? (
-              <FilterChip label="Verified" selected onPress={() => setFilters((prev) => ({ ...prev, verified: undefined }))} />
+              <FilterChip label={t('search.verified')} selected onPress={() => setFilters((prev) => ({ ...prev, verified: undefined }))} />
             ) : null}
           </View>
         ) : null}
 
         {debouncedQuery.trim().length < 2 ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-            Type at least 2 characters to search.
+            {t('search.minChars')}
           </ThemedText>
         ) : results.isPending ? (
           <ActivityIndicator style={styles.centered} />
         ) : results.isError ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-            Couldn&apos;t search right now. Check your connection and try again.
+            {t('search.failed')}
           </ThemedText>
         ) : results.data.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-            No matches for &ldquo;{debouncedQuery}&rdquo;. Try a wider area or different spelling.
+            {t('search.noMatches', { query: debouncedQuery })}
           </ThemedText>
         ) : (
           <FlatList
@@ -109,7 +114,7 @@ export default function SearchScreen() {
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
               <TargetCard
-                name={item.name ?? 'Unnamed'}
+                name={item.name ?? t('common.unnamed')}
                 averageRating={item.average_rating ?? null}
                 reviewCount={item.review_count ?? 0}
                 onPress={() => router.push(`/target/${item.slug ?? item.id}`)}

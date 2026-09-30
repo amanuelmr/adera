@@ -10,15 +10,16 @@ export type SearchFilters = {
   verified?: boolean;
 };
 
-export const TARGET_TYPE_LABELS: Record<components['schemas']['TargetType'], string> = {
-  business: 'Business',
-  location: 'Location',
-  online_seller: 'Online seller',
-  product: 'Product',
-  service: 'Service',
-  repair_provider: 'Repair provider',
-  restaurant: 'Restaurant',
-  cafe: 'Café',
-};
+// Labels live in the locale files under search.type.*.
+export const TARGET_TYPES: components['schemas']['TargetType'][] = [
+  'business',
+  'location',
+  'online_seller',
+  'product',
+  'service',
+  'repair_provider',
+  'restaurant',
+  'cafe',
+];
 
 export const MIN_RATING_OPTIONS = [3, 4, 4.5] as const;

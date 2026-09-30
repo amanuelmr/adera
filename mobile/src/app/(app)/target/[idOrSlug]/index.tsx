@@ -20,6 +20,7 @@ import {
   type ReviewSort,
 } from '@/features/targets/queries';
 import { ReviewCard } from '@/features/targets/review-card';
+import { categoryName } from '@/features/targets/category-name';
 import { FilterChip } from '@/features/search/filter-chip';
 import { WriteReviewCta } from '@/features/reviews/write-review-cta';
 import { shareTarget } from '@/features/share/share';
@@ -61,7 +62,7 @@ export default function TargetProfileScreen() {
     );
   }
 
-  const categoryName = category?.name;
+  const categoryLabel = categoryName(category);
   const showAggregates = !stats.data || stats.data.confidence !== 'none';
 
   return (
@@ -91,7 +92,7 @@ export default function TargetProfileScreen() {
                 {target.data.name}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {[categoryName, target.data.address_text].filter(Boolean).join(' · ')}
+                {[categoryLabel, target.data.address_text].filter(Boolean).join(' · ')}
               </ThemedText>
 
               {stats.isPending ? (
