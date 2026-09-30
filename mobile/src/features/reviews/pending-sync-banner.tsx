@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -9,6 +10,7 @@ import { useOfflineQueue } from './use-offline-queue';
 
 /** A visible retry/pending indicator, per docs/mobile-plan.md §5 — and where rejected queued items surface. */
 export function PendingSyncBanner() {
+  const { t } = useTranslation();
   const { pendingCount, failedJobs } = useOfflineQueue();
   if (pendingCount === 0 && failedJobs.length === 0) return null;
 
@@ -17,17 +19,23 @@ export function PendingSyncBanner() {
       {pendingCount > 0 ? (
         <ThemedView type="backgroundSelected" style={styles.banner}>
           <ThemedText type="small">
-            {pendingCount} item{pendingCount === 1 ? '' : 's'} waiting to send — we&apos;ll keep retrying.
+            {t('sync.pending', { count: pendingCount })}
           </ThemedText>
         </ThemedView>
       ) : null}
       {failedJobs.map((job) => (
         <ThemedView key={job.id} type="backgroundSelected" style={styles.banner}>
           <ThemedText type="smallBold">
-            {job.type === 'review-submission' ? "A review couldn't be posted" : "A helpful vote couldn't be saved"}
+            {t(job.type === 'review-submission' ? 'sync.reviewFailed' : 'sync.voteFailed')}
           </ThemedText>
-          <ThemedText type="small">{job.failure?.message}</ThemedText>
-          <Button title="Dismiss" variant="secondary" onPress={() => dismissJob(job.id)} />
+          <ThemedText type="small">
+            {job.failure?.code === 'cooldown_active'
+              ? t('errors.reviewCooldown')
+              : job.failure?.code === 'rate_limited'
+                ? t('errors.reviewRateLimited')
+                : t('sync.rejected')}
+          </ThemedText>
+          <Button title={t('sync.dismiss')} variant="secondary" onPress={() => dismissJob(job.id)} />
         </ThemedView>
       ))}
     </View>

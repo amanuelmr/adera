@@ -114,7 +114,7 @@ function SignedInAccount() {
                 <QueryError onRetry={() => profile.refetch()} retrying={profile.isRefetching} />
               ) : null}
 
-              <ThemedText type="smallBold">Your reviews</ThemedText>
+              <ThemedText type="smallBold">{t('account.yourReviews')}</ThemedText>
             </View>
           }
           ListEmptyComponent={
@@ -124,7 +124,7 @@ function SignedInAccount() {
               <QueryError onRetry={() => reviews.refetch()} retrying={reviews.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-                You haven&apos;t written any reviews yet.
+                {t('account.noReviews')}
               </ThemedText>
             )
           }

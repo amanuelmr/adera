@@ -74,7 +74,7 @@ export default function SessionsScreen() {
                 </ThemedView>
                 {!item.current && item.id ? (
                   <Button
-                    title="Revoke"
+                    title={t('sessions.revoke')}
                     variant="secondary"
                     onPress={() => revoke(item.id!)}
                     loading={revokingId === item.id}

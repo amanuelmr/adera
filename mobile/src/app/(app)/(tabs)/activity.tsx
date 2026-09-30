@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,6 +18,7 @@ import type { components } from '@/api/schema';
 type Notification = components['schemas']['Notification'];
 
 export default function ActivityScreen() {
+  const { t } = useTranslation();
   const [unreadOnly, setUnreadOnly] = useState(false);
   const notifications = useNotifications(unreadOnly);
   const unreadCount = useUnreadCount();
@@ -57,10 +59,10 @@ export default function ActivityScreen() {
           ListHeaderComponent={
             <View style={styles.header}>
               <View style={styles.headerRow}>
-                <ThemedText type="title">Activity</ThemedText>
+                <ThemedText type="title">{t('tabs.activity')}</ThemedText>
                 {(unreadCount.data?.unread_count ?? 0) > 0 ? (
                   <Button
-                    title="Mark all read"
+                    title={t('activity.markAllRead')}
                     variant="secondary"
                     onPress={() => markAllRead.mutate()}
                     disabled={markAllRead.isPending}
@@ -68,8 +70,8 @@ export default function ActivityScreen() {
                 ) : null}
               </View>
               <View style={styles.filterRow}>
-                <FilterChip label="All" selected={!unreadOnly} onPress={() => setUnreadOnly(false)} />
-                <FilterChip label="Unread" selected={unreadOnly} onPress={() => setUnreadOnly(true)} />
+                <FilterChip label={t('activity.all')} selected={!unreadOnly} onPress={() => setUnreadOnly(false)} />
+                <FilterChip label={t('activity.unread')} selected={unreadOnly} onPress={() => setUnreadOnly(true)} />
               </View>
             </View>
           }
@@ -80,7 +82,7 @@ export default function ActivityScreen() {
               <QueryError onRetry={() => notifications.refetch()} retrying={notifications.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-                {unreadOnly ? "You're all caught up." : 'Nothing here yet.'}
+                {t(unreadOnly ? 'activity.caughtUp' : 'activity.empty')}
               </ThemedText>
             )
           }

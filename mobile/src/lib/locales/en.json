@@ -21,7 +21,8 @@
     "retry": "Try again",
     "optional": "Optional",
     "share": "Share",
-    "unnamed": "Unnamed"
+    "unnamed": "Unnamed",
+    "save": "Save"
   },
   "nav": {
     "search": "Search",
@@ -155,7 +156,19 @@
     "distance": "{{km}} km away"
   },
   "owner": {
-    "alreadyResponded": "Someone else from your business already responded. Their response is shown below — edit it if needed."
+    "alreadyResponded": "Someone else from your business already responded. Their response is shown below — edit it if needed.",
+    "verification": {
+      "unverified": "Unverified",
+      "claimed": "Claimed",
+      "verified": "Verified"
+    },
+    "noBusinesses": "You don't manage any businesses yet.",
+    "noLocations": "No published locations yet.",
+    "yourResponse": "Your response",
+    "placeholder": "Write a public response…",
+    "saveFailed": "Couldn't save your response. Try again.",
+    "editResponse": "Edit response",
+    "respond": "Respond"
   },
   "category": {
     "empty": "Nothing in this category yet."
@@ -245,13 +258,16 @@
     "reviewCount_one": "{{count}} review",
     "reviewCount_other": "{{count}} reviews",
     "joined": "Joined {{date}}",
-    "emailVerified": "✓ Email verified"
+    "emailVerified": "✓ Email verified",
+    "yourReviews": "Your reviews",
+    "noReviews": "You haven't written any reviews yet."
   },
   "sessions": {
     "thisDevice": "This device",
     "lastUsed": "Last used {{when}}",
     "lastUsedUnknown": "Last use unknown",
-    "unknownDevice": "Unknown device"
+    "unknownDevice": "Unknown device",
+    "revoke": "Revoke"
   },
   "photos": {
     "permissionDenied": "Photo library access is needed to add a picture.",
@@ -353,5 +369,27 @@
     "noTrending": "Nothing trending yet.",
     "thisMonth_one": "{{count}} review this month",
     "thisMonth_other": "{{count}} reviews this month"
+  },
+  "activity": {
+    "markAllRead": "Mark all read",
+    "all": "All",
+    "unread": "Unread",
+    "caughtUp": "You're all caught up.",
+    "empty": "Nothing here yet."
+  },
+  "share": {
+    "thisPlace": "This place",
+    "targetRated": "{{name}} — {{rating}}★ on Adera",
+    "target": "{{name}} on Adera",
+    "reviewRated": "\"{{quote}}\" — {{rating}}★ review of {{name}} on Adera",
+    "review": "\"{{quote}}\" — review of {{name}} on Adera"
+  },
+  "sync": {
+    "pending_one": "{{count}} item waiting to send — we'll keep retrying.",
+    "pending_other": "{{count}} items waiting to send — we'll keep retrying.",
+    "reviewFailed": "A review couldn't be posted",
+    "voteFailed": "A helpful vote couldn't be saved",
+    "rejected": "The server turned it down. Open the place and try again.",
+    "dismiss": "Dismiss"
   }
 }

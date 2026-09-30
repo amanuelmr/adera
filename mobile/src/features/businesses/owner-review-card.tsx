@@ -65,8 +65,8 @@ export function OwnerReviewCard({ review, targetId }: { review: ListedReview; ta
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
       <View style={styles.header}>
-        <ThemedText type="smallBold">{review.reviewer_name ?? 'Anonymous'}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" accessibilityLabel={`Rated ${rating} out of 5`}>
+        <ThemedText type="smallBold">{review.reviewer_name ?? t('review.anonymous')}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" accessibilityLabel={t('rating.outOfFive', { rating })}>
           {'★'.repeat(rating)}
           {'☆'.repeat(Math.max(0, 5 - rating))}
         </ThemedText>
@@ -83,7 +83,7 @@ export function OwnerReviewCard({ review, targetId }: { review: ListedReview; ta
 
       {existing && !editing ? (
         <ThemedView type="backgroundSelected" style={styles.response}>
-          <ThemedText type="smallBold">Your response</ThemedText>
+          <ThemedText type="smallBold">{t('owner.yourResponse')}</ThemedText>
           <ThemedText type="small">{existing.body}</ThemedText>
         </ThemedView>
       ) : null}
@@ -93,7 +93,7 @@ export function OwnerReviewCard({ review, targetId }: { review: ListedReview; ta
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder="Write a public response…"
+            placeholder={t('owner.placeholder')}
             placeholderTextColor={theme.textSecondary}
             multiline
             maxLength={2000}
@@ -101,16 +101,16 @@ export function OwnerReviewCard({ review, targetId }: { review: ListedReview; ta
           />
           {mutation.error ? (
             <ThemedText type="small" style={styles.error}>
-              {mutation.error instanceof ApiError ? mutation.error.message : "Couldn't save your response."}
+              {t('owner.saveFailed')}
             </ThemedText>
           ) : null}
           <View style={styles.actions}>
-            <Button title="Cancel" variant="secondary" onPress={cancel} />
-            <Button title="Save" onPress={save} loading={mutation.isPending} disabled={!draft.trim()} />
+            <Button title={t('common.cancel')} variant="secondary" onPress={cancel} />
+            <Button title={t('common.save')} onPress={save} loading={mutation.isPending} disabled={!draft.trim()} />
           </View>
         </View>
       ) : (
-        <Button title={existing ? 'Edit response' : 'Respond'} variant="secondary" onPress={startEditing} />
+        <Button title={t(existing ? 'owner.editResponse' : 'owner.respond')} variant="secondary" onPress={startEditing} />
       )}
     </ThemedView>
   );

@@ -1,5 +1,7 @@
 import { Share } from 'react-native';
 
+import i18n from '@/lib/i18n';
+
 /**
  * The only real acquisition surface (a public https:// permalink) is Phase 3
  * web-layer work — this deep link is useful only between two people who
@@ -11,8 +13,12 @@ export function buildShareLink(targetId: string): string {
 }
 
 export function buildTargetShareText(target: { name?: string; average_rating?: number | null }, link: string): string {
-  const rating = target.average_rating != null ? `${target.average_rating.toFixed(1)}★ on Adera` : 'on Adera';
-  return `${target.name ?? 'This place'} — ${rating}\n${link}`;
+  const name = target.name ?? i18n.t('share.thisPlace');
+  const text =
+    target.average_rating != null
+      ? i18n.t('share.targetRated', { name, rating: target.average_rating.toFixed(1) })
+      : i18n.t('share.target', { name });
+  return `${text}\n${link}`;
 }
 
 export function buildReviewShareText(
@@ -21,8 +27,11 @@ export function buildReviewShareText(
   link: string
 ): string {
   const quote = (review.title || review.body || '').slice(0, 140);
-  const rating = review.overall_rating != null ? `${review.overall_rating}★ ` : '';
-  return `"${quote}" — ${rating}review of ${targetName} on Adera\n${link}`;
+  const text =
+    review.overall_rating != null
+      ? i18n.t('share.reviewRated', { quote, rating: review.overall_rating, name: targetName })
+      : i18n.t('share.review', { quote, name: targetName });
+  return `${text}\n${link}`;
 }
 
 export async function shareTarget(target: { id?: string; name?: string; average_rating?: number | null }): Promise<void> {

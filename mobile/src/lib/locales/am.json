@@ -21,7 +21,8 @@
     "retry": "እንደገና ይሞክሩ",
     "optional": "አማራጭ",
     "share": "አጋራ",
-    "unnamed": "ስም የሌለው"
+    "unnamed": "ስም የሌለው",
+    "save": "አስቀምጥ"
   },
   "nav": {
     "search": "ፈልግ",
@@ -155,7 +156,19 @@
     "distance": "{{km}} ኪ.ሜ ርቀት"
   },
   "owner": {
-    "alreadyResponded": "ከንግድዎ ሌላ ሰው አስቀድሞ ምላሽ ሰጥቷል። ምላሹ ከታች ይታያል — ካስፈለገ ያርትዑት።"
+    "alreadyResponded": "ከንግድዎ ሌላ ሰው አስቀድሞ ምላሽ ሰጥቷል። ምላሹ ከታች ይታያል — ካስፈለገ ያርትዑት።",
+    "verification": {
+      "unverified": "ያልተረጋገጠ",
+      "claimed": "ይገባኛል የተባለ",
+      "verified": "የተረጋገጠ"
+    },
+    "noBusinesses": "እስካሁን የሚያስተዳድሩት ንግድ የለም።",
+    "noLocations": "እስካሁን የታተሙ ቦታዎች የሉም።",
+    "yourResponse": "የእርስዎ ምላሽ",
+    "placeholder": "ይፋዊ ምላሽ ይጻፉ…",
+    "saveFailed": "ምላሽዎን ማስቀመጥ አልተቻለም። እንደገና ይሞክሩ።",
+    "editResponse": "ምላሹን አርትዕ",
+    "respond": "ምላሽ ስጥ"
   },
   "category": {
     "empty": "በዚህ ምድብ ውስጥ እስካሁን ምንም የለም።"
@@ -245,13 +258,16 @@
     "reviewCount_one": "{{count}} ግምገማ",
     "reviewCount_other": "{{count}} ግምገማዎች",
     "joined": "የተቀላቀሉት {{date}}",
-    "emailVerified": "✓ ኢሜይል ተረጋግጧል"
+    "emailVerified": "✓ ኢሜይል ተረጋግጧል",
+    "yourReviews": "የእርስዎ ግምገማዎች",
+    "noReviews": "እስካሁን ምንም ግምገማ አልጻፉም።"
   },
   "sessions": {
     "thisDevice": "ይህ መሳሪያ",
     "lastUsed": "ለመጨረሻ ጊዜ የተጠቀሙት {{when}}",
     "lastUsedUnknown": "የመጨረሻ አጠቃቀም አይታወቅም",
-    "unknownDevice": "ያልታወቀ መሳሪያ"
+    "unknownDevice": "ያልታወቀ መሳሪያ",
+    "revoke": "ሻር"
   },
   "photos": {
     "permissionDenied": "ፎቶ ለመጨመር የፎቶ ማከማቻ ፍቃድ ያስፈልጋል።",
@@ -353,5 +369,27 @@
     "noTrending": "እስካሁን ተወዳጅ የለም።",
     "thisMonth_one": "በዚህ ወር {{count}} ግምገማ",
     "thisMonth_other": "በዚህ ወር {{count}} ግምገማዎች"
+  },
+  "activity": {
+    "markAllRead": "ሁሉንም እንደተነበበ ምልክት አድርግ",
+    "all": "ሁሉም",
+    "unread": "ያልተነበቡ",
+    "caughtUp": "ሁሉንም አይተዋል።",
+    "empty": "እስካሁን እዚህ ምንም የለም።"
+  },
+  "share": {
+    "thisPlace": "ይህ ቦታ",
+    "targetRated": "{{name}} — በAdera ላይ {{rating}}★",
+    "target": "{{name}} በAdera ላይ",
+    "reviewRated": "\"{{quote}}\" — የ{{name}} {{rating}}★ ግምገማ በAdera ላይ",
+    "review": "\"{{quote}}\" — የ{{name}} ግምገማ በAdera ላይ"
+  },
+  "sync": {
+    "pending_one": "{{count}} ንጥል ለመላክ እየጠበቀ ነው — መሞከራችንን እንቀጥላለን።",
+    "pending_other": "{{count}} ንጥሎች ለመላክ እየጠበቁ ነው — መሞከራችንን እንቀጥላለን።",
+    "reviewFailed": "ግምገማ መለጠፍ አልተቻለም",
+    "voteFailed": "የጠቃሚነት ድምጽ ማስቀመጥ አልተቻለም",
+    "rejected": "አገልጋዩ አልተቀበለውም። ቦታውን ከፍተው እንደገና ይሞክሩ።",
+    "dismiss": "አሰናብት"
   }
 }
