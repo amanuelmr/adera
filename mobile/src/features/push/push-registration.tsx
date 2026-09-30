@@ -1,6 +1,9 @@
+import { router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
 
+import { ACTIVITY_KEY } from '@/features/activity/queries';
+import { queryClient } from '@/lib/query-client';
 import { setupPushNotifications } from './register';
 
 Notifications.setNotificationHandler({
@@ -32,14 +35,20 @@ export function PushRegistration() {
       // token call rejects; push is simply unavailable, not an app error.
       .catch((err) => console.warn('Push notifications unavailable', err));
 
-    // Tap handling beyond opening the app is Phase 2 (activity inbox,
-    // docs/mobile-plan.md §9) — there's no in-app destination to route to yet.
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(() => {});
+    // Tapping a push opens the inbox, where the item can be read and followed.
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(() => {
+      router.push('/activity');
+    });
+    // A push arriving while the app is open means the inbox and badge are stale.
+    const receivedSubscription = Notifications.addNotificationReceivedListener(() => {
+      queryClient.invalidateQueries({ queryKey: ACTIVITY_KEY });
+    });
 
     return () => {
       unmounted = true;
       unsubscribeRotation?.();
       responseSubscription.remove();
+      receivedSubscription.remove();
     };
   }, []);
 

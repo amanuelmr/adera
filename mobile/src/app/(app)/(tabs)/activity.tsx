@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
@@ -39,6 +39,15 @@ export default function ActivityScreen() {
           data={items}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={notifications.isRefetching && !notifications.isFetchingNextPage}
+              onRefresh={() => {
+                notifications.refetch();
+                unreadCount.refetch();
+              }}
+            />
+          }
           onEndReachedThreshold={0.5}
           onEndReached={() => {
             if (notifications.hasNextPage && !notifications.isFetchingNextPage) notifications.fetchNextPage();

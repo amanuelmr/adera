@@ -5,9 +5,14 @@ import { apiClient, unwrap } from '@/api/client';
 const UNREAD_COUNT_KEY = ['activity', 'unread-count'];
 const LIST_KEY_PREFIX = ['activity', 'list'];
 
+export const ACTIVITY_KEY = ['activity'];
+
 export function useUnreadCount(enabled = true) {
   return useQuery({
     enabled,
+    // Drives the tab badge, which stays mounted for the whole session — it
+    // must refetch on every foreground/focus, not sit on a 5-minute cache.
+    staleTime: 0,
     queryKey: UNREAD_COUNT_KEY,
     queryFn: async () => unwrap(await apiClient.GET('/api/v1/users/me/notifications/unread-count')).data,
   });
