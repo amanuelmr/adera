@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
@@ -9,26 +10,28 @@ import { useNearbyTargets } from './queries';
 import { TargetCard } from './target-card';
 import { useDeviceLocation } from './use-device-location';
 
-const PROMPT_COPY: Record<'idle' | 'denied' | 'error', { body: string; button: string }> = {
-  idle: { body: 'See what’s good nearby.', button: 'Show places near you' },
-  denied: { body: 'Location access was denied — turn it on to see what’s nearby.', button: 'Try again' },
-  error: { body: "Couldn't get your location.", button: 'Try again' },
-};
+type PromptStatus = 'idle' | 'denied' | 'blocked' | 'error';
 
 export function NearMeSection() {
+  const { t } = useTranslation();
   const { state, request } = useDeviceLocation();
 
-  if (state.status === 'idle' || state.status === 'denied' || state.status === 'error') {
-    const copy = PROMPT_COPY[state.status];
+  if (state.status === 'idle' || state.status === 'denied' || state.status === 'blocked' || state.status === 'error') {
+    const status: PromptStatus = state.status;
     return (
       <View style={styles.prompt}>
         <ThemedText type="smallBold" style={styles.title}>
-          Near me
+          {t('nearMe.title')}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
-          {copy.body}
+          {t(`nearMe.${status}Body`)}
         </ThemedText>
-        <Button title={copy.button} variant="secondary" onPress={request} />
+        {status === 'blocked' ? (
+          // The system won't show the prompt again; only Settings can grant it.
+          <Button title={t('nearMe.openSettings')} variant="secondary" onPress={() => Linking.openSettings()} />
+        ) : (
+          <Button title={t(status === 'idle' ? 'nearMe.show' : 'common.retry')} variant="secondary" onPress={request} />
+        )}
       </View>
     );
   }
@@ -37,7 +40,7 @@ export function NearMeSection() {
     return (
       <View style={styles.prompt}>
         <ThemedText type="smallBold" style={styles.title}>
-          Near me
+          {t('nearMe.title')}
         </ThemedText>
         <ActivityIndicator />
       </View>

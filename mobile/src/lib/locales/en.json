@@ -119,5 +119,14 @@
     "limitReached": "You've reached the limit of 5 evidence files for this review.",
     "addProofPrompt": "Add proof to get verified?",
     "skip": "Not now"
+  },
+  "nearMe": {
+    "title": "Near me",
+    "idleBody": "See what’s good nearby.",
+    "show": "Show places near you",
+    "deniedBody": "Location access was denied — allow it to see what’s nearby.",
+    "blockedBody": "Location is turned off for Adera. Turn it on in Settings to see what’s nearby.",
+    "errorBody": "Couldn't get your location. Check that location is on and try again.",
+    "openSettings": "Open settings"
   }
 }
