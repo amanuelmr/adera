@@ -7,6 +7,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ChipGroup } from '../chip-group';
 import { DISCOVERY_SOURCES, EXPECTATION_MATCHES, SOCIAL_DISCOVERY_SOURCES } from '../types';
+import { experienceDateError, parsePrice } from '../validation';
 
 export function ContextStep({
   experienceDate,
@@ -31,6 +32,8 @@ export function ContextStep({
   const { t } = useTranslation();
   const discoveryOptions = DISCOVERY_SOURCES.map((value) => ({ value, label: t(`review.discovery.${value}`) }));
   const expectationOptions = EXPECTATION_MATCHES.map((value) => ({ value, label: t(`review.expectation.${value}`) }));
+  const dateError = experienceDateError(experienceDate);
+  const priceError = parsePrice(pricePaid).error;
   const isSocial = discoverySource ? SOCIAL_DISCOVERY_SOURCES.has(discoverySource) : false;
 
   return (
@@ -45,8 +48,14 @@ export function ContextStep({
           placeholder="YYYY-MM-DD"
           placeholderTextColor={theme.textSecondary}
           keyboardType="numbers-and-punctuation"
+          accessibilityLabel={t('review.whenLabel')}
           style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
         />
+        {dateError ? (
+          <ThemedText type="small" style={styles.error}>
+            {t(dateError === 'future' ? 'review.dateFuture' : 'review.dateFormat')}
+          </ThemedText>
+        ) : null}
       </View>
 
       <View style={styles.field}>
@@ -76,8 +85,14 @@ export function ContextStep({
           placeholder="ETB"
           placeholderTextColor={theme.textSecondary}
           keyboardType="numeric"
+          accessibilityLabel={t('review.priceLabel')}
           style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
         />
+        {priceError ? (
+          <ThemedText type="small" style={styles.error}>
+            {t('review.priceInvalid')}
+          </ThemedText>
+        ) : null}
       </View>
     </View>
   );
@@ -89,6 +104,9 @@ const styles = StyleSheet.create({
   },
   field: {
     gap: Spacing.two,
+  },
+  error: {
+    color: '#D64545',
   },
   input: {
     minHeight: 44,

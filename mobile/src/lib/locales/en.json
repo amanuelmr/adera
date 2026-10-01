@@ -232,7 +232,10 @@
     "ownerResponse": "Owner response",
     "helpful": "Helpful",
     "showPhotos_one": "Show {{count}} photo",
-    "showPhotos_other": "Show {{count}} photos"
+    "showPhotos_other": "Show {{count}} photos",
+    "dateFormat": "Use the format YYYY-MM-DD, e.g. 2026-09-28.",
+    "dateFuture": "That date hasn't happened yet.",
+    "priceInvalid": "Enter an amount in birr, like 250 or 1,500."
   },
   "report": {
     "title": "Report review",

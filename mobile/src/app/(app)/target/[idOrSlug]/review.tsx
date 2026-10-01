@@ -17,6 +17,7 @@ import { enqueueReviewSubmission } from '@/features/reviews/offline-queue';
 import { invalidateReviewCaches, submitReview, submitReviewEdit, useCriteria, useReview } from '@/features/reviews/queries';
 import { isConnected } from '@/lib/network-status';
 import { INITIAL_REVIEW_FORM, type ReviewFormState } from '@/features/reviews/types';
+import { experienceDateError, parsePrice } from '@/features/reviews/validation';
 import { CriteriaStep } from '@/features/reviews/steps/criteria-step';
 import { ContextStep } from '@/features/reviews/steps/context-step';
 import { DisclosureStep } from '@/features/reviews/steps/disclosure-step';
@@ -175,7 +176,7 @@ export default function WriteReviewScreen() {
     form.overallRating != null,
     !criteria.isPending && missingRequiredCriteria.length === 0,
     form.body.trim().length >= MIN_BODY_LENGTH,
-    true,
+    !experienceDateError(form.experienceDate) && !parsePrice(form.pricePaid).error,
     !detailsRequired || form.disclosureDetails.trim().length > 0,
   ][step];
 

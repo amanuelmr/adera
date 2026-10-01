@@ -232,7 +232,10 @@
     "ownerResponse": "የባለቤቱ ምላሽ",
     "helpful": "ጠቃሚ",
     "showPhotos_one": "{{count}} ፎቶ አሳይ",
-    "showPhotos_other": "{{count}} ፎቶዎችን አሳይ"
+    "showPhotos_other": "{{count}} ፎቶዎችን አሳይ",
+    "dateFormat": "የቀን ቅርጸቱን ይጠቀሙ፦ ዓዓዓዓ-ወወ-ቀቀ፣ ለምሳሌ 2026-09-28።",
+    "dateFuture": "ያ ቀን ገና አልደረሰም።",
+    "priceInvalid": "መጠኑን በብር ያስገቡ፣ ለምሳሌ 250 ወይም 1,500።"
   },
   "report": {
     "title": "ግምገማ ሪፖርት አድርግ",
