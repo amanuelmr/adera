@@ -394,6 +394,7 @@
     "reviewFailed": "A review couldn't be posted",
     "voteFailed": "A helpful vote couldn't be saved",
     "rejected": "The server turned it down. Open the place and try again.",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "gaveUp": "It kept failing, so we stopped retrying. Try again now, or dismiss it."
   }
 }

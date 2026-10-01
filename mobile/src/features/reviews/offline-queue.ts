@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { apiClient, unwrap, ApiError, isTransientFailure } from '@/api/client';
 import { getCurrentUserId } from '@/auth/storage';
+import { isConnected } from '@/lib/network-status';
 import { deletePersistedPhoto } from './photos';
 import { createReview, invalidateReviewCaches, uploadPhotos } from './queries';
 import type { ReviewFormState } from './types';
@@ -38,7 +39,15 @@ export type HelpfulVoteJob = {
  */
 export type JobFailure = { message: string; code?: string };
 
-export type QueueJob = (ReviewSubmissionJob | HelpfulVoteJob) & { failure?: JobFailure };
+/** Code for a job that kept failing while online — offered for a manual retry. */
+export const GAVE_UP = 'gave_up';
+
+// Online attempts before a job that keeps failing (an outage, or an error no
+// retry can fix, like an unreadable photo) stops retrying on its own. Runs
+// happen only on launch, reconnect and foreground, so this spans a while.
+export const MAX_ATTEMPTS = 10;
+
+export type QueueJob = (ReviewSubmissionJob | HelpfulVoteJob) & { failure?: JobFailure; attempts?: number };
 
 let jobs: QueueJob[] | undefined;
 let hydrating: Promise<QueueJob[]> | undefined;
@@ -137,6 +146,14 @@ export async function enqueueHelpfulVote(reviewId: string, voted: boolean): Prom
   await persist();
 }
 
+/** Puts a job that gave up back in line and tries again now. */
+export async function retryJob(id: string): Promise<void> {
+  await hydrate();
+  jobs = (jobs ?? []).map((j) => (j.id === id ? { ...j, failure: undefined, attempts: 0 } : j));
+  await persist();
+  await processQueue();
+}
+
 /** Removes a failed job the user has seen, cleaning up any photos it still held. */
 export async function dismissJob(id: string): Promise<void> {
   await hydrate();
@@ -159,8 +176,10 @@ export async function processQueue(): Promise<void> {
   if (processing) return;
   processing = true;
   try {
-    const [queue, currentUserId] = await Promise.all([hydrate(), getCurrentUserId()]);
-    if (!currentUserId) return;
+    const [queue, currentUserId, online] = await Promise.all([hydrate(), getCurrentUserId(), isConnected()]);
+    // Offline, every job would fail the same way; running anyway would only
+    // burn attempts that are meant to count real failures.
+    if (!currentUserId || !online) return;
     for (const job of [...queue]) {
       if (job.userId !== currentUserId || job.failure) continue;
       const outcome = await runJob(job);
@@ -168,6 +187,10 @@ export async function processQueue(): Promise<void> {
         jobs = jobs.filter((j) => j.id !== job.id);
         await persist();
       } else if (outcome === 'failed') {
+        await persist();
+      } else if (outcome === 'retry') {
+        job.attempts = (job.attempts ?? 0) + 1;
+        if (job.attempts >= MAX_ATTEMPTS) job.failure = { message: '', code: GAVE_UP };
         await persist();
       } else if (outcome === 'stop') {
         // The session itself is failing — every later job would 401 too.

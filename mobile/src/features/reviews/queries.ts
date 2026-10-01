@@ -1,6 +1,8 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { ApiError, apiClient, unwrap, isTransientFailure } from '@/api/client';
+import { File } from 'expo-file-system';
+
 import { queryClient } from '@/lib/query-client';
 import { deletePersistedPhoto } from './photos';
 import type { ReviewFormState } from './types';
@@ -123,6 +125,9 @@ export async function submitReviewEdit(
 export async function uploadPhotos(reviewId: string, uris: string[]): Promise<string[]> {
   const retryable: string[] = [];
   for (const uri of uris) {
+    // Gone already (cleared storage, or a crash between upload and
+    // bookkeeping): nothing left to upload, and retrying would never succeed.
+    if (!new File(uri).exists) continue;
     try {
       await uploadReviewPhoto(reviewId, uri);
       deletePersistedPhoto(uri);
