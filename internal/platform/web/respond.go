@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"strings"
 )
 
@@ -33,14 +34,26 @@ type errorPayload struct {
 	RequestID string            `json:"request_id,omitempty"`
 }
 
+// emptyIfNilSlice makes an empty result encode as [] rather than null:
+// repositories build lists with `var out []T`, which is nil when nothing
+// matched, and typed clients (the OpenAPI spec says array) can crash on
+// null. Fixed once here instead of at every list builder.
+func emptyIfNilSlice(v any) any {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Slice && rv.IsNil() {
+		return reflect.MakeSlice(rv.Type(), 0, 0).Interface()
+	}
+	return v
+}
+
 // Respond writes v inside the standard envelope.
 func Respond(w http.ResponseWriter, status int, v any) {
-	respondJSON(w, status, envelope{Data: v})
+	respondJSON(w, status, envelope{Data: emptyIfNilSlice(v)})
 }
 
 // RespondPage writes a collection with pagination metadata.
 func RespondPage(w http.ResponseWriter, status int, v any, meta Meta) {
-	respondJSON(w, status, envelope{Data: v, Meta: &meta})
+	respondJSON(w, status, envelope{Data: emptyIfNilSlice(v), Meta: &meta})
 }
 
 // RespondError normalizes err, logs internals, and writes the JSON error body.

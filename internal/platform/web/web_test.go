@@ -191,3 +191,19 @@ func TestRespondErrorHidesInternals(t *testing.T) {
 	assert.NotContains(t, rec.Body.String(), "nope")
 	assert.Contains(t, rec.Body.String(), CodeInternal)
 }
+
+func TestRespondEncodesEmptyListsAsArrays(t *testing.T) {
+	type item struct{ ID int }
+	var none []item
+	for name, write := range map[string]func(http.ResponseWriter){
+		"Respond":     func(w http.ResponseWriter) { Respond(w, http.StatusOK, none) },
+		"RespondPage": func(w http.ResponseWriter) { RespondPage(w, http.StatusOK, none, Meta{}) },
+	} {
+		rec := httptest.NewRecorder()
+		write(rec)
+		assert.Contains(t, rec.Body.String(), `"data":[]`, name)
+	}
+	rec := httptest.NewRecorder()
+	Respond(rec, http.StatusOK, map[string]string{"status": "ok"})
+	assert.Contains(t, rec.Body.String(), `"data":{"status":"ok"}`, "non-slices are untouched")
+}
