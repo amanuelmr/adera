@@ -1,7 +1,7 @@
 import { Link, router } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/context';
@@ -14,6 +14,8 @@ import { FilterChip } from '@/features/search/filter-chip';
 import { useProfile, useUpdateProfile } from '@/features/profile/queries';
 import { MyReviewCard } from '@/features/reviews/my-review-card';
 import { useMyReviews } from '@/features/reviews/queries';
+import { formatDate } from '@/lib/format';
+import { updateSettings, useSettings } from '@/lib/settings';
 import { SUPPORTED_LANGUAGES, setAppLanguage, type AppLanguage } from '@/lib/i18n';
 
 const LANGUAGE_NAMES: Record<AppLanguage, string> = { en: 'English', am: 'አማርኛ' };
@@ -42,6 +44,26 @@ function LanguagePicker({ onChange }: { onChange: (language: AppLanguage) => voi
   );
 }
 
+function DataSaverToggle() {
+  const { t } = useTranslation();
+  const { dataSaver } = useSettings();
+  return (
+    <View style={styles.toggleRow}>
+      <View style={styles.toggleText}>
+        <ThemedText type="smallBold">{t('settings.dataSaver')}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          {t('settings.dataSaverBody')}
+        </ThemedText>
+      </View>
+      <Switch
+        value={dataSaver}
+        onValueChange={(value) => updateSettings({ dataSaver: value })}
+        accessibilityLabel={t('settings.dataSaver')}
+      />
+    </View>
+  );
+}
+
 function SignedOutAccount() {
   const { t } = useTranslation();
   return (
@@ -56,6 +78,7 @@ function SignedOutAccount() {
             <Button title={t('common.createAccount')} variant="secondary" onPress={() => router.push('/register')} />
           </View>
           <LanguagePicker onChange={(language) => setAppLanguage(language)} />
+          <DataSaverToggle />
         </View>
       </SafeAreaView>
     </ThemedView>
@@ -98,12 +121,12 @@ function SignedInAccount() {
                 <View style={styles.profile}>
                   <ThemedText type="title">{profile.data.display_name}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {profile.data.review_count ?? 0} review{profile.data.review_count === 1 ? '' : 's'}
-                    {profile.data.created_at ? ` · Joined ${new Date(profile.data.created_at).toLocaleDateString()}` : ''}
+                    {t('account.reviewCount', { count: profile.data.review_count ?? 0 })}
+                    {profile.data.created_at ? ` · ${t('account.joined', { date: formatDate(profile.data.created_at) })}` : ''}
                   </ThemedText>
                   {profile.data.email_verified ? (
                     <ThemedText type="small" themeColor="textSecondary">
-                      ✓ Email verified
+                      {t('account.emailVerified')}
                     </ThemedText>
                   ) : null}
                 </View>
@@ -113,7 +136,7 @@ function SignedInAccount() {
                 <QueryError onRetry={() => profile.refetch()} retrying={profile.isRefetching} />
               ) : null}
 
-              <ThemedText type="smallBold">Your reviews</ThemedText>
+              <ThemedText type="smallBold">{t('account.yourReviews')}</ThemedText>
             </View>
           }
           ListEmptyComponent={
@@ -123,7 +146,7 @@ function SignedInAccount() {
               <QueryError onRetry={() => reviews.refetch()} retrying={reviews.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-                You haven&apos;t written any reviews yet.
+                {t('account.noReviews')}
               </ThemedText>
             )
           }
@@ -132,6 +155,7 @@ function SignedInAccount() {
               {reviews.isFetchingNextPage ? <ActivityIndicator /> : null}
 
               <LanguagePicker onChange={changeLanguage} />
+              <DataSaverToggle />
 
               <Link href="/verify" style={styles.link}>
                 <ThemedText type="link">{t('auth.verifyLink')}</ThemedText>
@@ -178,6 +202,16 @@ const styles = StyleSheet.create({
   settings: {
     marginTop: Spacing.five,
     gap: Spacing.two,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    marginBottom: Spacing.two,
+  },
+  toggleText: {
+    flex: 1,
+    gap: Spacing.half,
   },
   languageRow: {
     flexDirection: 'row',

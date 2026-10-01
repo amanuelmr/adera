@@ -24,9 +24,13 @@ export default function AppLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="search" options={{ title: t('nav.search') }} />
         <Stack.Screen name="target/[idOrSlug]/index" options={{ title: '' }} />
+        <Stack.Screen name="category/[id]" options={{ title: '' }} />
+        <Stack.Screen name="t/[slug]" options={{ headerShown: false }} />
+        <Stack.Screen name="r/[id]" options={{ title: '' }} />
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="target/[idOrSlug]/review" options={{ title: t('nav.writeReview') }} />
           <Stack.Screen name="review/[id]/evidence" options={{ title: t('nav.addEvidence') }} />
+          <Stack.Screen name="review/[id]/report" options={{ title: t('nav.reportReview') }} />
           <Stack.Screen name="businesses/index" options={{ title: t('nav.yourBusinesses') }} />
           <Stack.Screen name="businesses/[id]/index" options={{ title: t('nav.locations') }} />
           <Stack.Screen name="businesses/[id]/targets/[targetId]" options={{ title: '' }} />

@@ -18,7 +18,11 @@
     "updateNow": "አሁን አዘምን",
     "backToTarget": "ወደ ገጹ ተመለስ",
     "resetPassword": "የይለፍ ቃል ዳግም አስጀምር",
-    "retry": "እንደገና ይሞክሩ"
+    "retry": "እንደገና ይሞክሩ",
+    "optional": "አማራጭ",
+    "share": "አጋራ",
+    "unnamed": "ስም የሌለው",
+    "save": "አስቀምጥ"
   },
   "nav": {
     "search": "ፈልግ",
@@ -28,7 +32,8 @@
     "editReview": "ግምገማ አርትዕ",
     "addEvidence": "ማስረጃ ጨምር",
     "yourBusinesses": "የእርስዎ ንግዶች",
-    "locations": "ቦታዎች"
+    "locations": "ቦታዎች",
+    "reportReview": "ግምገማ ሪፖርት አድርግ"
   },
   "auth": {
     "signInTitle": "ግባ",
@@ -64,7 +69,8 @@
     "reviewStale": "ይህ ግምገማ እርስዎ ማርትዕ ከጀመሩ ጀምሮ ተቀይሯል። ተመልሰው እንደገና ይሞክሩ።",
     "reviewGeneric": "ግምገማዎን ማስገባት አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
     "reviewOffline": "ግምገማ ለማዘመን ግንኙነት ያስፈልግዎታል።",
-    "loadFailed": "ይህን መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።"
+    "loadFailed": "ይህን መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
+    "validation": "አንዳንድ ዝርዝሮች መስተካከል አለባቸው። ያስገቡትን ያረጋግጡ እና እንደገና ይሞክሩ።"
   },
   "disclosure": {
     "title": "አንድ ተጨማሪ ነገር",
@@ -91,6 +97,24 @@
       "family_or_friend": "የባለቤቱ ቤተሰብ ወይም ጓደኛ",
       "business_partner": "የንግድ አጋር",
       "other": "ሌላ"
+    },
+    "incentiveOption": {
+      "none": "ምንም",
+      "discount": "ቅናሽ",
+      "free_product_or_service": "ነጻ ምርት/አገልግሎት",
+      "payment": "ክፍያ",
+      "contest_entry": "የውድድር ተሳትፎ",
+      "loyalty_points": "የታማኝነት ነጥቦች",
+      "other": "ሌላ"
+    },
+    "connectionOption": {
+      "none": "ምንም",
+      "current_employee": "የአሁን ሰራተኛ",
+      "former_employee": "የቀድሞ ሰራተኛ",
+      "owner_or_executive": "ባለቤት/ሥራ አስፈጻሚ",
+      "family_or_friend": "የባለቤቱ ቤተሰብ ወይም ጓደኛ",
+      "business_partner": "የንግድ አጋር",
+      "other": "ሌላ"
     }
   },
   "updateRequired": {
@@ -99,7 +123,9 @@
     "checkStore": "እባክዎ የቅርብ ጊዜውን ስሪት ለማግኘት Play Store ን ይመልከቱ።"
   },
   "settings": {
-    "language": "ቋንቋ"
+    "language": "ቋንቋ",
+    "dataSaver": "ዳታ ቆጣቢ",
+    "dataSaverBody": "የግምገማ ፎቶዎችን ሲጫኑ ብቻ አሳይ።"
   },
   "evidence": {
     "title": "የማረጋገጫ ማስረጃ",
@@ -119,5 +145,255 @@
     "limitReached": "ለዚህ ግምገማ የ5 ማስረጃ ፋይሎች ገደብ ላይ ደርሰዋል።",
     "addProofPrompt": "ለማረጋገጥ ማስረጃ ይጨምሩ?",
     "skip": "አሁን አይደለም"
+  },
+  "nearMe": {
+    "title": "በአቅራቢያዬ",
+    "idleBody": "በአቅራቢያዎ ያሉ ጥሩ ቦታዎችን ይመልከቱ።",
+    "show": "በአቅራቢያ ያሉ ቦታዎችን አሳይ",
+    "deniedBody": "የአካባቢ ፍቃድ ተከልክሏል — በአቅራቢያ ያሉትን ለማየት ይፍቀዱ።",
+    "blockedBody": "ለAdera አካባቢ ጠፍቷል። በአቅራቢያ ያሉትን ለማየት በቅንብሮች ውስጥ ያብሩት።",
+    "errorBody": "አካባቢዎን ማግኘት አልተቻለም። አካባቢ መብራቱን ያረጋግጡ እና እንደገና ይሞክሩ።",
+    "openSettings": "ቅንብሮችን ክፈት",
+    "empty": "እስካሁን በአቅራቢያ ምንም የለም።",
+    "distance": "{{km}} ኪ.ሜ ርቀት"
+  },
+  "owner": {
+    "alreadyResponded": "ከንግድዎ ሌላ ሰው አስቀድሞ ምላሽ ሰጥቷል። ምላሹ ከታች ይታያል — ካስፈለገ ያርትዑት።",
+    "verification": {
+      "unverified": "ያልተረጋገጠ",
+      "claimed": "ይገባኛል የተባለ",
+      "verified": "የተረጋገጠ"
+    },
+    "noBusinesses": "እስካሁን የሚያስተዳድሩት ንግድ የለም።",
+    "noLocations": "እስካሁን የታተሙ ቦታዎች የሉም።",
+    "yourResponse": "የእርስዎ ምላሽ",
+    "placeholder": "ይፋዊ ምላሽ ይጻፉ…",
+    "saveFailed": "ምላሽዎን ማስቀመጥ አልተቻለም። እንደገና ይሞክሩ።",
+    "editResponse": "ምላሹን አርትዕ",
+    "respond": "ምላሽ ስጥ"
+  },
+  "category": {
+    "empty": "በዚህ ምድብ ውስጥ እስካሁን ምንም የለም።"
+  },
+  "review": {
+    "updateYours": "ግምገማዎን ያዘምኑ",
+    "contextTitle": "ትንሽ አውድ",
+    "whenLabel": "መቼ ነበር? (አማራጭ)",
+    "discoveryLabel": "ይህን ቦታ እንዴት አገኙት?",
+    "expectationLabel": "በመስመር ላይ ካዩት ጋር ተመሳስሏል?",
+    "priceLabel": "የከፈሉት ዋጋ (አማራጭ)",
+    "ratingTitle": "በአጠቃላይ እንዴት ነበር?",
+    "ratingLabel": "አጠቃላይ ደረጃ",
+    "criteriaError": "የደረጃ መስፈርቶችን መጫን አልተቻለም — ያለእነሱ መቀጠል ይችላሉ።",
+    "criteriaNone": "ለዚህ ምድብ ሌላ የሚገመገም ነገር የለም።",
+    "criteriaTitle": "ጥቂት ዝርዝሮችን ይገምግሙ",
+    "criterion": "መስፈርት",
+    "textTitle": "ተጨማሪ ይንገሩን",
+    "titlePlaceholder": "ርዕስ (አማራጭ)",
+    "bodyPlaceholder": "ምን ሆነ? ሌሎች ሰዎች ምን ማወቅ አለባቸው?",
+    "charsNeeded_one": "{{count}} ተጨማሪ ፊደል ያስፈልጋል",
+    "charsNeeded_other": "{{count}} ተጨማሪ ፊደሎች ያስፈልጋሉ",
+    "rating": {
+      "1": "ደካማ",
+      "2": "መካከለኛ",
+      "3": "ጥሩ",
+      "4": "በጣም ጥሩ",
+      "5": "እጅግ በጣም ጥሩ"
+    },
+    "discovery": {
+      "tiktok": "TikTok",
+      "instagram": "Instagram",
+      "youtube": "YouTube",
+      "facebook": "Facebook",
+      "telegram": "Telegram",
+      "friend": "ጓደኛ",
+      "google_maps": "Google Maps",
+      "walk_in": "በአጋጣሚ ገባሁ",
+      "other": "ሌላ"
+    },
+    "expectation": {
+      "better": "ከጠበቅሁት የተሻለ",
+      "as_expected": "እንደጠበቅሁት",
+      "worse": "ከጠበቅሁት የባሰ",
+      "very_different": "በጣም የተለየ"
+    },
+    "queuedTitle": "ተቀምጧል — በቅርቡ ይላካል",
+    "updatedTitle": "ግምገማው ተዘምኗል",
+    "thanksTitle": "ስለ ግምገማዎ እናመሰግናለን!",
+    "queuedBody": "አሁን ከመስመር ውጭ ነዎት። ልክ መስመር ላይ ሲመለሱ እንልከዋለን።",
+    "liveBody": "በ{{name}} ገጽ ላይ ታትሟል።",
+    "photosRetrying_one": "{{count}} ፎቶ መስቀል አልተቻለም እና በራሱ እንደገና ይሞከራል።",
+    "photosRetrying_other": "{{count}} ፎቶዎችን መስቀል አልተቻለም እና በራሳቸው እንደገና ይሞከራሉ።",
+    "loadReviewFailed": "ይህን ግምገማ መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
+    "loadTargetFailed": "ይህን ቦታ መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
+    "anonymous": "ስም-አልባ",
+    "showLess": "ያነሰ አሳይ",
+    "readMore": "ተጨማሪ ያንብቡ",
+    "ownerResponse": "የባለቤቱ ምላሽ",
+    "helpful": "ጠቃሚ",
+    "showPhotos_one": "{{count}} ፎቶ አሳይ",
+    "showPhotos_other": "{{count}} ፎቶዎችን አሳይ"
+  },
+  "report": {
+    "title": "ግምገማ ሪፖርት አድርግ",
+    "body": "ችግሩን ለአወያዮች ይንገሩ። ሪፖርቶች ግላዊ ናቸው እና ግምገማን በራሳቸው አይደብቁም።",
+    "reasonLabel": "ምክንያት",
+    "detailsLabel": "ዝርዝሮች (አማራጭ)",
+    "detailsPlaceholder": "አወያዩ ምን ማወቅ አለበት?",
+    "submit": "ሪፖርት ላክ",
+    "sent": "እናመሰግናለን — አወያይ ይመለከተዋል።",
+    "already": "ይህን ግምገማ አስቀድመው ሪፖርት አድርገዋል።",
+    "rateLimited": "ብዙ ሪፖርቶችን ልከዋል — በኋላ ይሞክሩ።",
+    "action": "ሪፖርት",
+    "reasons": {
+      "spam": "አይፈለጌ መልእክት ወይም ማስታወቂያ",
+      "fake_experience": "በእውነት ያልተከሰተ",
+      "conflict_of_interest": "ከንግዱ ጋር ግንኙነት ባለው ሰው የተጻፈ",
+      "harassment": "ትንኮሳ",
+      "hate_speech": "የጥላቻ ንግግር",
+      "personal_information": "የሌላ ሰው ግላዊ መረጃ ያጋራል",
+      "unsupported_accusation": "ያለማስረጃ ሰውን ይከሳል",
+      "irrelevant": "ስለዚህ ቦታ አይደለም",
+      "duplicate": "የተደገመ ግምገማ",
+      "manipulated_evidence": "የተቀነባበረ ፎቶ ወይም ማስረጃ"
+    }
+  },
+  "account": {
+    "reviewCount_one": "{{count}} ግምገማ",
+    "reviewCount_other": "{{count}} ግምገማዎች",
+    "joined": "የተቀላቀሉት {{date}}",
+    "emailVerified": "✓ ኢሜይል ተረጋግጧል",
+    "yourReviews": "የእርስዎ ግምገማዎች",
+    "noReviews": "እስካሁን ምንም ግምገማ አልጻፉም።"
+  },
+  "sessions": {
+    "thisDevice": "ይህ መሳሪያ",
+    "lastUsed": "ለመጨረሻ ጊዜ የተጠቀሙት {{when}}",
+    "lastUsedUnknown": "የመጨረሻ አጠቃቀም አይታወቅም",
+    "unknownDevice": "ያልታወቀ መሳሪያ",
+    "revoke": "ሻር"
+  },
+  "photos": {
+    "permissionDenied": "ፎቶ ለመጨመር የፎቶ ማከማቻ ፍቃድ ያስፈልጋል።",
+    "add": "ፎቶ ጨምር",
+    "remove": "ፎቶ አስወግድ"
+  },
+  "myReviews": {
+    "deleteTitle": "ይህ ግምገማ ይሰረዝ?",
+    "deleteBody": "ይህ ሊቀለበስ አይችልም።",
+    "status": {
+      "pending": "በመጠባበቅ ላይ",
+      "published": "ታትሟል",
+      "under_review": "በግምገማ ላይ",
+      "rejected": "ውድቅ ተደርጓል",
+      "hidden": "ተደብቋል",
+      "removed": "ተወግዷል"
+    }
+  },
+  "rating": {
+    "outOfFive": "ከ5 {{rating}} ተሰጥቷል",
+    "summary_one": "ከ{{count}} ግምገማ ከ5 {{rating}}",
+    "summary_other": "ከ{{count}} ግምገማዎች ከ5 {{rating}}",
+    "notYetRated": "እስካሁን ደረጃ አልተሰጠውም",
+    "noReviewsYet": "እስካሁን ግምገማ የለም"
+  },
+  "realityCheck": {
+    "title": "የእውነታ ማረጋገጫ",
+    "question": "ይህ ቦታ ሰዎች ከጠበቁት ጋር ተመሳስሏል?",
+    "trend": "የቅርብ ጊዜ ግምገማዎች አማካይ {{recent}}፣ አጠቃላይ {{overall}} ({{arrow}}{{delta}})።",
+    "matched": "{{percent}}% እንደጠበቁት ወይም ከዚያ በላይ ነው ብለዋል",
+    "notEnough_one": "{{count}} ሰው በመስመር ላይ ካየው ጋር እንዴት እንደተነጻጸረ አጋርቷል — ለመቶኛ ገና በቂ አይደለም።",
+    "notEnough_other": "{{count}} ሰዎች በመስመር ላይ ካዩት ጋር እንዴት እንደተነጻጸረ አጋርተዋል — ለመቶኛ ገና በቂ አይደለም።",
+    "noneYet": "ይህን ቦታ በማህበራዊ ሚዲያ ያገኘ ማንም እስካሁን አልገመገመውም።",
+    "caveatNone": "እስካሁን በጣም ጥቂት ግምገማዎች ላይ የተመሰረተ ነው — እንደ ቀደምት ምልክት እንጂ እንደ ፍርድ አይውሰዱት።",
+    "caveatLow": "እስካሁን በጥቂት ግምገማዎች ላይ የተመሰረተ ነው።"
+  },
+  "target": {
+    "statsFailed": "ደረጃዎችን አሁን መጫን አልተቻለም።",
+    "notEnoughReviews": "ለአስተማማኝ ስታቲስቲክስ ገና በቂ ግምገማዎች የሉም።",
+    "noReviewsAtRating": "በዚያ ደረጃ ምንም ግምገማ የለም።",
+    "beFirst": "የመጀመሪያው ገምጋሚ ይሁኑ።",
+    "sort": {
+      "newest": "አዲስ",
+      "highest": "ከፍተኛ ደረጃ",
+      "lowest": "ዝቅተኛ ደረጃ",
+      "most_helpful": "በጣም ጠቃሚ"
+    }
+  },
+  "tabs": {
+    "home": "መነሻ",
+    "activity": "እንቅስቃሴ",
+    "account": "መለያ"
+  },
+  "events": {
+    "response": "ለግምገማዎ አዲስ ምላሽ አለዎት።",
+    "review": "ከግምገማዎችዎ አንዱ ተዘምኗል።",
+    "target": "ያከሉት ቦታ ተዘምኗል።",
+    "evidence": "ያስገቡት ማስረጃ ተገምግሟል።",
+    "claim": "የንግድ ይገባኛል ጥያቄዎ ሁኔታ ተቀይሯል።",
+    "report": "ያቀረቡት ሪፖርት ተገምግሟል።",
+    "privacy": "የውሂብ ጥያቄዎ ተዘምኗል።",
+    "default": "አዲስ መረጃ አለዎት።"
+  },
+  "search": {
+    "placeholder": "ምግብ ቤቶችን፣ ሳሎኖችን፣ ሻጮችን ይፈልጉ…",
+    "category": "ምድብ",
+    "filters": "ማጣሪያዎች",
+    "filtersLabel_one": "ማጣሪያዎች፣ {{count}} ንቁ",
+    "filtersLabel_other": "ማጣሪያዎች፣ {{count}} ንቁ",
+    "filtersLabel_zero": "ማጣሪያዎች",
+    "verified": "የተረጋገጠ",
+    "minChars": "ለመፈለግ ቢያንስ 2 ፊደሎችን ይጻፉ።",
+    "failed": "አሁን መፈለግ አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
+    "noMatches": "ለ“{{query}}” ምንም ውጤት የለም። ሰፋ ያለ ቦታ ወይም የተለየ አጻጻፍ ይሞክሩ።",
+    "closeFilters": "ማጣሪያዎችን ዝጋ",
+    "typeLabel": "ዓይነት",
+    "minRating": "ዝቅተኛ ደረጃ",
+    "verification": "ማረጋገጫ",
+    "verifiedOnly": "የተረጋገጡ ብቻ",
+    "clearAll": "ሁሉንም አጽዳ",
+    "apply": "ተግብር",
+    "type": {
+      "business": "ንግድ",
+      "location": "ቦታ",
+      "online_seller": "የመስመር ላይ ሻጭ",
+      "product": "ምርት",
+      "service": "አገልግሎት",
+      "repair_provider": "ጥገና አቅራቢ",
+      "restaurant": "ምግብ ቤት",
+      "cafe": "ካፌ"
+    }
+  },
+  "discover": {
+    "categories": "ምድቦች",
+    "noCategories": "እስካሁን ምድቦች የሉም።",
+    "topRated": "ከፍተኛ ደረጃ",
+    "noTopRated": "እስካሁን ደረጃ የተሰጠው የለም።",
+    "trending": "ተወዳጅ",
+    "noTrending": "እስካሁን ተወዳጅ የለም።",
+    "thisMonth_one": "በዚህ ወር {{count}} ግምገማ",
+    "thisMonth_other": "በዚህ ወር {{count}} ግምገማዎች"
+  },
+  "activity": {
+    "markAllRead": "ሁሉንም እንደተነበበ ምልክት አድርግ",
+    "all": "ሁሉም",
+    "unread": "ያልተነበቡ",
+    "caughtUp": "ሁሉንም አይተዋል።",
+    "empty": "እስካሁን እዚህ ምንም የለም።"
+  },
+  "share": {
+    "thisPlace": "ይህ ቦታ",
+    "targetRated": "{{name}} — በAdera ላይ {{rating}}★",
+    "target": "{{name}} በAdera ላይ",
+    "reviewRated": "\"{{quote}}\" — የ{{name}} {{rating}}★ ግምገማ በAdera ላይ",
+    "review": "\"{{quote}}\" — የ{{name}} ግምገማ በAdera ላይ"
+  },
+  "sync": {
+    "pending_one": "{{count}} ንጥል ለመላክ እየጠበቀ ነው — መሞከራችንን እንቀጥላለን።",
+    "pending_other": "{{count}} ንጥሎች ለመላክ እየጠበቁ ነው — መሞከራችንን እንቀጥላለን።",
+    "reviewFailed": "ግምገማ መለጠፍ አልተቻለም",
+    "voteFailed": "የጠቃሚነት ድምጽ ማስቀመጥ አልተቻለም",
+    "rejected": "አገልጋዩ አልተቀበለውም። ቦታውን ከፍተው እንደገና ይሞክሩ።",
+    "dismiss": "አሰናብት"
   }
 }

@@ -44,6 +44,10 @@ services:
       - key: STORAGE_ENABLED
         value: "false"
 
+      # Public origin for the web pages' canonical and share-preview URLs.
+      - key: BASE_URL
+        value: https://adera.amanuel.work
+
       # Everything below is optional and left unset (sync: false) until you
       # fill it in on the dashboard — each feature stays off while its
       # variables are empty. See DEPLOY.md step 4.
@@ -70,4 +74,10 @@ services:
       - key: APP_ANDROID_LATEST_VERSION
         sync: false
       - key: APP_ANDROID_STORE_URL
+        sync: false
+
+      # Android App Links: the app signing certificate's SHA-256 fingerprint
+      # (from EAS, see mobile/RELEASE.md), so /t/ and /r/ links open the app.
+      # /.well-known/assetlinks.json returns 404 until it's set.
+      - key: ANDROID_CERT_SHA256
         sync: false

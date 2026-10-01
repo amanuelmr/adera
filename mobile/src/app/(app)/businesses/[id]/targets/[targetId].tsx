@@ -1,5 +1,6 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,6 +12,7 @@ import { OwnerReviewCard } from '@/features/businesses/owner-review-card';
 import { useTarget, useTargetReviews } from '@/features/targets/queries';
 
 export default function BusinessTargetReviewsScreen() {
+  const { t } = useTranslation();
   const { targetId } = useLocalSearchParams<{ targetId: string }>();
   const target = useTarget(targetId!);
   const reviews = useTargetReviews(targetId, { sort: 'newest' });
@@ -18,7 +20,7 @@ export default function BusinessTargetReviewsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <Stack.Screen options={{ title: target.data?.name ?? 'Reviews' }} />
+      <Stack.Screen options={{ title: target.data?.name ?? '' }} />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <FlatList
           data={items}
@@ -37,7 +39,7 @@ export default function BusinessTargetReviewsScreen() {
               <QueryError onRetry={() => reviews.refetch()} retrying={reviews.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-                No reviews yet.
+                {t('rating.noReviewsYet')}
               </ThemedText>
             )
           }

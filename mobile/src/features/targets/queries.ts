@@ -24,6 +24,18 @@ export function useTopRatedTargets() {
   });
 }
 
+/** Best-first within one category — a single ranked page (max 50, no cursor), like search. */
+export function useCategoryTargets(categoryId: string | undefined) {
+  return useQuery({
+    enabled: !!categoryId,
+    queryKey: ['targets', 'top-rated', categoryId],
+    queryFn: async () =>
+      unwrap(
+        await apiClient.GET('/api/v1/targets/top-rated', { params: { query: { category: categoryId!, limit: 50 } } })
+      ).data,
+  });
+}
+
 export function useTrendingTargets() {
   return useQuery({
     queryKey: ['targets', 'trending'],

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiClient, unwrap } from '@/api/client';
 import type { components } from '@/api/schema';
+import { deletePersistedPhoto } from './photos';
 
 export type EvidenceKind = components['schemas']['Evidence']['kind'];
 
@@ -49,5 +50,14 @@ export function useSubmitEvidence(reviewId: string | undefined) {
     onSuccess: () => {
       if (reviewId) queryClient.invalidateQueries({ queryKey: EVIDENCE_KEY(reviewId) });
     },
+    // Evidence is usually a receipt — names, phone numbers, payment refs. The
+    // picked copy lives in the app's documents folder, so remove it whether
+    // the upload worked or not (a failed one is re-picked, not retried).
+    onSettled: (_data, _error, { localUri }) => deletePersistedPhoto(localUri),
   });
+}
+
+/** Evidence slots the server counts against its per-review limit: everything except rejected items. */
+export function countsTowardEvidenceLimit(item: { status?: string }): boolean {
+  return item.status !== 'rejected';
 }

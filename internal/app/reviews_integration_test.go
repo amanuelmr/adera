@@ -147,8 +147,21 @@ func TestReviewPolicies(t *testing.T) {
 	})
 
 	t.Run("cooldown forces update instead of duplicate", func(t *testing.T) {
-		a.review(u, target, 4, nil)
-		status, res := a.do("POST", "/api/v1/reviews", map[string]any{
+		status, res := a.do("GET", "/api/v1/targets/"+target+"/review-eligibility", nil, u.Access)
+		require.Equal(t, http.StatusOK, status, "%v", res)
+		assert.Equal(t, true, data(res)["eligible"], "no review yet")
+
+		existing := a.review(u, target, 4, nil)
+
+		// The pre-check reports exactly what the submit below will hit.
+		status, res = a.do("GET", "/api/v1/targets/"+target+"/review-eligibility", nil, u.Access)
+		require.Equal(t, http.StatusOK, status)
+		assert.Equal(t, false, data(res)["eligible"])
+		assert.Equal(t, "cooldown_active", data(res)["reason"])
+		assert.Equal(t, existing, data(res)["existing_review_id"])
+		assert.NotEmpty(t, data(res)["next_allowed_at"])
+
+		status, res = a.do("POST", "/api/v1/reviews", map[string]any{
 			"target_id": target, "overall_rating": 2,
 			"body": "Another body which is definitely long enough for the check.",
 		}, u.Access)
@@ -164,7 +177,13 @@ func TestReviewPolicies(t *testing.T) {
 			a.review(flooder, tid, 4, nil)
 		}
 		extra := a.createTarget(mod, "Cap Target Extra", catRestaurantID, "restaurant")
-		status, _ := a.do("POST", "/api/v1/reviews", map[string]any{
+		status, res := a.do("GET", "/api/v1/targets/"+extra+"/review-eligibility", nil, flooder.Access)
+		require.Equal(t, http.StatusOK, status)
+		assert.Equal(t, false, data(res)["eligible"])
+		assert.Equal(t, "rate_limited", data(res)["reason"])
+		assert.Nil(t, data(res)["existing_review_id"])
+
+		status, _ = a.do("POST", "/api/v1/reviews", map[string]any{
 			"target_id": extra, "overall_rating": 4,
 			"body": "Another body which is definitely long enough for the check.",
 		}, flooder.Access)

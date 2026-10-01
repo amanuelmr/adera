@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { apiClient, unwrap, isTransientFailure } from '@/api/client';
+import { ApiError, apiClient, unwrap, isTransientFailure } from '@/api/client';
 import { queryClient } from '@/lib/query-client';
 import { deletePersistedPhoto } from './photos';
 import type { ReviewFormState } from './types';
@@ -66,6 +66,19 @@ export function invalidateReviewCaches(targetId: string, reviewId?: string): voi
   queryClient.invalidateQueries({ queryKey: ['targets', 'detail'] });
   queryClient.invalidateQueries({ queryKey: ['users', 'me'] });
   if (reviewId) queryClient.invalidateQueries({ queryKey: ['reviews', 'detail', reviewId] });
+  queryClient.invalidateQueries({ queryKey: ['reviews', 'eligibility', targetId] });
+}
+
+/** Advisory pre-check of the cooldown / daily cap; submit still enforces them. */
+export function useReviewEligibility(targetId: string | undefined) {
+  return useQuery({
+    enabled: !!targetId,
+    staleTime: 0,
+    queryKey: ['reviews', 'eligibility', targetId],
+    queryFn: async () =>
+      unwrap(await apiClient.GET('/api/v1/targets/{id}/review-eligibility', { params: { path: { id: targetId! } } }))
+        .data,
+  });
 }
 
 export function useReview(reviewId: string | undefined) {
@@ -168,6 +181,14 @@ export function usePostResponse(targetId: string | undefined) {
       unwrap(await apiClient.POST('/api/v1/reviews/{id}/response', { params: { path: { id: reviewId } }, body: { body } })),
     onSuccess: () => {
       if (targetId) queryClient.invalidateQueries({ queryKey: ['targets', 'reviews', targetId] });
+    },
+    onError: (err) => {
+      // 409: another member of the business responded first. Refetch so the
+      // card shows that response (editable) instead of retrying a POST that
+      // can only fail again.
+      if (targetId && err instanceof ApiError && err.status === 409) {
+        queryClient.invalidateQueries({ queryKey: ['targets', 'reviews', targetId] });
+      }
     },
   });
 }

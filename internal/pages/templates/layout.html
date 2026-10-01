@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · {{.T "siteName"}}</title>
+<meta name="description" content="{{.Description}}">
+<link rel="canonical" href="{{.Canonical}}">
+<meta property="og:site_name" content="{{.T "siteName"}}">
+<meta property="og:type" content="{{.OGType}}">
+<meta property="og:title" content="{{.Title}}">
+<meta property="og:description" content="{{.Description}}">
+<meta property="og:url" content="{{.Canonical}}">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="/static/site.css">
+</head>
+<body>
+{{if .StoreURL}}
+<aside class="banner">
+  <p>{{.T "banner.text"}}</p>
+  <p><a class="button" href="{{.StoreURL}}">{{.T "banner.install"}}</a> <a href="{{.DismissURL}}">{{.T "banner.dismiss"}}</a></p>
+</aside>
+{{end}}
+<header class="site">
+  <a class="brand" href="{{.Link "/trust" nil}}">አደራ · {{.T "siteName"}}</a>
+  <a href="{{.LangSwitchURL}}" hreflang="{{if eq .Lang "am"}}en{{else}}am{{end}}">{{.T "langSwitch"}}</a>
+</header>
+<main>
+{{block "content" .}}{{end}}
+</main>
+<footer class="site">
+  <a href="{{.Link "/trust" nil}}">{{.T "footer.trust"}}</a>
+  {{if .AppLink}} · <a href="{{.AppLink}}">{{.T "footer.openApp"}}</a>{{end}}
+</footer>
+</body>
+</html>

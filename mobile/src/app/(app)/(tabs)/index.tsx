@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -6,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { CategoryTile } from '@/features/targets/category-tile';
+import { categoryName } from '@/features/targets/category-name';
 import { DiscoverSection } from '@/features/targets/discover-section';
 import { NearMeSection } from '@/features/targets/near-me-section';
 import { TargetCard } from '@/features/targets/target-card';
@@ -13,6 +15,7 @@ import { useCategories, useTopRatedTargets, useTrendingTargets } from '@/feature
 import { PendingSyncBanner } from '@/features/reviews/pending-sync-banner';
 
 export default function DiscoverScreen() {
+  const { t } = useTranslation();
   const categories = useCategories();
   const topRated = useTopRatedTargets();
   const trending = useTrendingTargets();
@@ -28,9 +31,9 @@ export default function DiscoverScreen() {
             <Pressable
               onPress={() => router.push('/search')}
               accessibilityRole="search"
-              accessibilityLabel="Search targets">
+              accessibilityLabel={t('nav.search')}>
               <ThemedView type="backgroundElement" style={styles.searchBar}>
-                <ThemedText themeColor="textSecondary">Search restaurants, salons, sellers…</ThemedText>
+                <ThemedText themeColor="textSecondary">{t('search.placeholder')}</ThemedText>
               </ThemedView>
             </Pressable>
           </ThemedView>
@@ -40,26 +43,26 @@ export default function DiscoverScreen() {
           <NearMeSection />
 
           <DiscoverSection
-            title="Categories"
+            title={t('discover.categories')}
             query={categories}
-            emptyLabel="No categories yet."
+            emptyLabel={t('discover.noCategories')}
             keyExtractor={(category) => category.id ?? category.code ?? category.name ?? ''}
             renderItem={(category) => (
               <CategoryTile
-                name={category.name ?? 'Unnamed'}
-                onPress={() => router.push({ pathname: '/search', params: { category: category.id ?? '' } })}
+                name={categoryName(category) ?? t('common.unnamed')}
+                onPress={() => category.id && router.push(`/category/${category.id}`)}
               />
             )}
           />
 
           <DiscoverSection
-            title="Top rated"
+            title={t('discover.topRated')}
             query={topRated}
-            emptyLabel="Nothing rated yet."
+            emptyLabel={t('discover.noTopRated')}
             keyExtractor={(target) => target.id ?? target.slug ?? ''}
             renderItem={(target) => (
               <TargetCard
-                name={target.name ?? 'Unnamed'}
+                name={target.name ?? t('common.unnamed')}
                 averageRating={target.average_rating ?? null}
                 reviewCount={target.review_count ?? 0}
                 onPress={() => router.push(`/target/${target.slug ?? target.id}`)}
@@ -68,16 +71,16 @@ export default function DiscoverScreen() {
           />
 
           <DiscoverSection
-            title="Trending"
+            title={t('discover.trending')}
             query={trending}
-            emptyLabel="Nothing trending yet."
+            emptyLabel={t('discover.noTrending')}
             keyExtractor={(target) => target.id ?? target.slug ?? ''}
             renderItem={(target) => (
               <TargetCard
-                name={target.name ?? 'Unnamed'}
+                name={target.name ?? t('common.unnamed')}
                 averageRating={target.average_rating ?? null}
                 reviewCount={target.review_count ?? 0}
-                badge={target.recent_review_count ? `${target.recent_review_count} reviews this month` : undefined}
+                badge={target.recent_review_count ? t('discover.thisMonth', { count: target.recent_review_count }) : undefined}
                 onPress={() => router.push(`/target/${target.slug ?? target.id}`)}
               />
             )}

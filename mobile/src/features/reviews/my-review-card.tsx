@@ -11,38 +11,31 @@ import { useDeleteReview } from './queries';
 
 type ListedReview = components['schemas']['ListedReview'];
 
-const MODERATION_LABELS: Record<NonNullable<ListedReview['moderation_status']>, string> = {
-  pending: 'Pending review',
-  published: 'Published',
-  under_review: 'Under review',
-  rejected: 'Rejected',
-  hidden: 'Hidden',
-  removed: 'Removed',
-};
-
 export function MyReviewCard({ review }: { review: ListedReview }) {
   const { t } = useTranslation();
   const deleteReview = useDeleteReview();
   const rating = review.overall_rating ?? 0;
   const isPublished = review.moderation_status === 'published';
+  // The server refuses new evidence on these (internal/media/media.go).
+  const acceptsEvidence = review.moderation_status !== 'rejected' && review.moderation_status !== 'removed';
 
   function confirmDelete() {
-    Alert.alert('Delete this review?', 'This can’t be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => review.id && deleteReview.mutate(review.id) },
+    Alert.alert(t('myReviews.deleteTitle'), t('myReviews.deleteBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: () => review.id && deleteReview.mutate(review.id) },
     ]);
   }
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
       <View style={styles.header}>
-        <ThemedText type="smallBold" accessibilityLabel={`Rated ${rating} out of 5`}>
+        <ThemedText type="smallBold" accessibilityLabel={t('rating.outOfFive', { rating })}>
           {'★'.repeat(rating)}
           {'☆'.repeat(Math.max(0, 5 - rating))}
         </ThemedText>
         {!isPublished ? (
           <ThemedText type="small" themeColor="textSecondary">
-            {MODERATION_LABELS[review.moderation_status ?? 'pending']}
+            {t(`myReviews.status.${review.moderation_status ?? 'pending'}`)}
           </ThemedText>
         ) : null}
       </View>
@@ -53,18 +46,20 @@ export function MyReviewCard({ review }: { review: ListedReview }) {
       </ThemedText>
 
       <View style={styles.actions}>
-        <Button title="View target" variant="secondary" onPress={() => router.push(`/target/${review.target_id}`)} />
+        <Button title={t('common.viewTarget')} variant="secondary" onPress={() => router.push(`/target/${review.target_id}`)} />
         <Button
-          title="Edit"
+          title={t('common.edit')}
           variant="secondary"
           onPress={() => router.push(`/target/${review.target_id}/review?reviewId=${review.id}`)}
         />
-        <Button
-          title={t('evidence.addButton')}
-          variant="secondary"
-          onPress={() => router.push(`/review/${review.id}/evidence`)}
-        />
-        <Button title="Delete" variant="secondary" onPress={confirmDelete} loading={deleteReview.isPending} />
+        {acceptsEvidence ? (
+          <Button
+            title={t('evidence.addButton')}
+            variant="secondary"
+            onPress={() => router.push(`/review/${review.id}/evidence`)}
+          />
+        ) : null}
+        <Button title={t('common.delete')} variant="secondary" onPress={confirmDelete} loading={deleteReview.isPending} />
       </View>
     </ThemedView>
   );

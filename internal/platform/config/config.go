@@ -88,6 +88,12 @@ type Config struct {
 	IOSLatestVersion     string
 	IOSStoreURL          string
 
+	// Android App Links: served at /.well-known/assetlinks.json so https
+	// links to the web pages open in the installed app. The SHA-256 values
+	// are the app signing certificate fingerprints (comma-separated).
+	AndroidPackage     string
+	AndroidCertSHA256s []string
+
 	CORSAllowedOrigins []string
 	TrustProxyHeaders  bool
 
@@ -149,6 +155,9 @@ func Load() (Config, error) {
 		IOSMinVersion:        os.Getenv("APP_IOS_MIN_VERSION"),
 		IOSLatestVersion:     os.Getenv("APP_IOS_LATEST_VERSION"),
 		IOSStoreURL:          os.Getenv("APP_IOS_STORE_URL"),
+
+		AndroidPackage:     getEnv("ANDROID_PACKAGE", "work.amanuel.adera"),
+		AndroidCertSHA256s: splitAndTrim(os.Getenv("ANDROID_CERT_SHA256")),
 
 		CORSAllowedOrigins: splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")),
 		TrustProxyHeaders:  getEnvBool("TRUST_PROXY_HEADERS", false),

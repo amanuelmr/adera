@@ -1,10 +1,9 @@
-import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useRequireSignIn } from '@/auth/use-require-sign-in';
-import { Button } from '@/components/button';
 import { QueryError } from '@/components/query-error';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -21,22 +20,19 @@ import {
   type ReviewSort,
 } from '@/features/targets/queries';
 import { ReviewCard } from '@/features/targets/review-card';
+import { categoryName } from '@/features/targets/category-name';
 import { FilterChip } from '@/features/search/filter-chip';
+import { WriteReviewCta } from '@/features/reviews/write-review-cta';
 import { shareTarget } from '@/features/share/share';
 
 const REALITY_CHECK_CATEGORY_CODE = 'restaurant_cafe';
 
-const SORT_OPTIONS: { value: ReviewSort; label: string }[] = [
-  { value: 'newest', label: 'Newest' },
-  { value: 'highest', label: 'Highest rated' },
-  { value: 'lowest', label: 'Lowest rated' },
-  { value: 'most_helpful', label: 'Most helpful' },
-];
+const SORT_OPTIONS: ReviewSort[] = ['newest', 'highest', 'lowest', 'most_helpful'];
 
 export default function TargetProfileScreen() {
   const { idOrSlug } = useLocalSearchParams<{ idOrSlug: string }>();
+  const { t } = useTranslation();
   const target = useTarget(idOrSlug);
-  const requireSignIn = useRequireSignIn();
   const categories = useCategories();
   const stats = useTargetStats(target.data?.id);
   const category = categories.data?.find((c) => c.id === target.data?.category_id);
@@ -60,13 +56,13 @@ export default function TargetProfileScreen() {
     return (
       <ThemedView style={styles.centered}>
         <ThemedText type="small" themeColor="textSecondary">
-          Couldn&apos;t load this target. Check your connection and try again.
+          {t('review.loadTargetFailed')}
         </ThemedText>
       </ThemedView>
     );
   }
 
-  const categoryName = category?.name;
+  const categoryLabel = categoryName(category);
   const showAggregates = !stats.data || stats.data.confidence !== 'none';
 
   return (
@@ -75,8 +71,8 @@ export default function TargetProfileScreen() {
         options={{
           title: target.data.name ?? '',
           headerRight: () => (
-            <Pressable onPress={() => shareTarget(target.data!)} accessibilityRole="button" accessibilityLabel="Share">
-              <ThemedText type="link">Share</ThemedText>
+            <Pressable onPress={() => shareTarget(target.data!)} accessibilityRole="button">
+              <ThemedText type="link">{t('common.share')}</ThemedText>
             </Pressable>
           ),
         }}
@@ -96,29 +92,32 @@ export default function TargetProfileScreen() {
                 {target.data.name}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {[categoryName, target.data.address_text].filter(Boolean).join(' · ')}
+                {[categoryLabel, target.data.address_text].filter(Boolean).join(' · ')}
               </ThemedText>
 
               {stats.isPending ? (
                 <ActivityIndicator style={styles.aggregateGap} />
               ) : stats.isError ? (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.aggregateGap}>
-                  Couldn&apos;t load ratings right now.
+                  {t('target.statsFailed')}
                 </ThemedText>
               ) : !showAggregates ? (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.aggregateGap}>
-                  Not enough reviews yet for reliable stats.
+                  {t('target.notEnoughReviews')}
                 </ThemedText>
               ) : stats.data ? (
                 <View style={styles.aggregateGap}>
                   <View style={styles.averageRow}>
                     <ThemedText
                       type="subtitle"
-                      accessibilityLabel={`Rated ${(stats.data.average ?? 0).toFixed(1)} out of 5 from ${stats.data.review_count ?? 0} reviews`}>
+                      accessibilityLabel={t('rating.summary', {
+                        rating: (stats.data.average ?? 0).toFixed(1),
+                        count: stats.data.review_count ?? 0,
+                      })}>
                       {(stats.data.average ?? 0).toFixed(1)}
                     </ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
-                      {stats.data.review_count ?? 0} review{stats.data.review_count === 1 ? '' : 's'}
+                      {t('account.reviewCount', { count: stats.data.review_count ?? 0 })}
                     </ThemedText>
                   </View>
 
@@ -141,10 +140,10 @@ export default function TargetProfileScreen() {
               <View style={styles.sortRow}>
                 {SORT_OPTIONS.map((option) => (
                   <FilterChip
-                    key={option.value}
-                    label={option.label}
-                    selected={sort === option.value}
-                    onPress={() => setSort(option.value)}
+                    key={option}
+                    label={t(`target.sort.${option}`)}
+                    selected={sort === option}
+                    onPress={() => setSort(option)}
                   />
                 ))}
               </View>
@@ -161,19 +160,14 @@ export default function TargetProfileScreen() {
               <QueryError onRetry={() => reviews.refetch()} retrying={reviews.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-                {rating ? 'No reviews at that rating.' : 'Be the first to review.'}
+                {t(rating ? 'target.noReviewsAtRating' : 'target.beFirst')}
               </ThemedText>
             )
           }
           ListFooterComponent={reviews.isFetchingNextPage ? <ActivityIndicator style={styles.footer} /> : null}
         />
 
-        <View style={styles.ctaBar}>
-          <Button
-            title="Write a review"
-            onPress={() => requireSignIn(() => router.push(`/target/${idOrSlug}/review`))}
-          />
-        </View>
+        <WriteReviewCta targetId={target.data.id} idOrSlug={idOrSlug} />
       </SafeAreaView>
     </ThemedView>
   );
@@ -227,8 +221,5 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingVertical: Spacing.three,
-  },
-  ctaBar: {
-    padding: Spacing.three,
   },
 });

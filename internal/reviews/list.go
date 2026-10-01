@@ -2,12 +2,14 @@ package reviews
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/adera-platform/backend/internal/platform/web"
 )
@@ -21,6 +23,9 @@ type ListFilter struct {
 	DiscoverySource  string
 	ExpectationMatch string
 	Since            *time.Time
+	// ReviewID narrows to one review; set only internally (GetListed),
+	// never from request parameters.
+	ReviewID uuid.UUID
 }
 
 // Sort orders. "relevant" is a single-page sort (no cursor); its formula is
@@ -79,6 +84,9 @@ func (r *Repo) ListForTarget(ctx context.Context, targetID uuid.UUID, viewer uui
 	}
 	if f.Since != nil {
 		add("rv.created_at >= $%d", *f.Since)
+	}
+	if f.ReviewID != uuid.Nil {
+		add("rv.id = $%d", f.ReviewID)
 	}
 
 	// Cursor condition + order clause per sort.
@@ -226,6 +234,29 @@ func (r *Repo) ListForTarget(ctx context.Context, targetID uuid.UUID, viewer uui
 		return nil, nil, err
 	}
 	return out, next, nil
+}
+
+// GetListed returns one published review with the same public context a
+// listing shows (reviewer, helpful count, media, business response) — for
+// review permalinks. Anything not published is not found.
+func (r *Repo) GetListed(ctx context.Context, reviewID uuid.UUID) (ListedReview, error) {
+	var targetID uuid.UUID
+	err := r.pool.QueryRow(ctx, `
+		SELECT target_id FROM reviews WHERE id = $1 AND moderation_status = 'published'`, reviewID).Scan(&targetID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ListedReview{}, web.ErrNotFound("review")
+	}
+	if err != nil {
+		return ListedReview{}, fmt.Errorf("loading review: %w", err)
+	}
+	items, _, err := r.ListForTarget(ctx, targetID, uuid.Nil, ListFilter{ReviewID: reviewID}, SortNewest, nil, 1)
+	if err != nil {
+		return ListedReview{}, err
+	}
+	if len(items) == 0 {
+		return ListedReview{}, web.ErrNotFound("review")
+	}
+	return items[0], nil
 }
 
 // ListForUser returns the caller's own reviews across all statuses.

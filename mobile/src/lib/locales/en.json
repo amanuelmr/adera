@@ -18,7 +18,11 @@
     "updateNow": "Update now",
     "backToTarget": "Back to target",
     "resetPassword": "Reset password",
-    "retry": "Try again"
+    "retry": "Try again",
+    "optional": "Optional",
+    "share": "Share",
+    "unnamed": "Unnamed",
+    "save": "Save"
   },
   "nav": {
     "search": "Search",
@@ -28,7 +32,8 @@
     "editReview": "Edit review",
     "addEvidence": "Add evidence",
     "yourBusinesses": "Your businesses",
-    "locations": "Locations"
+    "locations": "Locations",
+    "reportReview": "Report review"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -64,7 +69,8 @@
     "reviewStale": "This review changed since you started editing. Go back and try again.",
     "reviewGeneric": "Couldn't submit your review. Check your connection and try again.",
     "reviewOffline": "You need a connection to update a review.",
-    "loadFailed": "Couldn't load this. Check your connection and try again."
+    "loadFailed": "Couldn't load this. Check your connection and try again.",
+    "validation": "Some details need fixing. Check your entries and try again."
   },
   "disclosure": {
     "title": "One more thing",
@@ -91,6 +97,24 @@
       "family_or_friend": "family or friend of the owner",
       "business_partner": "business partner",
       "other": "other"
+    },
+    "incentiveOption": {
+      "none": "None",
+      "discount": "Discount",
+      "free_product_or_service": "Free product/service",
+      "payment": "Payment",
+      "contest_entry": "Contest entry",
+      "loyalty_points": "Loyalty points",
+      "other": "Other"
+    },
+    "connectionOption": {
+      "none": "None",
+      "current_employee": "Current employee",
+      "former_employee": "Former employee",
+      "owner_or_executive": "Owner/executive",
+      "family_or_friend": "Family or friend of owner",
+      "business_partner": "Business partner",
+      "other": "Other"
     }
   },
   "updateRequired": {
@@ -99,7 +123,9 @@
     "checkStore": "Please check the Play Store for the latest version."
   },
   "settings": {
-    "language": "Language"
+    "language": "Language",
+    "dataSaver": "Data saver",
+    "dataSaverBody": "Show review photos only when you tap to load them."
   },
   "evidence": {
     "title": "Verification evidence",
@@ -119,5 +145,255 @@
     "limitReached": "You've reached the limit of 5 evidence files for this review.",
     "addProofPrompt": "Add proof to get verified?",
     "skip": "Not now"
+  },
+  "nearMe": {
+    "title": "Near me",
+    "idleBody": "See what’s good nearby.",
+    "show": "Show places near you",
+    "deniedBody": "Location access was denied — allow it to see what’s nearby.",
+    "blockedBody": "Location is turned off for Adera. Turn it on in Settings to see what’s nearby.",
+    "errorBody": "Couldn't get your location. Check that location is on and try again.",
+    "openSettings": "Open settings",
+    "empty": "Nothing nearby yet.",
+    "distance": "{{km}} km away"
+  },
+  "owner": {
+    "alreadyResponded": "Someone else from your business already responded. Their response is shown below — edit it if needed.",
+    "verification": {
+      "unverified": "Unverified",
+      "claimed": "Claimed",
+      "verified": "Verified"
+    },
+    "noBusinesses": "You don't manage any businesses yet.",
+    "noLocations": "No published locations yet.",
+    "yourResponse": "Your response",
+    "placeholder": "Write a public response…",
+    "saveFailed": "Couldn't save your response. Try again.",
+    "editResponse": "Edit response",
+    "respond": "Respond"
+  },
+  "category": {
+    "empty": "Nothing in this category yet."
+  },
+  "review": {
+    "updateYours": "Update your review",
+    "contextTitle": "A bit of context",
+    "whenLabel": "When was this? (optional)",
+    "discoveryLabel": "How did you find this place?",
+    "expectationLabel": "Did it match what you saw online?",
+    "priceLabel": "Price paid (optional)",
+    "ratingTitle": "Overall, how was it?",
+    "ratingLabel": "Overall rating",
+    "criteriaError": "Couldn't load rating criteria — you can still continue without them.",
+    "criteriaNone": "Nothing else to rate for this category.",
+    "criteriaTitle": "Rate a few specifics",
+    "criterion": "Criterion",
+    "textTitle": "Tell us more",
+    "titlePlaceholder": "Title (optional)",
+    "bodyPlaceholder": "What happened? What should other people know?",
+    "charsNeeded_one": "{{count}} more character needed",
+    "charsNeeded_other": "{{count}} more characters needed",
+    "rating": {
+      "1": "Poor",
+      "2": "Fair",
+      "3": "Good",
+      "4": "Very good",
+      "5": "Excellent"
+    },
+    "discovery": {
+      "tiktok": "TikTok",
+      "instagram": "Instagram",
+      "youtube": "YouTube",
+      "facebook": "Facebook",
+      "telegram": "Telegram",
+      "friend": "A friend",
+      "google_maps": "Google Maps",
+      "walk_in": "Walked in",
+      "other": "Other"
+    },
+    "expectation": {
+      "better": "Better than expected",
+      "as_expected": "As expected",
+      "worse": "Worse than expected",
+      "very_different": "Very different"
+    },
+    "queuedTitle": "Saved — sending soon",
+    "updatedTitle": "Review updated",
+    "thanksTitle": "Thanks for your review!",
+    "queuedBody": "You're offline right now. We'll send this the moment you're back online.",
+    "liveBody": "It's live on {{name}}'s page.",
+    "photosRetrying_one": "{{count}} photo couldn't be uploaded and will retry automatically.",
+    "photosRetrying_other": "{{count}} photos couldn't be uploaded and will retry automatically.",
+    "loadReviewFailed": "Couldn't load this review. Check your connection and try again.",
+    "loadTargetFailed": "Couldn't load this place. Check your connection and try again.",
+    "anonymous": "Anonymous",
+    "showLess": "Show less",
+    "readMore": "Read more",
+    "ownerResponse": "Owner response",
+    "helpful": "Helpful",
+    "showPhotos_one": "Show {{count}} photo",
+    "showPhotos_other": "Show {{count}} photos"
+  },
+  "report": {
+    "title": "Report review",
+    "body": "Tell moderators what's wrong. Reports are private and never hide a review automatically.",
+    "reasonLabel": "Reason",
+    "detailsLabel": "Details (optional)",
+    "detailsPlaceholder": "What should the moderator know?",
+    "submit": "Send report",
+    "sent": "Thanks — a moderator will look at it.",
+    "already": "You've already reported this review.",
+    "rateLimited": "You've sent a lot of reports — try again later.",
+    "action": "Report",
+    "reasons": {
+      "spam": "Spam or advertising",
+      "fake_experience": "Didn't really happen",
+      "conflict_of_interest": "Written by someone connected to the business",
+      "harassment": "Harassment",
+      "hate_speech": "Hate speech",
+      "personal_information": "Shares someone's personal information",
+      "unsupported_accusation": "Accuses someone without support",
+      "irrelevant": "Not about this place",
+      "duplicate": "Duplicate review",
+      "manipulated_evidence": "Manipulated photo or evidence"
+    }
+  },
+  "account": {
+    "reviewCount_one": "{{count}} review",
+    "reviewCount_other": "{{count}} reviews",
+    "joined": "Joined {{date}}",
+    "emailVerified": "✓ Email verified",
+    "yourReviews": "Your reviews",
+    "noReviews": "You haven't written any reviews yet."
+  },
+  "sessions": {
+    "thisDevice": "This device",
+    "lastUsed": "Last used {{when}}",
+    "lastUsedUnknown": "Last use unknown",
+    "unknownDevice": "Unknown device",
+    "revoke": "Revoke"
+  },
+  "photos": {
+    "permissionDenied": "Photo library access is needed to add a picture.",
+    "add": "Add photo",
+    "remove": "Remove photo"
+  },
+  "myReviews": {
+    "deleteTitle": "Delete this review?",
+    "deleteBody": "This can’t be undone.",
+    "status": {
+      "pending": "Pending review",
+      "published": "Published",
+      "under_review": "Under review",
+      "rejected": "Rejected",
+      "hidden": "Hidden",
+      "removed": "Removed"
+    }
+  },
+  "rating": {
+    "outOfFive": "Rated {{rating}} out of 5",
+    "summary_one": "Rated {{rating}} out of 5 from {{count}} review",
+    "summary_other": "Rated {{rating}} out of 5 from {{count}} reviews",
+    "notYetRated": "Not yet rated",
+    "noReviewsYet": "No reviews yet"
+  },
+  "realityCheck": {
+    "title": "Reality Check",
+    "question": "Did this place match what people expected going in?",
+    "trend": "Recent reviews average {{recent}}, vs {{overall}} overall ({{arrow}}{{delta}}).",
+    "matched": "{{percent}}% said it matched or exceeded expectations",
+    "notEnough_one": "{{count}} person shared how it compared to what they saw online — not enough yet for percentages.",
+    "notEnough_other": "{{count}} people shared how it compared to what they saw online — not enough yet for percentages.",
+    "noneYet": "No one who found this place on social media has reviewed it yet.",
+    "caveatNone": "Based on very few reviews so far — take this as an early signal, not a verdict.",
+    "caveatLow": "Based on a small number of reviews so far."
+  },
+  "target": {
+    "statsFailed": "Couldn't load ratings right now.",
+    "notEnoughReviews": "Not enough reviews yet for reliable stats.",
+    "noReviewsAtRating": "No reviews at that rating.",
+    "beFirst": "Be the first to review.",
+    "sort": {
+      "newest": "Newest",
+      "highest": "Highest rated",
+      "lowest": "Lowest rated",
+      "most_helpful": "Most helpful"
+    }
+  },
+  "tabs": {
+    "home": "Home",
+    "activity": "Activity",
+    "account": "Account"
+  },
+  "events": {
+    "response": "You have a new response to your review.",
+    "review": "One of your reviews was updated.",
+    "target": "A place you added was updated.",
+    "evidence": "Your evidence submission was reviewed.",
+    "claim": "Your business claim status changed.",
+    "report": "A report you filed was reviewed.",
+    "privacy": "Your data request was updated.",
+    "default": "You have a new update."
+  },
+  "search": {
+    "placeholder": "Search restaurants, salons, sellers…",
+    "category": "Category",
+    "filters": "Filters",
+    "filtersLabel_one": "Filters, {{count}} active",
+    "filtersLabel_other": "Filters, {{count}} active",
+    "filtersLabel_zero": "Filters",
+    "verified": "Verified",
+    "minChars": "Type at least 2 characters to search.",
+    "failed": "Couldn't search right now. Check your connection and try again.",
+    "noMatches": "No matches for “{{query}}”. Try a wider area or different spelling.",
+    "closeFilters": "Close filters",
+    "typeLabel": "Type",
+    "minRating": "Minimum rating",
+    "verification": "Verification",
+    "verifiedOnly": "Verified only",
+    "clearAll": "Clear all",
+    "apply": "Apply",
+    "type": {
+      "business": "Business",
+      "location": "Location",
+      "online_seller": "Online seller",
+      "product": "Product",
+      "service": "Service",
+      "repair_provider": "Repair provider",
+      "restaurant": "Restaurant",
+      "cafe": "Café"
+    }
+  },
+  "discover": {
+    "categories": "Categories",
+    "noCategories": "No categories yet.",
+    "topRated": "Top rated",
+    "noTopRated": "Nothing rated yet.",
+    "trending": "Trending",
+    "noTrending": "Nothing trending yet.",
+    "thisMonth_one": "{{count}} review this month",
+    "thisMonth_other": "{{count}} reviews this month"
+  },
+  "activity": {
+    "markAllRead": "Mark all read",
+    "all": "All",
+    "unread": "Unread",
+    "caughtUp": "You're all caught up.",
+    "empty": "Nothing here yet."
+  },
+  "share": {
+    "thisPlace": "This place",
+    "targetRated": "{{name}} — {{rating}}★ on Adera",
+    "target": "{{name}} on Adera",
+    "reviewRated": "\"{{quote}}\" — {{rating}}★ review of {{name}} on Adera",
+    "review": "\"{{quote}}\" — review of {{name}} on Adera"
+  },
+  "sync": {
+    "pending_one": "{{count}} item waiting to send — we'll keep retrying.",
+    "pending_other": "{{count}} items waiting to send — we'll keep retrying.",
+    "reviewFailed": "A review couldn't be posted",
+    "voteFailed": "A helpful vote couldn't be saved",
+    "rejected": "The server turned it down. Open the place and try again.",
+    "dismiss": "Dismiss"
   }
 }

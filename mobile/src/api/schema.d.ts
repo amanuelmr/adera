@@ -1648,6 +1648,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/targets/{id}/review-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check whether the caller can write a new review of this target now
+         * @description Applies the same rules as `POST /reviews`: the 30-day repeat cooldown
+         *     (then `reason: cooldown_active` with `existing_review_id` — offer
+         *     "update your review") and the 5-per-24h cap (`reason: rate_limited`).
+         *     Lets the client check before opening the compose flow instead of
+         *     failing at submit. Advisory only: submit still enforces the rules.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathID"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Eligibility for a new review. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DataEnvelope"] & {
+                            data?: components["schemas"]["ReviewEligibility"];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/targets/{id}/reviews": {
         parameters: {
             query?: never;
@@ -4152,6 +4201,18 @@ export interface components {
         };
         TrendingTargetPage: components["schemas"]["DataEnvelope"] & {
             data?: components["schemas"]["TrendingTarget"][];
+        };
+        ReviewEligibility: {
+            eligible: boolean;
+            /** @enum {string} */
+            reason?: "cooldown_active" | "rate_limited";
+            /**
+             * Format: uuid
+             * @description The review to update instead (cooldown only).
+             */
+            existing_review_id?: string;
+            /** Format: date-time */
+            next_allowed_at?: string;
         };
         NearbyTarget: components["schemas"]["Target"] & {
             /** @description Great-circle distance from the query point. */

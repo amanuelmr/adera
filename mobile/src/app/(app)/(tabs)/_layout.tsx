@@ -1,9 +1,11 @@
 import { Tabs } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/auth/context';
 import { useUnreadCount } from '@/features/activity/queries';
 
 export default function TabsLayout() {
+  const { t } = useTranslation();
   const { status } = useAuth();
   const signedIn = status === 'signedIn';
   const unreadCount = useUnreadCount(signedIn);
@@ -11,11 +13,11 @@ export default function TabsLayout() {
 
   return (
     <Tabs>
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
+      <Tabs.Screen name="index" options={{ title: t('tabs.home') }} />
       <Tabs.Protected guard={signedIn}>
-        <Tabs.Screen name="activity" options={{ title: 'Activity', tabBarBadge: unread > 0 ? String(unread) : undefined }} />
+        <Tabs.Screen name="activity" options={{ title: t('tabs.activity'), tabBarBadge: unread > 0 ? String(unread) : undefined }} />
       </Tabs.Protected>
-      <Tabs.Screen name="account" options={{ title: 'Account' }} />
+      <Tabs.Screen name="account" options={{ title: t('tabs.account') }} />
     </Tabs>
   );
 }

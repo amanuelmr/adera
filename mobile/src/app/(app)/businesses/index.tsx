@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,13 +9,8 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useMyBusinesses } from '@/features/businesses/queries';
 
-const VERIFICATION_LABELS: Record<string, string> = {
-  unverified: 'Unverified',
-  claimed: 'Claimed',
-  verified: 'Verified',
-};
-
 export default function MyBusinessesScreen() {
+  const { t } = useTranslation();
   const businesses = useMyBusinesses();
 
   return (
@@ -30,7 +26,7 @@ export default function MyBusinessesScreen() {
               <ThemedView type="backgroundElement" style={styles.card}>
                 <ThemedText type="smallBold">{item.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {VERIFICATION_LABELS[item.verification_status ?? 'unverified']}
+                  {t(`owner.verification.${item.verification_status ?? 'unverified'}`)}
                 </ThemedText>
               </ThemedView>
             </Pressable>
@@ -42,7 +38,7 @@ export default function MyBusinessesScreen() {
               <QueryError onRetry={() => businesses.refetch()} retrying={businesses.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-                You don&apos;t manage any businesses yet.
+                {t('owner.noBusinesses')}
               </ThemedText>
             )
           }

@@ -867,6 +867,31 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
 
+  /api/v1/targets/{id}/review-eligibility:
+    get:
+      tags: [reviews]
+      summary: Check whether the caller can write a new review of this target now
+      description: |
+        Applies the same rules as `POST /reviews`: the 30-day repeat cooldown
+        (then `reason: cooldown_active` with `existing_review_id` — offer
+        "update your review") and the 5-per-24h cap (`reason: rate_limited`).
+        Lets the client check before opening the compose flow instead of
+        failing at submit. Advisory only: submit still enforces the rules.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200':
+          description: Eligibility for a new review.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/ReviewEligibility'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
   /api/v1/targets/{id}/reviews:
     get:
       tags: [reviews]
@@ -2221,6 +2246,14 @@ components:
               type: array
               items: {$ref: '#/components/schemas/TrendingTarget'}
 
+    ReviewEligibility:
+      type: object
+      required: [eligible]
+      properties:
+        eligible: {type: boolean}
+        reason: {type: string, enum: [cooldown_active, rate_limited]}
+        existing_review_id: {type: string, format: uuid, description: The review to update instead (cooldown only).}
+        next_allowed_at: {type: string, format: date-time}
     NearbyTarget:
       allOf:
         - $ref: '#/components/schemas/Target'

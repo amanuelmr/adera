@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,11 +9,13 @@ import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { formatRelative } from '@/lib/format';
 import type { components } from '@/api/schema';
 
 type Session = components['schemas']['Session'];
 
 export default function SessionsScreen() {
+  const { t } = useTranslation();
   const [sessions, setSessions] = useState<Session[]>();
   const [error, setError] = useState<string>();
   const [revokingId, setRevokingId] = useState<string>();
@@ -60,14 +63,18 @@ export default function SessionsScreen() {
             renderItem={({ item }) => (
               <ThemedView type="backgroundElement" style={styles.row}>
                 <ThemedView style={styles.rowText} type="backgroundElement">
-                  <ThemedText type="smallBold">{item.device_info ?? 'Unknown device'}</ThemedText>
+                  <ThemedText type="smallBold">{item.device_info || t('sessions.unknownDevice')}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {item.current ? 'This device' : `Last used ${item.last_used_at ?? 'unknown'}`}
+                    {item.current
+                      ? t('sessions.thisDevice')
+                      : item.last_used_at
+                        ? t('sessions.lastUsed', { when: formatRelative(item.last_used_at) })
+                        : t('sessions.lastUsedUnknown')}
                   </ThemedText>
                 </ThemedView>
                 {!item.current && item.id ? (
                   <Button
-                    title="Revoke"
+                    title={t('sessions.revoke')}
                     variant="secondary"
                     onPress={() => revoke(item.id!)}
                     loading={revokingId === item.id}

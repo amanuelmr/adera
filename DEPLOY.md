@@ -98,6 +98,19 @@ until its variables are set.
   a missing file.
 - **Version gate**: `APP_ANDROID_MIN_VERSION`, `APP_ANDROID_LATEST_VERSION`,
   `APP_ANDROID_STORE_URL`. Versions are plain semver (`1.2.0`, not `v1.2.0`).
+  `APP_ANDROID_STORE_URL` also turns on the "Get the app" banner on the web
+  pages.
+- **App Links**: `ANDROID_CERT_SHA256` — the signing certificate fingerprint
+  from EAS (`mobile/RELEASE.md`). Until it's set,
+  `/.well-known/assetlinks.json` is a 404 and shared links open in the
+  browser rather than the app.
+
+### Web pages
+
+The same service serves the thin web layer: `/t/{slug}` (a place and its
+reviews), `/r/{id}` (one review), and `/trust` (how ratings and moderation
+work), in English and Amharic. `BASE_URL` must be the public origin
+(`https://adera.amanuel.work`) so canonical and share-preview links are right.
 
 ## 5. Point a domain at it
 

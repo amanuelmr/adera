@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,6 +10,7 @@ import { Spacing } from '@/constants/theme';
 import { useBusinessTargets } from '@/features/businesses/queries';
 
 export default function BusinessTargetsScreen() {
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const targets = useBusinessTargets(id);
 
@@ -27,7 +29,7 @@ export default function BusinessTargetsScreen() {
               <ThemedView type="backgroundElement" style={styles.card}>
                 <ThemedText type="smallBold">{item.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {item.review_count ?? 0} review{item.review_count === 1 ? '' : 's'}
+                  {t('account.reviewCount', { count: item.review_count ?? 0 })}
                 </ThemedText>
               </ThemedView>
             </Pressable>
@@ -39,7 +41,7 @@ export default function BusinessTargetsScreen() {
               <QueryError onRetry={() => targets.refetch()} retrying={targets.isRefetching} />
             ) : (
               <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-                No published locations yet.
+                {t('owner.noLocations')}
               </ThemedText>
             )
           }

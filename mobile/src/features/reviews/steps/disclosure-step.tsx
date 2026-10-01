@@ -6,15 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ChipGroup } from '../chip-group';
-import { INCENTIVE_TYPE_LABELS, MATERIAL_CONNECTION_LABELS } from '../types';
-
-const INCENTIVE_OPTIONS = (Object.keys(INCENTIVE_TYPE_LABELS) as (keyof typeof INCENTIVE_TYPE_LABELS)[]).map((value) => ({
-  value,
-  label: INCENTIVE_TYPE_LABELS[value],
-}));
-const MATERIAL_CONNECTION_OPTIONS = (
-  Object.keys(MATERIAL_CONNECTION_LABELS) as (keyof typeof MATERIAL_CONNECTION_LABELS)[]
-).map((value) => ({ value, label: MATERIAL_CONNECTION_LABELS[value] }));
+import { INCENTIVE_TYPES, MATERIAL_CONNECTIONS } from '../types';
 
 export function DisclosureStep({
   incentiveType,
@@ -33,6 +25,11 @@ export function DisclosureStep({
 }) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const incentiveOptions = INCENTIVE_TYPES.map((value) => ({ value, label: t(`disclosure.incentiveOption.${value}`) }));
+  const connectionOptions = MATERIAL_CONNECTIONS.map((value) => ({
+    value,
+    label: t(`disclosure.connectionOption.${value}`),
+  }));
   const needsDetails = incentiveType !== 'none' || materialConnection !== 'none';
   const detailsRequired = incentiveType === 'other' || materialConnection === 'other';
 
@@ -45,12 +42,12 @@ export function DisclosureStep({
 
       <View style={styles.field}>
         <ThemedText type="smallBold">{t('disclosure.incentiveQuestion')}</ThemedText>
-        <ChipGroup options={INCENTIVE_OPTIONS} value={incentiveType} onChange={onChangeIncentiveType} />
+        <ChipGroup options={incentiveOptions} value={incentiveType} onChange={onChangeIncentiveType} />
       </View>
 
       <View style={styles.field}>
         <ThemedText type="smallBold">{t('disclosure.relationshipQuestion')}</ThemedText>
-        <ChipGroup options={MATERIAL_CONNECTION_OPTIONS} value={materialConnection} onChange={onChangeMaterialConnection} />
+        <ChipGroup options={connectionOptions} value={materialConnection} onChange={onChangeMaterialConnection} />
       </View>
 
       {needsDetails ? (

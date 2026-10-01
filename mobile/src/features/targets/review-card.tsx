@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
@@ -8,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { shareReview } from '@/features/share/share';
+import { useSettings } from '@/lib/settings';
 import { useToggleHelpful } from './queries';
 
 type ListedReview = components['schemas']['ListedReview'];
@@ -18,8 +20,11 @@ const COLLAPSE_AT_CHARS = 280;
 
 export function ReviewCard({ review, targetId, targetName }: { review: ListedReview; targetId: string; targetName: string }) {
   const [expanded, setExpanded] = useState(false);
+  const [photosRequested, setPhotosRequested] = useState(false);
+  const { dataSaver } = useSettings();
   const toggleHelpful = useToggleHelpful(targetId);
   const requireSignIn = useRequireSignIn();
+  const { t } = useTranslation();
 
   const rating = review.overall_rating ?? 0;
   const body = review.body ?? '';
@@ -29,8 +34,8 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
       <View style={styles.header}>
-        <ThemedText type="smallBold">{review.reviewer_name ?? 'Anonymous'}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" accessibilityLabel={`Rated ${rating} out of 5`}>
+        <ThemedText type="smallBold">{review.reviewer_name ?? t('review.anonymous')}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" accessibilityLabel={t('rating.outOfFive', { rating })}>
           {'★'.repeat(rating)}
           {'☆'.repeat(Math.max(0, 5 - rating))}
         </ThemedText>
@@ -42,21 +47,28 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
       <ThemedText type="small">{shownBody}</ThemedText>
       {isLong ? (
         <Pressable onPress={() => setExpanded((prev) => !prev)} accessibilityRole="button">
-          <ThemedText type="linkPrimary">{expanded ? 'Show less' : 'Read more'}</ThemedText>
+          <ThemedText type="linkPrimary">{t(expanded ? 'review.showLess' : 'review.readMore')}</ThemedText>
         </Pressable>
       ) : null}
 
       {review.media && review.media.length > 0 ? (
-        <View style={styles.mediaRow}>
-          {review.media.map((item) => (
-            <Image key={item.id} source={{ uri: item.thumb_url ?? item.url }} style={styles.thumbnail} />
-          ))}
-        </View>
+        dataSaver && !photosRequested ? (
+          // Data saver: nothing is downloaded until the reader asks.
+          <Pressable onPress={() => setPhotosRequested(true)} accessibilityRole="button" style={styles.helpfulRow}>
+            <ThemedText type="linkPrimary">{t('review.showPhotos', { count: review.media.length })}</ThemedText>
+          </Pressable>
+        ) : (
+          <View style={styles.mediaRow}>
+            {review.media.map((item) => (
+              <Image key={item.id} source={{ uri: item.thumb_url ?? item.url }} style={styles.thumbnail} />
+            ))}
+          </View>
+        )
       ) : null}
 
       {review.business_response ? (
         <ThemedView type="backgroundSelected" style={styles.response}>
-          <ThemedText type="smallBold">Owner response</ThemedText>
+          <ThemedText type="smallBold">{t('review.ownerResponse')}</ThemedText>
           <ThemedText type="small">{review.business_response.body}</ThemedText>
         </ThemedView>
       ) : null}
@@ -71,12 +83,21 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
           accessibilityState={{ selected: !!review.viewer_voted }}
           style={styles.helpfulRow}>
           <ThemedText type="small" themeColor={review.viewer_voted ? 'text' : 'textSecondary'}>
-            👍 Helpful{review.helpful_count ? ` (${review.helpful_count})` : ''}
+            👍 {t('review.helpful')}
+            {review.helpful_count ? ` (${review.helpful_count})` : ''}
+          </ThemedText>
+        </Pressable>
+        <Pressable
+          onPress={() => requireSignIn(() => review.id && router.push(`/review/${review.id}/report`))}
+          accessibilityRole="button"
+          style={styles.helpfulRow}>
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('report.action')}
           </ThemedText>
         </Pressable>
         <Pressable onPress={() => shareReview(review, targetName)} accessibilityRole="button" style={styles.helpfulRow}>
           <ThemedText type="small" themeColor="textSecondary">
-            Share
+            {t('common.share')}
           </ThemedText>
         </Pressable>
       </View>
