@@ -504,7 +504,6 @@ func (r *Repo) Trending(ctx context.Context, f BrowseFilter, limit int) ([]Trend
 	return out, nil
 }
 
-// CreateEditSuggestion records a community correction for moderator review.
 // NearbyTarget is a target plus its great-circle distance from the query
 // point, in kilometres.
 type NearbyTarget struct {
@@ -607,6 +606,7 @@ func (r *Repo) Nearby(ctx context.Context, f BrowseFilter, lat, lng, radiusKm fl
 	return out, nil
 }
 
+// CreateEditSuggestion records a community correction for moderator review.
 func (r *Repo) CreateEditSuggestion(ctx context.Context, targetID, userID uuid.UUID, changes map[string]any, note string) (uuid.UUID, error) {
 	if len(changes) == 0 {
 		return uuid.Nil, web.ErrValidation("invalid suggestion").WithDetail("changes", "at least one change required")

@@ -6,6 +6,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"github.com/adera-platform/backend/internal/appversion"
 	"net/mail"
 	"os"
 	"strconv"
@@ -238,6 +239,20 @@ func (c Config) Validate() error {
 		}
 		if c.SMTPTimeout <= 0 {
 			errs = append(errs, errors.New("SMTP_TIMEOUT must be positive"))
+		}
+	}
+	// A malformed version (e.g. "v1.2.0") would make every version check
+	// fail with a 500 — exactly when an operator is trying to retire a
+	// broken client — so it's refused at startup instead.
+	for name, v := range map[string]string{
+		"APP_ANDROID_MIN_VERSION": c.AndroidMinVersion, "APP_ANDROID_LATEST_VERSION": c.AndroidLatestVersion,
+		"APP_IOS_MIN_VERSION": c.IOSMinVersion, "APP_IOS_LATEST_VERSION": c.IOSLatestVersion,
+	} {
+		if v == "" {
+			continue
+		}
+		if _, err := appversion.Parse(v); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w (use plain numbers like 1.2.0)", name, err))
 		}
 	}
 	if c.FCMCredentialsFile != "" && c.FCMTimeout <= 0 {
