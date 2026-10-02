@@ -161,7 +161,11 @@ export default function WriteReviewScreen() {
               onPress={() => router.replace(`/review/${submit.data.reviewId}/evidence`)}
             />
           ) : null}
-          <Button title={t('common.backToTarget')} onPress={() => router.replace(`/target/${idOrSlug}`)} />
+          <Button title={t('common.backToTarget')} onPress={() =>
+              // The form was opened from the place's screen; going back avoids
+              // stacking a second copy of it (its data was just refreshed).
+              router.canGoBack() ? router.back() : router.replace(`/target/${idOrSlug}`)
+            } />
         </View>
       </ThemedView>
     );
