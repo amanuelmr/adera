@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,13 +14,19 @@ export default function BusinessTargetsScreen() {
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const targets = useBusinessTargets(id);
+  const items = useMemo(() => targets.data?.pages.flatMap((page) => page.data ?? []) ?? [], [targets.data]);
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <FlatList
-          data={targets.data ?? []}
-          keyExtractor={(item) => item.id ?? ''}
+          data={items}
+          onEndReachedThreshold={0.5}
+          onEndReached={() => {
+            if (targets.hasNextPage && !targets.isFetchingNextPage) targets.fetchNextPage();
+          }}
+          ListFooterComponent={targets.isFetchingNextPage ? <ActivityIndicator style={styles.centered} /> : null}
+          keyExtractor={(item, index) => item.id ?? String(index)}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
           renderItem={({ item }) => (

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 import { apiClient, unwrap } from '@/api/client';
 
@@ -10,10 +10,14 @@ export function useMyBusinesses() {
 }
 
 export function useBusinessTargets(businessId: string | undefined) {
-  return useQuery({
+  return useInfiniteQuery({
     enabled: !!businessId,
     queryKey: ['targets', 'by-business', businessId],
-    queryFn: async () =>
-      unwrap(await apiClient.GET('/api/v1/targets', { params: { query: { business: businessId! } } })).data,
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam }) =>
+      unwrap(
+        await apiClient.GET('/api/v1/targets', { params: { query: { business: businessId!, cursor: pageParam } } })
+      ),
+    getNextPageParam: (lastPage) => (lastPage.meta?.has_more ? lastPage.meta.next_cursor : undefined),
   });
 }
