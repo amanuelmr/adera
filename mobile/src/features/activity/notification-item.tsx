@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -11,12 +12,14 @@ type Notification = components['schemas']['Notification'];
 
 export function NotificationItem({ notification, onPress }: { notification: Notification; onPress: () => void }) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const unread = !notification.read_at;
 
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={`${unread ? `${t('activity.unread')}. ` : ''}${describeEventType(notification.event_type)}`}
       style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
       {unread ? <View style={[styles.dot, { backgroundColor: theme.text }]} /> : <View style={styles.dot} />}
       <View style={styles.body}>
