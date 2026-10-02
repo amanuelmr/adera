@@ -24,7 +24,7 @@ export default function BusinessTargetReviewsScreen() {
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <FlatList
           data={items}
-          keyExtractor={(item) => item.id ?? ''}
+          keyExtractor={(item, index) => item.id ?? String(index)}
           contentContainerStyle={styles.list}
           onEndReachedThreshold={0.5}
           onEndReached={() => {

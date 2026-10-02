@@ -232,7 +232,10 @@
     "ownerResponse": "Owner response",
     "helpful": "Helpful",
     "showPhotos_one": "Show {{count}} photo",
-    "showPhotos_other": "Show {{count}} photos"
+    "showPhotos_other": "Show {{count}} photos",
+    "dateFormat": "Use the format YYYY-MM-DD, e.g. 2026-09-28.",
+    "dateFuture": "That date hasn't happened yet.",
+    "priceInvalid": "Enter an amount in birr, like 250 or 1,500."
   },
   "report": {
     "title": "Report review",
@@ -271,7 +274,9 @@
     "lastUsed": "Last used {{when}}",
     "lastUsedUnknown": "Last use unknown",
     "unknownDevice": "Unknown device",
-    "revoke": "Revoke"
+    "revoke": "Revoke",
+    "revokeTitle": "Sign out this device?",
+    "revokeBody": "It will need to sign in again to use your account."
   },
   "photos": {
     "permissionDenied": "Photo library access is needed to add a picture.",
@@ -394,6 +399,7 @@
     "reviewFailed": "A review couldn't be posted",
     "voteFailed": "A helpful vote couldn't be saved",
     "rejected": "The server turned it down. Open the place and try again.",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "gaveUp": "It kept failing, so we stopped retrying. Try again now, or dismiss it."
   }
 }

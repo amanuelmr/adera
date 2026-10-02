@@ -1,9 +1,12 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { ApiError, apiClient, unwrap, isTransientFailure } from '@/api/client';
+import { File } from 'expo-file-system';
+
 import { queryClient } from '@/lib/query-client';
 import { deletePersistedPhoto } from './photos';
 import type { ReviewFormState } from './types';
+import { parsePrice } from './validation';
 
 export function useCriteria(categoryId: string | undefined) {
   return useQuery({
@@ -21,9 +24,9 @@ function buildReviewBody(targetId: string, form: ReviewFormState) {
     title: form.title || undefined,
     body: form.body,
     experience_date: form.experienceDate || undefined,
-    // Silently dropped rather than sent as NaN/null on non-numeric input —
-    // the field is optional and low-stakes, not worth a validation error.
-    price_paid: Number.isFinite(Number(form.pricePaid)) && form.pricePaid ? Number(form.pricePaid) : undefined,
+    // Validated on the context step (parsePrice), so an invalid value never
+    // reaches here; "1,500" is sent as 1500 rather than dropped.
+    price_paid: parsePrice(form.pricePaid).amount,
     currency: 'ETB',
     discovery_source: form.discoverySource,
     expectation_match: form.expectationMatch,
@@ -123,6 +126,9 @@ export async function submitReviewEdit(
 export async function uploadPhotos(reviewId: string, uris: string[]): Promise<string[]> {
   const retryable: string[] = [];
   for (const uri of uris) {
+    // Gone already (cleared storage, or a crash between upload and
+    // bookkeeping): nothing left to upload, and retrying would never succeed.
+    if (!new File(uri).exists) continue;
     try {
       await uploadReviewPhoto(reviewId, uri);
       deletePersistedPhoto(uri);

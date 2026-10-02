@@ -232,7 +232,10 @@
     "ownerResponse": "የባለቤቱ ምላሽ",
     "helpful": "ጠቃሚ",
     "showPhotos_one": "{{count}} ፎቶ አሳይ",
-    "showPhotos_other": "{{count}} ፎቶዎችን አሳይ"
+    "showPhotos_other": "{{count}} ፎቶዎችን አሳይ",
+    "dateFormat": "የቀን ቅርጸቱን ይጠቀሙ፦ ዓዓዓዓ-ወወ-ቀቀ፣ ለምሳሌ 2026-09-28።",
+    "dateFuture": "ያ ቀን ገና አልደረሰም።",
+    "priceInvalid": "መጠኑን በብር ያስገቡ፣ ለምሳሌ 250 ወይም 1,500።"
   },
   "report": {
     "title": "ግምገማ ሪፖርት አድርግ",
@@ -271,7 +274,9 @@
     "lastUsed": "ለመጨረሻ ጊዜ የተጠቀሙት {{when}}",
     "lastUsedUnknown": "የመጨረሻ አጠቃቀም አይታወቅም",
     "unknownDevice": "ያልታወቀ መሳሪያ",
-    "revoke": "ሻር"
+    "revoke": "ሻር",
+    "revokeTitle": "ይህ መሳሪያ ይውጣ?",
+    "revokeBody": "መለያዎን ለመጠቀም እንደገና መግባት ያስፈልገዋል።"
   },
   "photos": {
     "permissionDenied": "ፎቶ ለመጨመር የፎቶ ማከማቻ ፍቃድ ያስፈልጋል።",
@@ -394,6 +399,7 @@
     "reviewFailed": "ግምገማ መለጠፍ አልተቻለም",
     "voteFailed": "የጠቃሚነት ድምጽ ማስቀመጥ አልተቻለም",
     "rejected": "አገልጋዩ አልተቀበለውም። ቦታውን ከፍተው እንደገና ይሞክሩ።",
-    "dismiss": "አሰናብት"
+    "dismiss": "አሰናብት",
+    "gaveUp": "ደጋግሞ ስላልተሳካ መሞከር አቁመናል። አሁን እንደገና ይሞክሩ ወይም ያሰናብቱት።"
   }
 }

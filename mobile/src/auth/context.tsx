@@ -5,7 +5,7 @@ import type { components } from '@/api/schema';
 import { unregisterCurrentDevice } from '@/features/push/register';
 import { queryClient } from '@/lib/query-client';
 import { onForcedSignOut } from './events';
-import { clearTokens, getAccessToken, getRefreshToken, setCurrentUserId, setTokens } from './storage';
+import { clearTokens, getAccessToken, getCurrentUserId, getRefreshToken, setCurrentUserId, setTokens } from './storage';
 // Registers the auth middleware (token attachment + refresh-on-401) on
 // `apiClient` as a side effect of import — see middleware.ts.
 import './middleware';
@@ -30,14 +30,31 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+export async function backfillCurrentUserId(): Promise<void> {
+  try {
+    const { data } = unwrap(await apiClient.GET('/api/v1/users/me'));
+    if (data.id) await setCurrentUserId(data.id);
+  } catch {
+    // Offline or failing: retried on the next launch.
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [accessToken, refreshToken] = await Promise.all([getAccessToken(), getRefreshToken()]);
-      if (!cancelled) setStatus(accessToken && refreshToken ? 'signedIn' : 'signedOut');
+      const [accessToken, refreshToken, userId] = await Promise.all([
+        getAccessToken(),
+        getRefreshToken(),
+        getCurrentUserId(),
+      ]);
+      const signedIn = !!(accessToken && refreshToken);
+      if (!cancelled) setStatus(signedIn ? 'signedIn' : 'signedOut');
+      // Sessions from before the user id was stored alongside the tokens
+      // can't queue offline work (it's tagged per account) until it's known.
+      if (signedIn && !userId) await backfillCurrentUserId();
     })();
     return () => {
       cancelled = true;

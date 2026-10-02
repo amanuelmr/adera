@@ -23,7 +23,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          # Pinned rather than lts/*, which silently jumps majors when a new LTS lands.
+          node-version: 24
           cache: npm
           cache-dependency-path: mobile/package-lock.json
       - name: Install dependencies

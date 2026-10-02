@@ -166,3 +166,17 @@ func TestPushEnabled(t *testing.T) {
 	cfg.FCMCredentialsFile = "/run/secrets/fcm.json"
 	assert.True(t, cfg.PushEnabled())
 }
+
+func TestConfigValidateRejectsMalformedAppVersions(t *testing.T) {
+	c := validConfig()
+	c.AndroidMinVersion = "v1.2.0"
+	err := c.Validate()
+	if !assert.Error(t, err) {
+		return
+	}
+	assert.Contains(t, err.Error(), "APP_ANDROID_MIN_VERSION")
+
+	c.AndroidMinVersion = "1.2.0"
+	c.AndroidLatestVersion = "1.3"
+	assert.NoError(t, c.Validate())
+}

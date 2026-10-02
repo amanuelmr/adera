@@ -10,6 +10,7 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { queryClient } from '@/lib/query-client';
 
 // Email-only for v1 (docs/mobile-plan.md §4.1); confirming isn't required to
 // read or write, so there's no gate here — just a code round trip.
@@ -39,6 +40,8 @@ export default function VerifyScreen() {
     setSubmitting(true);
     try {
       unwrap(await apiClient.POST('/api/v1/auth/verify/confirm', { body: { channel: 'email', code: code.trim() } }));
+      // Account shows "✓ Email verified" from the cached profile.
+      queryClient.invalidateQueries({ queryKey: ['users', 'me'] });
       setConfirmed(true);
     } catch (err) {
       setError(friendlyAuthError(err));

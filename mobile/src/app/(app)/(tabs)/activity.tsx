@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, type Href } from 'expo-router';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,7 +11,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { FilterChip } from '@/features/search/filter-chip';
 import { NotificationItem } from '@/features/activity/notification-item';
-import { resolveNotificationTargetId } from '@/features/activity/resolve-navigation';
+import { resolveNotificationRoute } from '@/features/activity/resolve-navigation';
 import { useMarkAllRead, useMarkNotificationRead, useNotifications, useUnreadCount } from '@/features/activity/queries';
 import type { components } from '@/api/schema';
 
@@ -27,11 +27,19 @@ export default function ActivityScreen() {
 
   const items = useMemo(() => notifications.data?.pages.flatMap((page) => page.data ?? []) ?? [], [notifications.data]);
 
+  // Resolving a destination can need a network round trip; a second tap in
+  // the meantime would push the screen twice.
+  const opening = useRef(false);
   async function handlePress(notification: Notification) {
-    if (!notification.read_at) markRead.mutate(notification.id);
-
-    const targetId = await resolveNotificationTargetId(notification);
-    if (targetId) router.push(`/target/${targetId}`);
+    if (opening.current) return;
+    opening.current = true;
+    try {
+      if (!notification.read_at) markRead.mutate(notification.id);
+      const route = await resolveNotificationRoute(notification);
+      if (route) router.push(route as Href);
+    } finally {
+      opening.current = false;
+    }
   }
 
   return (

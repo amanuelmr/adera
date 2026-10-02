@@ -1,7 +1,10 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+
+import { getCurrentUserId } from '@/auth/storage';
 
 import { registerDeviceToken, unregisterDeviceToken, type DevicePlatform } from './queries';
 
@@ -15,6 +18,9 @@ import { registerDeviceToken, unregisterDeviceToken, type DevicePlatform } from 
 // a real FCM token, not just skipping this check.
 let currentToken: string | undefined;
 
+// The last token successfully registered, and for which account.
+const REGISTRATION_KEY = 'adera.push_registration';
+
 function toDevicePlatform(osName: string): DevicePlatform | undefined {
   return osName === 'android' ? 'android' : undefined;
 }
@@ -23,10 +29,16 @@ function toDevicePlatform(osName: string): DevicePlatform | undefined {
 // network issue, backend rejecting a malformed token) shouldn't crash app
 // startup or the token-rotation listener below, but silently swallowing it
 // entirely made the failure invisible even for debugging.
-async function register(platform: DevicePlatform, token: string): Promise<void> {
+export async function register(platform: DevicePlatform, token: string): Promise<void> {
   currentToken = token;
+  // Registering is idempotent server-side, but repeating it on every launch
+  // is a wasted request on a metered connection: skip when this exact token
+  // is already registered for this account.
+  const [userId, last] = await Promise.all([getCurrentUserId(), readRegistration()]);
+  if (last?.token === token && last.userId === userId) return;
   try {
     await registerDeviceToken(token, platform, Constants.expoConfig?.version);
+    await SecureStore.setItemAsync(REGISTRATION_KEY, JSON.stringify({ token, userId }));
   } catch (err) {
     console.warn('Failed to register push device token', err);
   }
@@ -63,7 +75,20 @@ export async function setupPushNotifications(): Promise<() => void> {
 
 /** Called on logout — stops this device from receiving pushes for the account being signed out of. */
 export async function unregisterCurrentDevice(): Promise<void> {
-  if (!currentToken) return;
-  await unregisterDeviceToken(currentToken).catch(() => undefined); // best-effort, matching auth's own logout
+  // After a restart the in-memory token is gone until setup runs again; the
+  // stored registration still knows what to remove.
+  const token = currentToken ?? (await readRegistration())?.token;
   currentToken = undefined;
+  await SecureStore.deleteItemAsync(REGISTRATION_KEY).catch(() => undefined);
+  if (!token) return;
+  await unregisterDeviceToken(token).catch(() => undefined); // best-effort, matching auth's own logout
+}
+
+async function readRegistration(): Promise<{ token: string; userId: string | null } | undefined> {
+  try {
+    const raw = await SecureStore.getItemAsync(REGISTRATION_KEY);
+    return raw ? JSON.parse(raw) : undefined;
+  } catch {
+    return undefined;
+  }
 }

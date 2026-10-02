@@ -69,10 +69,17 @@ func testConfig() config.Config {
 
 func newTestAPI(t *testing.T) *testAPI {
 	t.Helper()
+	return newTestAPIWith(t, func(*config.Config) {})
+}
+
+// newTestAPIWith builds the API with a tweaked config.
+func newTestAPIWith(t *testing.T, configure func(*config.Config)) *testAPI {
+	t.Helper()
 	pool := testdb.New(t)
 	codes := &captureProvider{codes: map[string]string{}}
 	store := storage.NewMemory()
 	cfg := testConfig()
+	configure(&cfg)
 	srv := httptest.NewServer(BuildAPI(cfg, pool, store, codes))
 	t.Cleanup(srv.Close)
 	return &testAPI{t: t, srv: srv, pool: pool, store: store, codes: codes, cfg: cfg}

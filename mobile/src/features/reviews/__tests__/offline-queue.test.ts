@@ -5,6 +5,8 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 jest.mock('@/api/env', () => ({ apiBaseUrl: 'http://api.test' }));
 jest.mock('@/auth/storage', () => ({ getCurrentUserId: jest.fn(async () => 'user-1') }));
 jest.mock('../photos', () => ({ deletePersistedPhoto: jest.fn() }));
+let mockOnline = true;
+jest.mock('@/lib/network-status', () => ({ isConnected: async () => mockOnline }));
 jest.mock('../queries', () => ({
   createReview: jest.fn(),
   uploadPhotos: jest.fn(async () => []),
@@ -24,6 +26,7 @@ function loadQueue(): typeof import('../offline-queue') {
 }
 
 beforeEach(async () => {
+  mockOnline = true;
   jest.resetModules();
   const storage = require('@react-native-async-storage/async-storage');
   AsyncStorage = storage.default ?? storage;
@@ -112,4 +115,33 @@ it('does not lose a job enqueued while the queue is still loading from storage',
     'helpful-vote',
     'review-submission',
   ]);
+});
+
+it('gives up after repeated online failures and can be retried by hand', async () => {
+  const queue = loadQueue();
+  await queue.enqueueReviewSubmission({ targetId: 't1', idempotencyKey: 'k1', form });
+  mockedCreateReview.mockRejectedValue(apiError(503));
+
+  for (let i = 0; i < queue.MAX_ATTEMPTS; i++) await queue.processQueue();
+
+  const [job] = queue.getQueueSnapshot();
+  expect(job.failure?.code).toBe(queue.GAVE_UP);
+  expect(mockedCreateReview).toHaveBeenCalledTimes(queue.MAX_ATTEMPTS);
+  await queue.processQueue();
+  expect(mockedCreateReview).toHaveBeenCalledTimes(queue.MAX_ATTEMPTS); // no longer retried on its own
+
+  mockedCreateReview.mockResolvedValueOnce('review-1');
+  await queue.retryJob(job.id);
+  expect(queue.getQueueSnapshot()).toHaveLength(0);
+});
+
+it("doesn't run, or spend attempts, while offline", async () => {
+  const queue = loadQueue();
+  await queue.enqueueReviewSubmission({ targetId: 't1', idempotencyKey: 'k1', form });
+  mockOnline = false;
+
+  for (let i = 0; i < queue.MAX_ATTEMPTS + 5; i++) await queue.processQueue();
+
+  expect(mockedCreateReview).not.toHaveBeenCalled();
+  expect(queue.getQueueSnapshot()[0].failure).toBeUndefined();
 });

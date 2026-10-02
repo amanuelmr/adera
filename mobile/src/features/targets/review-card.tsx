@@ -165,6 +165,7 @@ const styles = StyleSheet.create({
   },
   helpfulRow: {
     alignSelf: 'flex-start',
-    paddingVertical: Spacing.one,
+    minHeight: 44,
+    justifyContent: 'center',
   },
 });

@@ -3,22 +3,32 @@ import type { components } from '@/api/schema';
 
 type Notification = components['schemas']['Notification'];
 
-// Best-effort: a target id is either handed to us directly (most event
-// types put it in `data`, or the notification's own subject is a target),
-// or reachable by fetching the review first (its `target_id` field) when
-// only a `review_id` is available. Anything else has nowhere to send the
-// user, so we just mark it read.
-export async function resolveNotificationTargetId(notification: Notification): Promise<string | undefined> {
-  if (notification.data.target_id) return notification.data.target_id;
-  if (notification.subject_type === 'target') return notification.subject_id;
+/**
+ * Where tapping a notification should go, from the ids each event type puts
+ * in `data` (internal/*: notifications.EnqueueTx call sites). Best-effort:
+ * undefined means there's nowhere useful, and the tap just marks it read.
+ */
+export async function resolveNotificationRoute(notification: Notification): Promise<string | undefined> {
+  const { data, event_type: eventType, subject_type: subjectType, subject_id: subjectId } = notification;
 
-  const reviewId = notification.data.review_id ?? (notification.subject_type === 'review' ? notification.subject_id : undefined);
-  if (!reviewId) return undefined;
+  // Evidence decisions: back to that review's evidence, where the status is.
+  if (subjectType === 'evidence' && data.review_id) return `/review/${data.review_id}/evidence`;
+  // An approved claim means a business to manage now; other outcomes leave
+  // nothing to open.
+  if (subjectType === 'claim') return eventType === 'claim.approved' ? '/businesses' : undefined;
 
-  try {
-    const review = unwrap(await apiClient.GET('/api/v1/reviews/{id}', { params: { path: { id: reviewId } } })).data;
-    return review.target_id;
-  } catch {
-    return undefined;
+  const targetId = await resolveTargetId(notification);
+  return targetId ? `/target/${targetId}` : undefined;
+
+  async function resolveTargetId(n: Notification): Promise<string | undefined> {
+    if (n.data.target_id) return n.data.target_id;
+    if (subjectType === 'target') return subjectId;
+    const reviewId = data.review_id ?? (subjectType === 'review' ? subjectId : undefined);
+    if (!reviewId) return undefined;
+    try {
+      return unwrap(await apiClient.GET('/api/v1/reviews/{id}', { params: { path: { id: reviewId } } })).data.target_id;
+    } catch {
+      return undefined;
+    }
   }
 }

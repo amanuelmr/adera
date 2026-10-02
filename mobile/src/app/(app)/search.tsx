@@ -110,7 +110,7 @@ export default function SearchScreen() {
         ) : (
           <FlatList
             data={results.data}
-            keyExtractor={(item) => item.id ?? item.slug ?? ''}
+            keyExtractor={(item, index) => item.id ?? item.slug ?? String(index)}
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
               <TargetCard
