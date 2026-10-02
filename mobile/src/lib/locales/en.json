@@ -274,7 +274,9 @@
     "lastUsed": "Last used {{when}}",
     "lastUsedUnknown": "Last use unknown",
     "unknownDevice": "Unknown device",
-    "revoke": "Revoke"
+    "revoke": "Revoke",
+    "revokeTitle": "Sign out this device?",
+    "revokeBody": "It will need to sign in again to use your account."
   },
   "photos": {
     "permissionDenied": "Photo library access is needed to add a picture.",

@@ -274,7 +274,9 @@
     "lastUsed": "ለመጨረሻ ጊዜ የተጠቀሙት {{when}}",
     "lastUsedUnknown": "የመጨረሻ አጠቃቀም አይታወቅም",
     "unknownDevice": "ያልታወቀ መሳሪያ",
-    "revoke": "ሻር"
+    "revoke": "ሻር",
+    "revokeTitle": "ይህ መሳሪያ ይውጣ?",
+    "revokeBody": "መለያዎን ለመጠቀም እንደገና መግባት ያስፈልገዋል።"
   },
   "photos": {
     "permissionDenied": "ፎቶ ለመጨመር የፎቶ ማከማቻ ፍቃድ ያስፈልጋል።",
