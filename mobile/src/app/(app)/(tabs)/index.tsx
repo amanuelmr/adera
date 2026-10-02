@@ -46,7 +46,7 @@ export default function DiscoverScreen() {
             title={t('discover.categories')}
             query={categories}
             emptyLabel={t('discover.noCategories')}
-            keyExtractor={(category) => category.id ?? category.code ?? category.name ?? ''}
+            keyExtractor={(category, index) => category.id ?? category.code ?? category.name ?? String(index)}
             renderItem={(category) => (
               <CategoryTile
                 name={categoryName(category) ?? t('common.unnamed')}
@@ -59,7 +59,7 @@ export default function DiscoverScreen() {
             title={t('discover.topRated')}
             query={topRated}
             emptyLabel={t('discover.noTopRated')}
-            keyExtractor={(target) => target.id ?? target.slug ?? ''}
+            keyExtractor={(target, index) => target.id ?? target.slug ?? String(index)}
             renderItem={(target) => (
               <TargetCard
                 name={target.name ?? t('common.unnamed')}
@@ -74,7 +74,7 @@ export default function DiscoverScreen() {
             title={t('discover.trending')}
             query={trending}
             emptyLabel={t('discover.noTrending')}
-            keyExtractor={(target) => target.id ?? target.slug ?? ''}
+            keyExtractor={(target, index) => target.id ?? target.slug ?? String(index)}
             renderItem={(target) => (
               <TargetCard
                 name={target.name ?? t('common.unnamed')}

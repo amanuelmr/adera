@@ -76,6 +76,7 @@ export function TextPhotoStep({
               }}
               accessibilityRole="button"
               accessibilityLabel={t('photos.remove')}
+              hitSlop={11}
               style={[styles.removeButton, { backgroundColor: theme.background }]}>
               <ThemedText type="smallBold">×</ThemedText>
             </Pressable>

@@ -107,7 +107,7 @@ function SignedInAccount() {
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <FlatList
           data={reviewItems}
-          keyExtractor={(item) => item.id ?? ''}
+          keyExtractor={(item, index) => item.id ?? String(index)}
           contentContainerStyle={styles.list}
           onEndReachedThreshold={0.5}
           onEndReached={() => {
@@ -219,7 +219,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   link: {
-    paddingVertical: Spacing.one,
+    minHeight: 44,
+    paddingVertical: Spacing.two,
   },
   actions: {
     marginTop: Spacing.three,

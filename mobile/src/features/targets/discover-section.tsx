@@ -11,7 +11,7 @@ export type DiscoverSectionProps<T> = {
   title: string;
   query: UseQueryResult<T[]>;
   emptyLabel: string;
-  keyExtractor: (item: T) => string;
+  keyExtractor: (item: T, index: number) => string;
   renderItem: (item: T) => ReactElement;
 };
 

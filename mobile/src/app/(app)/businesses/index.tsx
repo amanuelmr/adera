@@ -18,7 +18,7 @@ export default function MyBusinessesScreen() {
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <FlatList
           data={businesses.data ?? []}
-          keyExtractor={(item) => item.id ?? ''}
+          keyExtractor={(item, index) => item.id ?? String(index)}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
           renderItem={({ item }) => (

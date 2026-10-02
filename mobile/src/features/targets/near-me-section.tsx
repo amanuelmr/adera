@@ -59,7 +59,7 @@ function NearMeResults({ latitude, longitude }: { latitude: number; longitude: n
       title={t('nearMe.title')}
       query={nearby}
       emptyLabel={t('nearMe.empty')}
-      keyExtractor={(target) => target.id ?? target.slug ?? ''}
+      keyExtractor={(target, index) => target.id ?? target.slug ?? String(index)}
       renderItem={(target) => (
         <TargetCard
           name={target.name ?? t('common.unnamed')}

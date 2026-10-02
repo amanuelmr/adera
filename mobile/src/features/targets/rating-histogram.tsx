@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    minHeight: 28,
+    minHeight: 44,
   },
   label: {
     width: 28,

@@ -17,6 +17,8 @@ export function FilterChip({ label, selected, onPress }: FilterChipProps) {
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
+      // Visually 36px tall; the touch area extends to the 44px minimum.
+      hitSlop={{ top: 4, bottom: 4 }}
       style={[
         styles.chip,
         { backgroundColor: selected ? theme.text : theme.backgroundElement, borderColor: theme.backgroundSelected },
