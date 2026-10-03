@@ -67,8 +67,14 @@ export default function WriteReviewScreen() {
   // render pass showing the blank form first. See filters-sheet.tsx for the
   // same pattern.
   const [hydratedFrom, setHydratedFrom] = useState<string>();
+  // The version the form's contents came from — not whatever version the
+  // cached review holds at submit time. A background refetch can bring in a
+  // newer version (an edit from another device); sending that with this
+  // older content would silently overwrite it instead of getting a 412.
+  const [hydratedVersion, setHydratedVersion] = useState<number>();
   if (isEditing && existingReview.data && hydratedFrom !== reviewId) {
     setHydratedFrom(reviewId);
+    setHydratedVersion(existingReview.data.version);
     setForm(reviewToFormState(existingReview.data));
   }
 
@@ -84,7 +90,7 @@ export default function WriteReviewScreen() {
         // Full-replace PUT with no Idempotency-Key support — editing stays
         // online-only rather than growing the offline queue a third job type.
         if (!(await isConnected())) throw new Error('offline');
-        const result = await submitReviewEdit(reviewId!, targetId, form, existingReview.data!.version!);
+        const result = await submitReviewEdit(reviewId!, targetId, form, hydratedVersion!);
         return { queued: false, failedPhotoCount: result.retryablePhotoUris.length, reviewId };
       }
 
