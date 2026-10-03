@@ -11,6 +11,8 @@ const (
 	dispatcherPollInterval = 5 * time.Second
 	dispatcherBatchSize    = 20
 	dispatcherMaxAttempts  = 8
+	// How long before a batch's claim expires the dispatcher stops sending.
+	dispatcherLeaseMargin = 30 * time.Second
 )
 
 // Dispatcher drains the notification outbox to an external Provider
@@ -18,10 +20,27 @@ const (
 type Dispatcher struct {
 	service  *Service
 	provider Provider
+	// sendBudget bounds how long one batch may spend sending. It ends before
+	// the batch's claim (outboxVisibilityTimeout) lapses: past that, another
+	// dispatcher instance may reclaim the same events, and anything still
+	// being sent here would be delivered twice.
+	sendBudget time.Duration
 }
 
-func NewDispatcher(service *Service, provider Provider) *Dispatcher {
-	return &Dispatcher{service: service, provider: provider}
+// DispatcherOption adjusts a Dispatcher.
+type DispatcherOption func(*Dispatcher)
+
+// WithSendBudget overrides the per-batch send budget (tests use a short one).
+func WithSendBudget(d time.Duration) DispatcherOption {
+	return func(disp *Dispatcher) { disp.sendBudget = d }
+}
+
+func NewDispatcher(service *Service, provider Provider, opts ...DispatcherOption) *Dispatcher {
+	d := &Dispatcher{service: service, provider: provider, sendBudget: outboxVisibilityTimeout - dispatcherLeaseMargin}
+	for _, opt := range opts {
+		opt(d)
+	}
+	return d
 }
 
 // Run polls the outbox until ctx is cancelled. It never returns an error;
@@ -48,9 +67,18 @@ func (d *Dispatcher) RunOnce(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("claiming notification outbox batch: %w", err)
 	}
+	deadline := time.Now().Add(d.sendBudget)
 	delivered := 0
 	for _, event := range events {
-		if err := d.provider.Send(ctx, event); err != nil {
+		if !time.Now().Before(deadline) {
+			// Out of budget: leave the rest untouched. Their claim lapses and
+			// they're picked up again, unsent and with no attempt counted.
+			break
+		}
+		sendCtx, cancel := context.WithDeadline(ctx, deadline)
+		err := d.provider.Send(sendCtx, event)
+		cancel()
+		if err != nil {
 			d.retry(ctx, event, err)
 			continue
 		}
