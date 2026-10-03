@@ -100,6 +100,8 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /trust", h.trust)
 	mux.HandleFunc("GET /banner/dismiss", h.dismissBanner)
 	mux.HandleFunc("GET /.well-known/assetlinks.json", h.assetLinks)
+	mux.HandleFunc("GET /robots.txt", h.robots)
+	mux.HandleFunc("GET /favicon.ico", h.favicon)
 	static, _ := fs.Sub(staticFS, "static")
 	files := http.StripPrefix("/static/", http.FileServerFS(static))
 	mux.Handle("GET /static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -452,6 +454,29 @@ func (h *Handler) assetLinks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	_, _ = w.Write(body)
+}
+
+// robots.txt: the public pages are meant to be found; the JSON API and
+// the banner-dismiss redirect aren't pages.
+const robotsTxt = `User-agent: *
+Allow: /t/
+Allow: /r/
+Allow: /trust
+Disallow: /api/
+Disallow: /banner/
+Disallow: /docs
+`
+
+func (h *Handler) robots(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	_, _ = w.Write([]byte(robotsTxt))
+}
+
+// favicon: browsers and crawlers request /favicon.ico regardless of the
+// <link rel="icon"> tag; point them at the SVG instead of a 404.
+func (h *Handler) favicon(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/static/favicon.svg", http.StatusMovedPermanently)
 }
 
 // ---- rendering ----

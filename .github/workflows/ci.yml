@@ -58,6 +58,44 @@ jobs:
           # couldn't).
           version: v2.14.0
 
+  web-pages:
+    # Lighthouse budgets for the server-rendered pages (docs/frontend-handoff.md §5).
+    # The logic lives in scripts/lighthouse.sh so it runs identically locally.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: adera
+          POSTGRES_PASSWORD: adera
+          POSTGRES_DB: lhci
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U adera"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Lighthouse
+        env:
+          DATABASE_URL: postgres://adera:adera@localhost:55432/lhci?sslmode=disable
+        run: scripts/lighthouse.sh
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/reports
+          if-no-files-found: ignore
+
   docker:
     runs-on: ubuntu-latest
     steps:
