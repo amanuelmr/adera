@@ -5,6 +5,13 @@ import { useAuth } from '@/auth/context';
 import { OfflineQueueProcessor } from '@/features/reviews/offline-queue-processor';
 import { PushRegistration } from '@/features/push/push-registration';
 
+// A shared link opened from a cold start (App Links → /t/…, /r/…) lands on
+// a stack screen with nothing under it; anchoring the tabs beneath gives it
+// a back button to Home instead of a dead end.
+export const unstable_settings = {
+  anchor: '(tabs)',
+};
+
 export default function AppLayout() {
   const { t } = useTranslation();
   const { status } = useAuth();

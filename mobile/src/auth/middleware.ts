@@ -17,7 +17,7 @@ const AUTH_EXEMPT_SCHEMA_PATHS = new Set(['/api/v1/auth/login', '/api/v1/auth/re
 // during logout. If its 401 triggered a refresh, it would await the very
 // refresh that is awaiting it — a deadlock. It's best-effort anyway.
 function skipsRefreshOn401(schemaPath: string, method: string): boolean {
-  return schemaPath === '/api/v1/users/me/devices' && method === 'DELETE';
+  return schemaPath === '/api/v1/users/me/devices/unregister' && method === 'POST';
 }
 
 /**

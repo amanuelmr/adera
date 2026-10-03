@@ -20,6 +20,10 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("PUT /api/v1/users/me/notifications/{id}/read", web.RequireAuth(http.HandlerFunc(h.read)))
 	mux.Handle("GET /api/v1/users/me/devices", web.RequireAuth(http.HandlerFunc(h.listDevices)))
 	mux.Handle("POST /api/v1/users/me/devices", web.RequireAuth(http.HandlerFunc(h.registerDevice)))
+	// POST because some proxies and HTTP clients drop DELETE request bodies.
+	// The DELETE form stays for builds that predate it; remove after the
+	// first store release.
+	mux.Handle("POST /api/v1/users/me/devices/unregister", web.RequireAuth(http.HandlerFunc(h.unregisterDevice)))
 	mux.Handle("DELETE /api/v1/users/me/devices", web.RequireAuth(http.HandlerFunc(h.unregisterDevice)))
 }
 
