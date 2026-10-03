@@ -177,3 +177,28 @@ func TestStaticStylesheetIsSmallAndCacheable(t *testing.T) {
 	assert.Equal(t, "public, max-age=86400", rec.Header().Get("Cache-Control"))
 	assert.Less(t, rec.Body.Len(), 8<<10)
 }
+
+func TestRobotsAndFavicon(t *testing.T) {
+	_, mux := newTestHandler(t, Config{})
+
+	robots := get(mux, "/robots.txt")
+	require.Equal(t, http.StatusOK, robots.Code)
+	assert.True(t, strings.HasPrefix(robots.Header().Get("Content-Type"), "text/plain"))
+	assert.Contains(t, robots.Body.String(), "Allow: /t/")
+	assert.Contains(t, robots.Body.String(), "Disallow: /api/")
+
+	ico := get(mux, "/favicon.ico")
+	assert.Equal(t, http.StatusMovedPermanently, ico.Code)
+	assert.Equal(t, "/static/favicon.svg", ico.Header().Get("Location"))
+	svg := get(mux, "/static/favicon.svg")
+	require.Equal(t, http.StatusOK, svg.Code)
+	assert.Equal(t, "image/svg+xml", svg.Header().Get("Content-Type"))
+}
+
+func TestHeadingsDontSkipLevels(t *testing.T) {
+	// The review partial sits directly under each page's <h1>, so its
+	// headings must be <h2>: skipping to <h3> breaks heading navigation.
+	raw, err := templateFS.ReadFile("templates/partials.html")
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "<h3")
+}
