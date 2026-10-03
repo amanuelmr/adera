@@ -7,5 +7,5 @@ export async function registerDeviceToken(token: string, platform: DevicePlatfor
 }
 
 export async function unregisterDeviceToken(token: string): Promise<void> {
-  unwrap(await apiClient.DELETE('/api/v1/users/me/devices', { body: { token } }));
+  unwrap(await apiClient.POST('/api/v1/users/me/devices/unregister', { body: { token } }));
 }

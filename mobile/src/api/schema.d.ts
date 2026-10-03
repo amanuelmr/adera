@@ -896,10 +896,10 @@ export interface paths {
             };
         };
         /**
-         * Unregister a push token (client logout)
-         * @description The token is sent in the body rather than the path because FCM tokens
-         *     are long and not URL-friendly. Only the caller's own tokens can be
-         *     removed.
+         * Unregister a push token (deprecated — use POST /users/me/devices/unregister)
+         * @deprecated
+         * @description Kept for builds that predate the POST form: some proxies and HTTP
+         *     clients drop DELETE request bodies. Same behavior as the POST.
          */
         delete: {
             parameters: {
@@ -930,6 +930,56 @@ export interface paths {
                 422: components["responses"]["ValidationError"];
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/devices/unregister": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unregister a push token (client logout)
+         * @description The token goes in the body, not the path: FCM tokens are long, and a
+         *     path would put a send credential in access logs. Only the caller's
+         *     own tokens can be removed.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        token: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description `{"data": {"status": "unregistered"}}` */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DataEnvelope"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;

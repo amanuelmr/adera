@@ -13,7 +13,7 @@ jest.mock('@/api/env', () => ({ apiBaseUrl: 'http://api.test' }));
 // the same apiClient/middleware, which is what made the deadlock possible.
 jest.mock('@/features/push/register', () => ({
   unregisterCurrentDevice: async () => {
-    await require('@/api/client').apiClient.DELETE('/api/v1/users/me/devices', { body: { token: 'fcm-token' } }).catch(() => undefined);
+    await require('@/api/client').apiClient.POST('/api/v1/users/me/devices/unregister', { body: { token: 'fcm-token' } }).catch(() => undefined);
   },
 }));
 
