@@ -83,7 +83,12 @@ export default function WriteReviewScreen() {
   }
 
   const submit = useMutation({
-    mutationFn: async (): Promise<{ queued: boolean; failedPhotoCount: number; reviewId?: string }> => {
+    mutationFn: async (): Promise<{
+      queued: boolean;
+      retryingPhotoCount: number;
+      rejectedPhotoCount: number;
+      reviewId?: string;
+    }> => {
       const targetId = target.data!.id!;
 
       if (isEditing) {
@@ -91,34 +96,55 @@ export default function WriteReviewScreen() {
         // online-only rather than growing the offline queue a third job type.
         if (!(await isConnected())) throw new Error('offline');
         const result = await submitReviewEdit(reviewId!, targetId, form, hydratedVersion!);
-        return { queued: false, failedPhotoCount: result.retryablePhotoUris.length, reviewId };
+        if (result.photos.retryable.length > 0) {
+          // The edit is saved; only new photos need another attempt. A job
+          // with a reviewId skips creation and just uploads them.
+          await enqueueReviewSubmission({
+            targetId,
+            form,
+            idempotencyKey,
+            reviewId,
+            pendingPhotoUris: result.photos.retryable,
+          });
+        }
+        return {
+          queued: false,
+          retryingPhotoCount: result.photos.retryable.length,
+          rejectedPhotoCount: result.photos.rejected,
+          reviewId,
+        };
       }
 
       if (!(await isConnected())) {
         await enqueueReviewSubmission({ targetId, form, idempotencyKey });
-        return { queued: true, failedPhotoCount: 0 };
+        return { queued: true, retryingPhotoCount: 0, rejectedPhotoCount: 0 };
       }
 
       try {
         const result = await submitReview(targetId, form, idempotencyKey);
-        if (result.retryablePhotoUris.length > 0) {
+        if (result.photos.retryable.length > 0) {
           // The review itself is live; only the photos need another attempt.
           await enqueueReviewSubmission({
             targetId,
             form,
             idempotencyKey,
             reviewId: result.reviewId,
-            pendingPhotoUris: result.retryablePhotoUris,
+            pendingPhotoUris: result.photos.retryable,
           });
         }
-        return { queued: false, failedPhotoCount: result.retryablePhotoUris.length, reviewId: result.reviewId };
+        return {
+          queued: false,
+          retryingPhotoCount: result.photos.retryable.length,
+          rejectedPhotoCount: result.photos.rejected,
+          reviewId: result.reviewId,
+        };
       } catch (err) {
         if (err instanceof ApiError) throw err; // a real rejection — nothing offline retry can fix
         // Network dropped mid-attempt — the review may or may not have been
         // created; queuing a fresh attempt is safe either way because the
         // Idempotency-Key makes a duplicate POST /reviews a no-op.
         await enqueueReviewSubmission({ targetId, form, idempotencyKey });
-        return { queued: true, failedPhotoCount: 0 };
+        return { queued: true, retryingPhotoCount: 0, rejectedPhotoCount: 0 };
       }
     },
     onSuccess: (result) => {
@@ -152,7 +178,12 @@ export default function WriteReviewScreen() {
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.confirmationBody}>
           {submit.data.queued ? t('review.queuedBody') : t('review.liveBody', { name: target.data.name })}
-          {submit.data.failedPhotoCount > 0 ? ` ${t('review.photosRetrying', { count: submit.data.failedPhotoCount })}` : ''}
+          {submit.data.retryingPhotoCount > 0
+            ? ` ${t('review.photosRetrying', { count: submit.data.retryingPhotoCount })}`
+            : ''}
+          {submit.data.rejectedPhotoCount > 0
+            ? ` ${t('review.photosRejected', { count: submit.data.rejectedPhotoCount })}`
+            : ''}
         </ThemedText>
         {submit.data.reviewId ? (
           <ThemedText type="small" themeColor="textSecondary" style={styles.confirmationBody}>

@@ -100,14 +100,21 @@ export function useReview(reviewId: string | undefined) {
  * are reported back as retryable so the caller can hand them to the offline
  * queue instead of losing them.
  */
+export type PhotoUploadResult = {
+  /** Failed for a reason worth retrying (network, server outage) — still on disk. */
+  retryable: string[];
+  /** Refused by the server (limit of 5 per review, unreadable file) — deleted. */
+  rejected: number;
+};
+
 export async function submitReview(
   targetId: string,
   form: ReviewFormState,
   idempotencyKey: string
-): Promise<{ reviewId: string; retryablePhotoUris: string[] }> {
+): Promise<{ reviewId: string; photos: PhotoUploadResult }> {
   const reviewId = await createReview(targetId, form, idempotencyKey);
-  const retryablePhotoUris = await uploadPhotos(reviewId, form.photos.map((photo) => photo.uri));
-  return { reviewId, retryablePhotoUris };
+  const photos = await uploadPhotos(reviewId, form.photos.map((photo) => photo.uri));
+  return { reviewId, photos };
 }
 
 /** Same shape as {@link submitReview}, for the edit path — existing media is untouched; form.photos are only the newly added ones. */
@@ -116,15 +123,15 @@ export async function submitReviewEdit(
   targetId: string,
   form: ReviewFormState,
   version: number
-): Promise<{ retryablePhotoUris: string[] }> {
+): Promise<{ photos: PhotoUploadResult }> {
   await updateReview(reviewId, targetId, form, version);
-  const retryablePhotoUris = await uploadPhotos(reviewId, form.photos.map((photo) => photo.uri));
-  return { retryablePhotoUris };
+  const photos = await uploadPhotos(reviewId, form.photos.map((photo) => photo.uri));
+  return { photos };
 }
 
-/** Uploads each URI, returning the ones that failed for a reason worth retrying later. */
-export async function uploadPhotos(reviewId: string, uris: string[]): Promise<string[]> {
-  const retryable: string[] = [];
+/** Uploads each URI, sorting failures into ones worth retrying and ones the server refused. */
+export async function uploadPhotos(reviewId: string, uris: string[]): Promise<PhotoUploadResult> {
+  const result: PhotoUploadResult = { retryable: [], rejected: 0 };
   for (const uri of uris) {
     // Gone already (cleared storage, or a crash between upload and
     // bookkeeping): nothing left to upload, and retrying would never succeed.
@@ -134,15 +141,16 @@ export async function uploadPhotos(reviewId: string, uris: string[]): Promise<st
       deletePersistedPhoto(uri);
     } catch (err) {
       if (isTransientFailure(err)) {
-        retryable.push(uri);
+        result.retryable.push(uri);
       } else {
-        // The server rejected this photo outright — retrying it unchanged
-        // would just fail again, so give up and clean up.
+        // The server refused this photo — retrying it unchanged would just
+        // fail again, so clean up and let the caller tell the user.
         deletePersistedPhoto(uri);
+        result.rejected += 1;
       }
     }
   }
-  return retryable;
+  return result;
 }
 
 export async function uploadReviewPhoto(reviewId: string, localUri: string): Promise<void> {
