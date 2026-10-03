@@ -86,11 +86,13 @@ func (p EmailProvider) deliver(ctx context.Context, to string, msg []byte) error
 	if err != nil {
 		return fmt.Errorf("dialing smtp relay: %w", err)
 	}
-	// net/smtp predates context, so the deadline is what enforces the
-	// caller's timeout for the rest of the conversation.
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		deadline = time.Now().Add(p.opts.Timeout)
+	// net/smtp predates context, so a connection deadline enforces the
+	// timeout for the rest of the conversation: the configured SMTP timeout,
+	// or the caller's deadline if that comes first — never the caller's
+	// alone, which for an HTTP request is far longer than a relay should get.
+	deadline := time.Now().Add(p.opts.Timeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
 	}
 	if err := conn.SetDeadline(deadline); err != nil {
 		_ = conn.Close()
