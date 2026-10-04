@@ -36,13 +36,22 @@ func TestDeviceRegistrationRoutes(t *testing.T) {
 	status, _ = a.do("POST", "/api/v1/users/me/devices", map[string]any{"token": "x", "platform": "symbian"}, alice.Access)
 	assert.Equal(t, http.StatusUnprocessableEntity, status)
 
-	status, _ = a.do("DELETE", "/api/v1/users/me/devices", map[string]any{"token": "fcm-token-alice-0123456789abcdefghijklmnop"}, bob.Access)
+	unregister := map[string]any{"token": "fcm-token-alice-0123456789abcdefghijklmnop"}
+	status, _ = a.do("POST", "/api/v1/users/me/devices/unregister", unregister, bob.Access)
 	assert.Equal(t, http.StatusNotFound, status, "one user can't unregister another's device")
 
-	status, _ = a.do("DELETE", "/api/v1/users/me/devices", map[string]any{"token": "fcm-token-alice-0123456789abcdefghijklmnop"}, alice.Access)
+	status, _ = a.do("POST", "/api/v1/users/me/devices/unregister", unregister, alice.Access)
 	assert.Equal(t, http.StatusOK, status)
 	_, res = a.do("GET", "/api/v1/users/me/devices", nil, alice.Access)
 	assert.Equal(t, []any{}, res["data"])
+
+	// The deprecated DELETE form still works for older builds.
+	status, _ = a.do("POST", "/api/v1/users/me/devices", body, alice.Access)
+	require.Equal(t, http.StatusOK, status)
+	status, _ = a.do("DELETE", "/api/v1/users/me/devices", unregister, alice.Access)
+	assert.Equal(t, http.StatusOK, status)
+	status, _ = a.do("POST", "/api/v1/users/me/devices/unregister", map[string]any{}, alice.Access)
+	assert.Equal(t, http.StatusUnprocessableEntity, status, "token is required")
 }
 
 func TestNearbyRoute(t *testing.T) {

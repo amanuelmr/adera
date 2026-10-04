@@ -10,8 +10,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -821,4 +823,56 @@ func TestDiscoveryListings(t *testing.T) {
 	require.GreaterOrEqual(t, len(trend), 2)
 	assert.Equal(t, good, trend[0].(map[string]any)["id"])
 	assert.EqualValues(t, 3, trend[0].(map[string]any)["recent_review_count"])
+}
+
+// claimStealingStore loses the finalization claim right after the public
+// copy is written, so finalize's database update fails as it would under a
+// concurrent reset.
+type claimStealingStore struct {
+	*storage.MemoryStore
+	pool         *pgxpool.Pool
+	publicBucket string
+}
+
+func (s *claimStealingStore) Put(ctx context.Context, bucket, key string, r io.Reader, size int64, contentType string) error {
+	if err := s.MemoryStore.Put(ctx, bucket, key, r, size, contentType); err != nil {
+		return err
+	}
+	if bucket == s.publicBucket && !strings.Contains(key, "_thumb") {
+		_, err := s.pool.Exec(ctx, `UPDATE review_media SET status = 'staged' WHERE status = 'processing'`)
+		return err
+	}
+	return nil
+}
+
+func TestFailedFinalizeLeavesNoPublicObjects(t *testing.T) {
+	pool := testdb.New(t)
+	cfg := testConfig()
+	memory := storage.NewMemory()
+	store := &claimStealingStore{MemoryStore: memory, pool: pool, publicBucket: cfg.StoragePublicBucket}
+	srv := httptest.NewServer(BuildAPI(cfg, pool, store, &captureProvider{codes: map[string]string{}}))
+	t.Cleanup(srv.Close)
+	a := &testAPI{t: t, srv: srv, pool: pool, store: memory, codes: &captureProvider{codes: map[string]string{}}, cfg: cfg}
+
+	mod := a.register("orphanmod")
+	a.grantRoles(&mod, "moderator")
+	target := a.createTarget(mod, "Orphan Media Café", catRestaurantID, "restaurant")
+	author := a.register("orphanauthor")
+	review := a.review(author, target, 4, nil)
+	ctx := context.Background()
+
+	status, res := a.do("POST", "/api/v1/reviews/"+review+"/media", map[string]any{"content_type": "image/jpeg"}, author.Access)
+	require.Equal(t, http.StatusCreated, status, "%v", res)
+	uploadID := data(res)["upload_id"].(string)
+	key := data(res)["upload"].(map[string]any)["key"].(string)
+	img := exifJPEG(t)
+	require.NoError(t, memory.Put(ctx, cfg.StoragePrivateBucket, key, bytes.NewReader(img), int64(len(img)), "image/jpeg"))
+
+	status, _ = a.do("POST", "/api/v1/media/uploads/"+uploadID+"/finalize", nil, author.Access)
+	require.Equal(t, http.StatusConflict, status, "the lost claim makes finalize fail")
+
+	for _, suffix := range []string{".jpg", "_thumb.jpg"} {
+		_, err := memory.Stat(ctx, cfg.StoragePublicBucket, "reviews/"+review+"/"+uploadID+suffix)
+		assert.Error(t, err, "public object %s must not be left behind", suffix)
+	}
 }

@@ -357,6 +357,11 @@ func (s *Service) FinalizeReviewMedia(ctx context.Context, uploadID, userID uuid
 		}
 		return s.reviewsRepo.UpgradeVerificationTx(ctx, tx, reviewID, reviews.VerifyMedia)
 	}); err != nil {
+		// The public copies are already written but nothing references
+		// them. A retry would overwrite them (the keys are fixed per
+		// upload), but an abandoned upload would leave publicly readable
+		// images behind, so remove them now.
+		s.removePublicObjects(ctx, uploadID, finalKey, thumbKey)
 		return uuid.Nil, "", err
 	}
 	resetClaim = false
@@ -454,6 +459,23 @@ func SniffImageType(b []byte) string {
 		return "image/webp"
 	default:
 		return ""
+	}
+}
+
+// removePublicObjects best-effort deletes public objects written for an
+// upload whose database update failed.
+func (s *Service) removePublicObjects(ctx context.Context, uploadID uuid.UUID, finalKey string, thumbKey *string) {
+	keys := []string{finalKey}
+	if thumbKey != nil {
+		keys = append(keys, *thumbKey)
+	}
+	removeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	for _, key := range keys {
+		if err := s.store.Remove(removeCtx, s.publicBucket, key); err != nil {
+			slog.WarnContext(removeCtx, "failed to remove unreferenced public media",
+				"upload_id", uploadID, "object_key", key, "error", err)
+		}
 	}
 }
 

@@ -232,3 +232,33 @@ func TestEmailProviderErrorsNeverLeakTheCode(t *testing.T) {
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "483920")
 }
+
+// A relay that accepts the connection and then says nothing must fail
+// within the configured timeout, even when the caller's context allows far
+// longer (every HTTP request carries one from the timeout middleware).
+func TestEmailDeliveryHonoursConfiguredTimeoutUnderALongerContext(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		time.Sleep(5 * time.Second) // never sends the 220 greeting
+	}()
+
+	opts := testSMTPOptions(ln.Addr().String())
+	opts.Timeout = 200 * time.Millisecond
+	p, err := NewEmailProvider(opts)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	start := time.Now()
+	err = p.deliver(ctx, "abebe@example.com", []byte("Subject: hi\r\n\r\nbody"))
+
+	require.Error(t, err)
+	assert.Less(t, time.Since(start), 2*time.Second)
+}

@@ -9,7 +9,7 @@ let mockOnline = true;
 jest.mock('@/lib/network-status', () => ({ isConnected: async () => mockOnline }));
 jest.mock('../queries', () => ({
   createReview: jest.fn(),
-  uploadPhotos: jest.fn(async () => []),
+  uploadPhotos: jest.fn(async () => ({ retryable: [], rejected: 0 })),
   invalidateReviewCaches: jest.fn(),
 }));
 

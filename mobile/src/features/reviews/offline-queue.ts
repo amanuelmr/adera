@@ -219,7 +219,7 @@ async function runJob(job: QueueJob): Promise<JobOutcome> {
       job.reviewId = await createReview(job.targetId, job.form, job.idempotencyKey);
       await persist();
     }
-    job.pendingPhotoUris = await uploadPhotos(job.reviewId, job.pendingPhotoUris);
+    job.pendingPhotoUris = (await uploadPhotos(job.reviewId, job.pendingPhotoUris)).retryable;
     await persist();
     invalidateReviewCaches(job.targetId, job.reviewId);
     return job.pendingPhotoUris.length === 0 ? 'done' : 'retry';

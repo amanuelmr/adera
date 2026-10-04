@@ -235,7 +235,9 @@
     "showPhotos_other": "Show {{count}} photos",
     "dateFormat": "Use the format YYYY-MM-DD, e.g. 2026-09-28.",
     "dateFuture": "That date hasn't happened yet.",
-    "priceInvalid": "Enter an amount in birr, like 250 or 1,500."
+    "priceInvalid": "Enter an amount in birr, like 250 or 1,500.",
+    "photosRejected_one": "{{count}} photo wasn't accepted — a review can have up to 5 photos, and each must be a readable image.",
+    "photosRejected_other": "{{count}} photos weren't accepted — a review can have up to 5 photos, and each must be a readable image."
   },
   "report": {
     "title": "Report review",

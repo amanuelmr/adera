@@ -501,11 +501,37 @@ paths:
         '422': {$ref: '#/components/responses/ValidationError'}
     delete:
       tags: [notifications]
+      summary: Unregister a push token (deprecated — use POST /users/me/devices/unregister)
+      deprecated: true
+      description: |
+        Kept for builds that predate the POST form: some proxies and HTTP
+        clients drop DELETE request bodies. Same behavior as the POST.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: {type: string}
+      responses:
+        '200':
+          description: '`{"data": {"status": "unregistered"}}`'
+          content: {application/json: {schema: {$ref: '#/components/schemas/DataEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /api/v1/users/me/devices/unregister:
+    post:
+      tags: [notifications]
       summary: Unregister a push token (client logout)
       description: |
-        The token is sent in the body rather than the path because FCM tokens
-        are long and not URL-friendly. Only the caller's own tokens can be
-        removed.
+        The token goes in the body, not the path: FCM tokens are long, and a
+        path would put a send credential in access logs. Only the caller's
+        own tokens can be removed.
       security: [{bearerAuth: []}]
       requestBody:
         required: true
