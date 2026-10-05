@@ -54,6 +54,8 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	otpLimiter := limiter(ratelimit.PerMinute(5))
 	reviewLimiter := limiter(ratelimit.PerMinute(10))
 	reportLimiter := limiter(ratelimit.PerMinute(10))
+	// Ten place submissions a day per account, refilling continuously.
+	targetSubmitLimiter := limiter(ratelimit.NewKeyed(rate.Limit(10.0/86400.0), 10))
 	presignLimiter := limiter(ratelimit.NewKeyed(rate.Limit(20.0/3600.0), 20))
 	searchLimiter := limiter(ratelimit.NewKeyed(2, 10))
 
@@ -81,7 +83,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	categories.NewHandler(categoriesRepo).Routes(mux)
 	locations.NewHandler(locationsRepo).Routes(mux)
 	businesses.NewHandler(bizRepo).Routes(mux)
-	targets.NewHandler(targetsRepo, bizRepo, usersRepo).Routes(mux)
+	targets.NewHandler(targetsRepo, bizRepo, usersRepo, targetSubmitLimiter).Routes(mux)
 	reviews.NewHandler(reviewsRepo, reviewLimiter).Routes(mux)
 	ratings.NewHandler(ratingsRepo).Routes(mux)
 	search.NewHandler(searchRepo, searchLimiter, cfg.TrustProxyHeaders).Routes(mux)
