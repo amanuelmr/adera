@@ -27,6 +27,7 @@ import { RatingStep } from '@/features/reviews/steps/rating-step';
 import { MAX_PHOTOS, TextPhotoStep } from '@/features/reviews/steps/text-photo-step';
 import { recoverPendingPhoto } from '@/features/reviews/photos';
 import { formatRelative } from '@/lib/format';
+import { shareReview } from '@/features/share/share';
 import { useTarget } from '@/features/targets/queries';
 
 const STEP_COUNT = 5;
@@ -282,6 +283,19 @@ export default function WriteReviewScreen() {
           </ThemedText>
         ) : null}
         <View style={styles.confirmationActions}>
+          {submit.data.reviewId && !submit.data.queued ? (
+            // Telegram sharing is the main way people find places here; the
+            // link opens the public review page (or the app, if installed).
+            <Button
+              title={t('review.shareYours')}
+              onPress={() =>
+                shareReview(
+                  { id: submit.data.reviewId, title: form.title, body: form.body, overall_rating: form.overallRating },
+                  target.data.name ?? ''
+                ).catch(() => undefined)
+              }
+            />
+          ) : null}
           {submit.data.reviewId ? (
             <Button
               title={t('evidence.addButton')}
