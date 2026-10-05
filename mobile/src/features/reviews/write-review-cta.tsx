@@ -52,7 +52,7 @@ export function WriteReviewCta({ targetId, idOrSlug }: { targetId: string | unde
     <View style={styles.container}>
       <Button
         title={t('nav.writeReview')}
-        onPress={() => requireSignIn(() => router.push(`/target/${idOrSlug}/review`))}
+        onPress={() => requireSignIn(() => router.push(`/target/${idOrSlug}/review`), 'writeReview')}
       />
     </View>
   );

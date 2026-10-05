@@ -56,7 +56,13 @@
     "verifyLink": "Verify your email",
     "devicesLink": "Your devices",
     "continueBrowsing": "Continue browsing",
-    "signInToContinue": "Sign in to write reviews, vote, and get updates."
+    "signInToContinue": "Sign in to write reviews, vote, and get updates.",
+    "reason": {
+      "writeReview": "Sign in to write your review — you’ll go straight back to it.",
+      "vote": "Sign in to vote — your vote will be saved.",
+      "report": "Sign in to report this review.",
+      "addPlace": "Sign in to add a place."
+    }
   },
   "errors": {
     "invalidCredentials": "Incorrect email/phone or password.",

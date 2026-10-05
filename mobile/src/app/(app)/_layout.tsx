@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/auth/context';
+import { PendingIntentRunner } from '@/auth/pending-intent-runner';
 import { OfflineQueueProcessor } from '@/features/reviews/offline-queue-processor';
 import { PushRegistration } from '@/features/push/push-registration';
 
@@ -18,6 +19,7 @@ export default function AppLayout() {
   const signedIn = status === 'signedIn';
   return (
     <>
+      <PendingIntentRunner />
       {/* Only mounted while signed in — a queued job or a device
           registration both belong to whoever is signed in when they
           happen. */}
