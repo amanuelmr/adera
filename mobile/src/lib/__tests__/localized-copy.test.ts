@@ -56,3 +56,9 @@ it('labels every target type offered in search filters', () => {
   const { TARGET_TYPES } = require('@/features/search/types');
   for (const dict of [en, am]) for (const type of TARGET_TYPES) expect(dict.search.type).toHaveProperty(type);
 });
+
+it('uses event-specific wording where the prefix would mislead', () => {
+  const { describeEventType } = require('@/features/activity/event-copy');
+  expect(describeEventType('target.approve')).toBe(en.events.targetApproved);
+  expect(describeEventType('target.hide')).toBe(en.events.target);
+});

@@ -5,6 +5,7 @@ import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { AddPlaceLink } from '@/features/places/add-place-link';
 import { DiscoverSection } from './discover-section';
 import { useNearbyTargets } from './queries';
 import { TargetCard } from './target-card';
@@ -59,6 +60,7 @@ function NearMeResults({ latitude, longitude }: { latitude: number; longitude: n
       title={t('nearMe.title')}
       query={nearby}
       emptyLabel={t('nearMe.empty')}
+      emptyAction={<AddPlaceLink />}
       keyExtractor={(target, index) => target.id ?? target.slug ?? String(index)}
       renderItem={(target) => (
         <TargetCard

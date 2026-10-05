@@ -44,3 +44,10 @@ it('goes nowhere when the review lookup fails', async () => {
 it('goes nowhere for a report outcome', async () => {
   expect(await resolveNotificationRoute(notification({ event_type: 'report.resolved', subject_type: 'report', data: {} }))).toBeUndefined();
 });
+
+it('opens a place the user added once it is approved, and not when it was hidden', async () => {
+  const approved = notification({ event_type: 'target.approve', subject_type: 'target', subject_id: 'place-1' });
+  const hidden = notification({ event_type: 'target.hide', subject_type: 'target', subject_id: 'place-1' });
+  expect(await resolveNotificationRoute(approved)).toBe('/target/place-1');
+  expect(await resolveNotificationRoute(hidden)).toBeUndefined();
+});

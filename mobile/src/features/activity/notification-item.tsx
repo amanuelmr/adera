@@ -19,11 +19,11 @@ export function NotificationItem({ notification, onPress }: { notification: Noti
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${unread ? `${t('activity.unread')}. ` : ''}${describeEventType(notification.event_type)}`}
+      accessibilityLabel={`${unread ? `${t('activity.unread')}. ` : ''}${describeEventType(notification.event_type, notification.data)}`}
       style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
       {unread ? <View style={[styles.dot, { backgroundColor: theme.text }]} /> : <View style={styles.dot} />}
       <View style={styles.body}>
-        <ThemedText type={unread ? 'smallBold' : 'small'}>{describeEventType(notification.event_type)}</ThemedText>
+        <ThemedText type={unread ? 'smallBold' : 'small'}>{describeEventType(notification.event_type, notification.data)}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary" accessibilityLabel={formatDateTime(notification.created_at)}>
           {formatRelative(notification.created_at)}
         </ThemedText>

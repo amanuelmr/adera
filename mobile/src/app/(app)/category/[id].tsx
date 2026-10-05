@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { QueryError } from '@/components/query-error';
+import { AddPlaceLink } from '@/features/places/add-place-link';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -41,9 +42,12 @@ export default function CategoryScreen() {
             ) : targets.isError ? (
               <QueryError onRetry={() => targets.refetch()} retrying={targets.isRefetching} />
             ) : (
-              <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-                {t('category.empty')}
-              </ThemedText>
+              <View>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
+                  {t('category.empty')}
+                </ThemedText>
+                <AddPlaceLink categoryId={id} />
+              </View>
             )
           }
         />

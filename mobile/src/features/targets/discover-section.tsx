@@ -11,12 +11,21 @@ export type DiscoverSectionProps<T> = {
   title: string;
   query: UseQueryResult<T[]>;
   emptyLabel: string;
+  /** Shown under the empty label, e.g. a way to add what's missing. */
+  emptyAction?: ReactElement;
   keyExtractor: (item: T, index: number) => string;
   renderItem: (item: T) => ReactElement;
 };
 
 /** Shared loading/error/empty handling for Discover's horizontal lists. */
-export function DiscoverSection<T>({ title, query, emptyLabel, keyExtractor, renderItem }: DiscoverSectionProps<T>) {
+export function DiscoverSection<T>({
+  title,
+  query,
+  emptyLabel,
+  emptyAction,
+  keyExtractor,
+  renderItem,
+}: DiscoverSectionProps<T>) {
   return (
     <ThemedView>
       <ThemedText type="smallBold" style={styles.title}>
@@ -27,9 +36,12 @@ export function DiscoverSection<T>({ title, query, emptyLabel, keyExtractor, ren
       ) : query.isError ? (
         <QueryError onRetry={() => query.refetch()} retrying={query.isRefetching} />
       ) : query.data.length === 0 ? (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-          {emptyLabel}
-        </ThemedText>
+        <>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
+            {emptyLabel}
+          </ThemedText>
+          {emptyAction}
+        </>
       ) : (
         <FlatList
           horizontal
