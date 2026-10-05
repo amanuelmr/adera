@@ -1,17 +1,19 @@
 import { useMutation } from '@tanstack/react-query';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
+import { getCurrentUserId } from '@/auth/storage';
 import type { components } from '@/api/schema';
 import { Button } from '@/components/button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { clearDraft, discardDraft, loadDraft, saveDraft, type ReviewDraft } from '@/features/reviews/drafts';
 import { generateIdempotencyKey } from '@/features/reviews/idempotency';
 import { enqueueReviewSubmission } from '@/features/reviews/offline-queue';
 import { invalidateReviewCaches, submitReview, submitReviewEdit, useCriteria, useReview } from '@/features/reviews/queries';
@@ -22,7 +24,9 @@ import { CriteriaStep } from '@/features/reviews/steps/criteria-step';
 import { ContextStep } from '@/features/reviews/steps/context-step';
 import { DisclosureStep } from '@/features/reviews/steps/disclosure-step';
 import { RatingStep } from '@/features/reviews/steps/rating-step';
-import { TextPhotoStep } from '@/features/reviews/steps/text-photo-step';
+import { MAX_PHOTOS, TextPhotoStep } from '@/features/reviews/steps/text-photo-step';
+import { recoverPendingPhoto } from '@/features/reviews/photos';
+import { formatRelative } from '@/lib/format';
 import { useTarget } from '@/features/targets/queries';
 
 const STEP_COUNT = 5;
@@ -32,6 +36,11 @@ const MIN_BODY_LENGTH = 20;
 // see submitReviewEdit); discovery_source/expectation_match come back from
 // the API as plain strings rather than their enum types (a spec looseness,
 // not a validation gap — only enum members are ever actually stored).
+function withPhoto(form: ReviewFormState, uri: string | undefined): ReviewFormState {
+  if (!uri || form.photos.length >= MAX_PHOTOS || form.photos.some((p) => p.uri === uri)) return form;
+  return { ...form, photos: [...form.photos, { uri }] };
+}
+
 function reviewToFormState(review: components['schemas']['Review']): ReviewFormState {
   return {
     overallRating: review.overall_rating,
@@ -76,6 +85,54 @@ export default function WriteReviewScreen() {
     setHydratedFrom(reviewId);
     setHydratedVersion(existingReview.data.version);
     setForm(reviewToFormState(existingReview.data));
+  }
+
+  // Drafts (new reviews only — an edit reloads from the server). 'checking'
+  // until the saved draft and any photo Android delivered after killing the
+  // app are loaded; 'prompt' asks whether to continue a found draft.
+  const targetId = target.data?.id;
+  const [userId, setUserId] = useState<string | null>();
+  const [draftState, setDraftState] = useState<'checking' | 'prompt' | 'ready'>(isEditing ? 'ready' : 'checking');
+  const [foundDraft, setFoundDraft] = useState<ReviewDraft>();
+  const [recoveredPhoto, setRecoveredPhoto] = useState<string>();
+
+  useEffect(() => {
+    if (isEditing || !targetId) return;
+    let cancelled = false;
+    (async () => {
+      const uid = await getCurrentUserId();
+      const [draft, recovered] = await Promise.all([
+        uid ? loadDraft(uid, targetId) : undefined,
+        recoverPendingPhoto().catch(() => undefined),
+      ]);
+      if (cancelled) return;
+      setUserId(uid);
+      setRecoveredPhoto(recovered);
+      if (draft) {
+        setFoundDraft(draft);
+        setDraftState('prompt');
+      } else {
+        if (recovered) setForm((prev) => withPhoto(prev, recovered));
+        setDraftState('ready');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditing, targetId]);
+
+  function resumeDraft() {
+    if (!foundDraft) return;
+    setForm(withPhoto(foundDraft.form, recoveredPhoto));
+    setStep(Math.min(foundDraft.step, STEP_COUNT - 1));
+    setDraftState('ready');
+  }
+
+  function startOver() {
+    if (userId && targetId) discardDraft(userId, targetId, foundDraft).catch(() => undefined);
+    setForm(withPhoto(INITIAL_REVIEW_FORM, recoveredPhoto));
+    setStep(0);
+    setDraftState('ready');
   }
 
   function update<K extends keyof ReviewFormState>(key: K, value: ReviewFormState[K]) {
@@ -149,8 +206,19 @@ export default function WriteReviewScreen() {
     },
     onSuccess: (result) => {
       if (!result.queued) invalidateReviewCaches(target.data!.id!, result.reviewId);
+      // Submitted or queued: the draft has served its purpose. Its photos
+      // now belong to the upload, so they're kept.
+      if (!isEditing && userId && targetId) clearDraft(userId, targetId).catch(() => undefined);
     },
   });
+
+  // Autosave, debounced. Paused while submitting and after success so a late
+  // save can't resurrect a draft that was just cleared.
+  useEffect(() => {
+    if (isEditing || draftState !== 'ready' || !userId || !targetId || submit.isPending || submit.isSuccess) return;
+    const timer = setTimeout(() => saveDraft(userId, targetId, form, step).catch(() => undefined), 500);
+    return () => clearTimeout(timer);
+  }, [isEditing, draftState, userId, targetId, form, step, submit.isPending, submit.isSuccess]);
 
   if (target.isPending || (isEditing && existingReview.isPending)) {
     return (
@@ -166,6 +234,29 @@ export default function WriteReviewScreen() {
         <ThemedText type="small" themeColor="textSecondary">
           {t(isEditing ? 'review.loadReviewFailed' : 'review.loadTargetFailed')}
         </ThemedText>
+      </ThemedView>
+    );
+  }
+
+  if (draftState === 'checking') {
+    return (
+      <ThemedView style={styles.centered}>
+        <ActivityIndicator />
+      </ThemedView>
+    );
+  }
+
+  if (draftState === 'prompt' && foundDraft) {
+    return (
+      <ThemedView style={styles.centered}>
+        <ThemedText type="subtitle">{t('review.draftTitle')}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.confirmationBody}>
+          {t('review.draftSaved', { when: formatRelative(new Date(foundDraft.savedAt)) })}
+        </ThemedText>
+        <View style={styles.confirmationActions}>
+          <Button title={t('review.draftResume')} onPress={resumeDraft} />
+          <Button title={t('review.draftStartOver')} variant="secondary" onPress={startOver} />
+        </View>
       </ThemedView>
     );
   }

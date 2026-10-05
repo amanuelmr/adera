@@ -5,10 +5,10 @@ import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { deletePersistedPhoto, pickAndCompressPhoto } from '../photos';
+import { deletePersistedPhoto, pickAndCompressPhoto, type PhotoSource } from '../photos';
 import type { PickedPhoto } from '../types';
 
-const MAX_PHOTOS = 5;
+export const MAX_PHOTOS = 5;
 const MIN_BODY_LENGTH = 20;
 
 export function TextPhotoStep({
@@ -30,10 +30,10 @@ export function TextPhotoStep({
   const { t } = useTranslation();
   const [photoError, setPhotoError] = useState<string>();
 
-  async function addPhoto() {
+  async function addPhoto(source: PhotoSource) {
     setPhotoError(undefined);
-    const result = await pickAndCompressPhoto();
-    if ('error' in result) setPhotoError(t('photos.permissionDenied'));
+    const result = await pickAndCompressPhoto(source);
+    if ('error' in result) setPhotoError(t(source === 'camera' ? 'photos.cameraDenied' : 'photos.permissionDenied'));
     else if ('uri' in result) onChangePhotos([...photos, { uri: result.uri }]);
   }
 
@@ -83,13 +83,24 @@ export function TextPhotoStep({
           </View>
         ))}
         {photos.length < MAX_PHOTOS ? (
-          <Pressable
-            onPress={addPhoto}
-            accessibilityRole="button"
-            accessibilityLabel={t('photos.add')}
-            style={[styles.addPhoto, { backgroundColor: theme.backgroundElement }]}>
-            <ThemedText type="title">+</ThemedText>
-          </Pressable>
+          <>
+            {/* Reviews are mostly written at the place: taking the photo
+                there is the common case, not picking an old one. */}
+            <Pressable
+              onPress={() => addPhoto('camera')}
+              accessibilityRole="button"
+              accessibilityLabel={t('photos.takePhoto')}
+              style={[styles.addPhoto, { backgroundColor: theme.backgroundElement }]}>
+              <ThemedText type="smallBold">{t('photos.camera')}</ThemedText>
+            </Pressable>
+            <Pressable
+              onPress={() => addPhoto('library')}
+              accessibilityRole="button"
+              accessibilityLabel={t('photos.add')}
+              style={[styles.addPhoto, { backgroundColor: theme.backgroundElement }]}>
+              <ThemedText type="smallBold">{t('photos.gallery')}</ThemedText>
+            </Pressable>
+          </>
         ) : null}
       </View>
       {photoError ? (

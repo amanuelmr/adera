@@ -243,7 +243,12 @@
     "dateFuture": "ያ ቀን ገና አልደረሰም።",
     "priceInvalid": "መጠኑን በብር ያስገቡ፣ ለምሳሌ 250 ወይም 1,500።",
     "photosRejected_one": "{{count}} ፎቶ አልተቀበለም — አንድ ግምገማ እስከ 5 ፎቶዎች ሊኖሩት ይችላል፣ እና እያንዳንዱ የሚነበብ ምስል መሆን አለበት።",
-    "photosRejected_other": "{{count}} ፎቶዎች አልተቀበሉም — አንድ ግምገማ እስከ 5 ፎቶዎች ሊኖሩት ይችላል፣ እና እያንዳንዱ የሚነበብ ምስል መሆን አለበት።"
+    "photosRejected_other": "{{count}} ፎቶዎች አልተቀበሉም — አንድ ግምገማ እስከ 5 ፎቶዎች ሊኖሩት ይችላል፣ እና እያንዳንዱ የሚነበብ ምስል መሆን አለበት።",
+    "draftTitle": "ያልጨረሱት ግምገማ አለዎት",
+    "draftSaved": "የተቀመጠው {{when}}።",
+    "draftResume": "ይቀጥሉ",
+    "draftStartOver": "እንደገና ይጀምሩ",
+    "shareYours": "ግምገማዎን ያጋሩ"
   },
   "report": {
     "title": "ግምገማ ሪፖርት አድርግ",
@@ -289,7 +294,11 @@
   "photos": {
     "permissionDenied": "ፎቶ ለመጨመር የፎቶ ማከማቻ ፍቃድ ያስፈልጋል።",
     "add": "ፎቶ ጨምር",
-    "remove": "ፎቶ አስወግድ"
+    "remove": "ፎቶ አስወግድ",
+    "camera": "ካሜራ",
+    "gallery": "ማዕከለ ስዕላት",
+    "takePhoto": "ፎቶ አንሳ",
+    "cameraDenied": "ፎቶ ለማንሳት የካሜራ ፍቃድ ያስፈልጋል።"
   },
   "myReviews": {
     "deleteTitle": "ይህ ግምገማ ይሰረዝ?",
