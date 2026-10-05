@@ -16,6 +16,10 @@ export async function resolveNotificationRoute(notification: Notification): Prom
   // An approved claim means a business to manage now; other outcomes leave
   // nothing to open.
   if (subjectType === 'claim') return eventType === 'claim.approved' ? '/businesses' : undefined;
+  // An owner hearing about a new review: straight to where they can respond.
+  if (eventType === 'review.received' && data.business_id && data.target_id) {
+    return `/businesses/${data.business_id}/targets/${data.target_id}`;
+  }
   // A place the user added: open it only once it's live; hidden or removed
   // places aren't viewable.
   if (subjectType === 'target') {

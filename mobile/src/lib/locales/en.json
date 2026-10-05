@@ -357,7 +357,8 @@
     "report": "A report you filed was reviewed.",
     "privacy": "Your data request was updated.",
     "default": "You have a new update.",
-    "targetApproved": "A place you added is now live — add your review."
+    "targetApproved": "A place you added is now live — add your review.",
+    "reviewReceived": "New {{rating}}★ review of your business — tap to respond."
   },
   "search": {
     "placeholder": "Search restaurants, salons, sellers…",

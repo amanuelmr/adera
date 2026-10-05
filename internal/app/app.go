@@ -67,7 +67,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	locationsRepo := locations.NewRepo(pool)
 	bizRepo := businesses.NewRepo(pool, notificationSvc)
 	targetsRepo := targets.NewRepo(pool)
-	reviewsRepo := reviews.NewRepo(pool, cfg.StoragePublicBaseURL)
+	reviewsRepo := reviews.NewRepo(pool, cfg.StoragePublicBaseURL, notificationSvc)
 	ratingsRepo := ratings.NewRepo(pool)
 	searchRepo := search.NewRepo(pool)
 	mediaSvc := media.NewService(pool, store, reviewsRepo, cfg.StoragePrivateBucket, cfg.StoragePublicBucket)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,10 +23,20 @@ type Repo struct {
 	pool *pgxpool.Pool
 	// publicMediaBaseURL turns public object keys into display URLs.
 	publicMediaBaseURL string
+	// notifier tells business members about new reviews; nil disables it
+	// (the seed command).
+	notifier Notifier
 }
 
-func NewRepo(pool *pgxpool.Pool, publicMediaBaseURL string) *Repo {
-	return &Repo{pool: pool, publicMediaBaseURL: strings.TrimSuffix(publicMediaBaseURL, "/")}
+// Notifier enqueues an inbox item inside the caller's transaction
+// (satisfied by *notifications.Service).
+type Notifier interface {
+	EnqueueTx(ctx context.Context, tx pgx.Tx, userID uuid.UUID,
+		eventType, subjectType string, subjectID uuid.UUID, data map[string]string, dedupeKey string) error
+}
+
+func NewRepo(pool *pgxpool.Pool, publicMediaBaseURL string, notifier Notifier) *Repo {
+	return &Repo{pool: pool, publicMediaBaseURL: strings.TrimSuffix(publicMediaBaseURL, "/"), notifier: notifier}
 }
 
 // Pool is exposed for sibling modules (media, moderation) composing
@@ -343,12 +354,60 @@ func (r *Repo) Create(ctx context.Context, userID uuid.UUID, in Input) (Review, 
 			return err
 		}
 		rv.CriterionScores = in.CriterionScores
-		return statsDelta(ctx, tx, rv, +1)
+		if err := statsDelta(ctx, tx, rv, +1); err != nil {
+			return err
+		}
+		return r.notifyBusinessMembers(ctx, tx, rv)
 	})
 	if err != nil {
 		return Review{}, err
 	}
 	return rv, nil
+}
+
+// notifyBusinessMembers tells everyone who manages the reviewed place's
+// business about the new review, so responding is a notification tap away
+// (docs/mobile-plan.md §1). A member reviewing their own business isn't
+// notified about it. In the create transaction: no review, no notification.
+func (r *Repo) notifyBusinessMembers(ctx context.Context, tx pgx.Tx, rv Review) error {
+	if r.notifier == nil {
+		return nil
+	}
+	rows, err := tx.Query(ctx, `
+		SELECT bm.user_id, t.business_id
+		FROM review_targets t
+		JOIN business_members bm ON bm.business_id = t.business_id
+		WHERE t.id = $1 AND bm.user_id <> $2`, rv.TargetID, rv.UserID)
+	if err != nil {
+		return fmt.Errorf("loading business members to notify: %w", err)
+	}
+	type recipient struct{ user, business uuid.UUID }
+	var recipients []recipient
+	for rows.Next() {
+		var rc recipient
+		if err := rows.Scan(&rc.user, &rc.business); err != nil {
+			rows.Close()
+			return fmt.Errorf("scanning business member: %w", err)
+		}
+		recipients = append(recipients, rc)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterating business members: %w", err)
+	}
+	for _, rc := range recipients {
+		data := map[string]string{
+			"target_id":   rv.TargetID.String(),
+			"review_id":   rv.ID.String(),
+			"business_id": rc.business.String(),
+			"rating":      strconv.Itoa(rv.OverallRating),
+		}
+		if err := r.notifier.EnqueueTx(ctx, tx, rc.user, "review.received", "review", rv.ID, data,
+			"review-received:"+rv.ID.String()+":"+rc.user.String()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Update edits the caller's own review with optimistic concurrency (version

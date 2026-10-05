@@ -51,3 +51,13 @@ it('opens a place the user added once it is approved, and not when it was hidden
   expect(await resolveNotificationRoute(approved)).toBe('/target/place-1');
   expect(await resolveNotificationRoute(hidden)).toBeUndefined();
 });
+
+it("takes an owner to their business's review screen for a new review", async () => {
+  const n = notification({
+    event_type: 'review.received',
+    subject_type: 'review',
+    subject_id: 'r-1',
+    data: { business_id: 'b-1', target_id: 't-1', review_id: 'r-1', rating: '2' },
+  });
+  expect(await resolveNotificationRoute(n)).toBe('/businesses/b-1/targets/t-1');
+});

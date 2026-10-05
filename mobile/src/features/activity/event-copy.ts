@@ -15,6 +15,8 @@ const KNOWN_PREFIXES = new Set(['response', 'review', 'target', 'evidence', 'cla
 const SPECIFIC: Record<string, keyof typeof en.events> = {
   'target.approve': 'targetApproved',
   'target.restore': 'targetApproved',
+  // For business members: someone reviewed their place. Not "your review was updated".
+  'review.received': 'reviewReceived',
 };
 
 export function describeEventType(eventType: string | undefined, data: Record<string, string> = {}): string {
