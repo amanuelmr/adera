@@ -33,7 +33,8 @@
     "addEvidence": "Add evidence",
     "yourBusinesses": "Your businesses",
     "locations": "Locations",
-    "reportReview": "Report review"
+    "reportReview": "Report review",
+    "addPlace": "Add a place"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -56,7 +57,13 @@
     "verifyLink": "Verify your email",
     "devicesLink": "Your devices",
     "continueBrowsing": "Continue browsing",
-    "signInToContinue": "Sign in to write reviews, vote, and get updates."
+    "signInToContinue": "Sign in to write reviews, vote, and get updates.",
+    "reason": {
+      "writeReview": "Sign in to write your review — you’ll go straight back to it.",
+      "vote": "Sign in to vote — your vote will be saved.",
+      "report": "Sign in to report this review.",
+      "addPlace": "Sign in to add a place."
+    }
   },
   "errors": {
     "invalidCredentials": "Incorrect email/phone or password.",
@@ -237,7 +244,12 @@
     "dateFuture": "That date hasn't happened yet.",
     "priceInvalid": "Enter an amount in birr, like 250 or 1,500.",
     "photosRejected_one": "{{count}} photo wasn't accepted — a review can have up to 5 photos, and each must be a readable image.",
-    "photosRejected_other": "{{count}} photos weren't accepted — a review can have up to 5 photos, and each must be a readable image."
+    "photosRejected_other": "{{count}} photos weren't accepted — a review can have up to 5 photos, and each must be a readable image.",
+    "draftTitle": "You have an unfinished review",
+    "draftSaved": "Saved {{when}}.",
+    "draftResume": "Continue it",
+    "draftStartOver": "Start over",
+    "shareYours": "Share your review"
   },
   "report": {
     "title": "Report review",
@@ -283,7 +295,11 @@
   "photos": {
     "permissionDenied": "Photo library access is needed to add a picture.",
     "add": "Add photo",
-    "remove": "Remove photo"
+    "remove": "Remove photo",
+    "camera": "Camera",
+    "gallery": "Gallery",
+    "takePhoto": "Take a photo",
+    "cameraDenied": "Camera access is needed to take a photo."
   },
   "myReviews": {
     "deleteTitle": "Delete this review?",
@@ -340,7 +356,9 @@
     "claim": "Your business claim status changed.",
     "report": "A report you filed was reviewed.",
     "privacy": "Your data request was updated.",
-    "default": "You have a new update."
+    "default": "You have a new update.",
+    "targetApproved": "A place you added is now live — add your review.",
+    "reviewReceived": "New {{rating}}★ review of your business — tap to respond."
   },
   "search": {
     "placeholder": "Search restaurants, salons, sellers…",
@@ -403,5 +421,21 @@
     "rejected": "The server turned it down. Open the place and try again.",
     "dismiss": "Dismiss",
     "gaveUp": "It kept failing, so we stopped retrying. Try again now, or dismiss it."
+  },
+  "places": {
+    "cantFind": "Can't find it? Add it, and a moderator will check it.",
+    "add": "Add a place",
+    "intro": "Add a place that's missing. A moderator checks new places before they appear; we'll let you know when it's live.",
+    "name": "Name",
+    "city": "City (optional)",
+    "area": "Area (optional)",
+    "landmark": "Landmark or address (optional)",
+    "landmarkPlaceholder": "e.g. behind Edna Mall",
+    "useLocation": "Use my current location (optional)",
+    "locationSet": "✓ Location added",
+    "submit": "Submit place",
+    "submittedTitle": "Thanks — place submitted",
+    "submittedBody": "A moderator will check it. We'll notify you when it's live, and you can review it then.",
+    "rateLimited": "You've added a lot of places today — try again tomorrow."
   }
 }

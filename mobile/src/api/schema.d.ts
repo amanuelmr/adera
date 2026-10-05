@@ -1296,7 +1296,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["DataEnvelope"];
+                        "application/json": components["schemas"]["CityList"];
                     };
                 };
             };
@@ -1334,7 +1334,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["DataEnvelope"];
+                        "application/json": components["schemas"]["AreaList"];
                     };
                 };
             };
@@ -4263,6 +4263,30 @@ export interface components {
             existing_review_id?: string;
             /** Format: date-time */
             next_allowed_at?: string;
+        };
+        City: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            name_am?: string;
+            country?: string;
+            sort_order?: number;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        CityList: components["schemas"]["DataEnvelope"] & {
+            data?: components["schemas"]["City"][];
+        };
+        Area: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            city_id: string;
+            name: string;
+            name_am?: string;
+        };
+        AreaList: components["schemas"]["DataEnvelope"] & {
+            data?: components["schemas"]["Area"][];
         };
         NearbyTarget: components["schemas"]["Target"] & {
             /** @description Great-circle distance from the query point. */

@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { categoryName } from '@/features/targets/category-name';
+import { AddPlaceLink } from '@/features/places/add-place-link';
 import { FilterChip } from '@/features/search/filter-chip';
 import { FiltersSheet } from '@/features/search/filters-sheet';
 import { useSearchTargets } from '@/features/search/queries';
@@ -104,9 +105,12 @@ export default function SearchScreen() {
             {t('search.failed')}
           </ThemedText>
         ) : results.data.length === 0 ? (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-            {t('search.noMatches', { query: debouncedQuery })}
-          </ThemedText>
+          <View>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
+              {t('search.noMatches', { query: debouncedQuery })}
+            </ThemedText>
+            <AddPlaceLink name={debouncedQuery.trim()} categoryId={filters.category} />
+          </View>
         ) : (
           <FlatList
             data={results.data}

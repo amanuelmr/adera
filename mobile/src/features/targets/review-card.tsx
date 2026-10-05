@@ -76,7 +76,10 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
       <View style={styles.actionsRow}>
         <Pressable
           onPress={() =>
-            requireSignIn(() => review.id && toggleHelpful.mutate({ reviewId: review.id, voted: !!review.viewer_voted }))
+            requireSignIn(
+              () => review.id && toggleHelpful.mutate({ reviewId: review.id, voted: !!review.viewer_voted }),
+              'vote'
+            )
           }
           disabled={toggleHelpful.isPending}
           accessibilityRole="button"
@@ -88,7 +91,7 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
           </ThemedText>
         </Pressable>
         <Pressable
-          onPress={() => requireSignIn(() => review.id && router.push(`/review/${review.id}/report`))}
+          onPress={() => requireSignIn(() => review.id && router.push(`/review/${review.id}/report`), 'report')}
           accessibilityRole="button"
           style={styles.helpfulRow}>
           <ThemedText type="small" themeColor="textSecondary">

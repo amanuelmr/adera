@@ -698,7 +698,7 @@ paths:
           description: Active cities.
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/DataEnvelope'}
+              schema: {$ref: '#/components/schemas/CityList'}
 
   /api/v1/locations/cities/{id}/areas:
     get:
@@ -710,7 +710,7 @@ paths:
           description: Areas (e.g., Bole/ቦሌ, Piassa/ፒያሳ).
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/DataEnvelope'}
+              schema: {$ref: '#/components/schemas/AreaList'}
 
   /api/v1/targets:
     post:
@@ -2280,6 +2280,34 @@ components:
         reason: {type: string, enum: [cooldown_active, rate_limited]}
         existing_review_id: {type: string, format: uuid, description: The review to update instead (cooldown only).}
         next_allowed_at: {type: string, format: date-time}
+    City:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        name_am: {type: string}
+        country: {type: string}
+        sort_order: {type: integer}
+        created_at: {type: string, format: date-time}
+    CityList:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data: {type: array, items: {$ref: '#/components/schemas/City'}}
+    Area:
+      type: object
+      required: [id, city_id, name]
+      properties:
+        id: {type: string, format: uuid}
+        city_id: {type: string, format: uuid}
+        name: {type: string}
+        name_am: {type: string}
+    AreaList:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data: {type: array, items: {$ref: '#/components/schemas/Area'}}
     NearbyTarget:
       allOf:
         - $ref: '#/components/schemas/Target'

@@ -56,3 +56,16 @@ it('labels every target type offered in search filters', () => {
   const { TARGET_TYPES } = require('@/features/search/types');
   for (const dict of [en, am]) for (const type of TARGET_TYPES) expect(dict.search.type).toHaveProperty(type);
 });
+
+it('uses event-specific wording where the prefix would mislead', () => {
+  const { describeEventType } = require('@/features/activity/event-copy');
+  expect(describeEventType('target.approve')).toBe(en.events.targetApproved);
+  expect(describeEventType('target.hide')).toBe(en.events.target);
+});
+
+it('tells owners about a new review with its rating, even before i18n loads', () => {
+  const { describeEventType } = require('@/features/activity/event-copy');
+  expect(describeEventType('review.received', { rating: '2' })).toBe(
+    en.events.reviewReceived.replace('{{rating}}', '2')
+  );
+});

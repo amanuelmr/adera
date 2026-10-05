@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/adera-platform/backend/internal/businesses"
+	"github.com/adera-platform/backend/internal/platform/ratelimit"
 	"github.com/adera-platform/backend/internal/platform/web"
 	"github.com/adera-platform/backend/internal/users"
 )
@@ -20,10 +21,13 @@ type Handler struct {
 	repo      *Repo
 	bizRepo   *businesses.Repo
 	usersRepo *users.Repo
+	// submitLimiter caps place submissions per account: each one lands in
+	// the moderation queue, so unbounded submissions would flood it.
+	submitLimiter ratelimit.Limiter
 }
 
-func NewHandler(repo *Repo, bizRepo *businesses.Repo, usersRepo *users.Repo) *Handler {
-	return &Handler{repo: repo, bizRepo: bizRepo, usersRepo: usersRepo}
+func NewHandler(repo *Repo, bizRepo *businesses.Repo, usersRepo *users.Repo, submitLimiter ratelimit.Limiter) *Handler {
+	return &Handler{repo: repo, bizRepo: bizRepo, usersRepo: usersRepo, submitLimiter: submitLimiter}
 }
 
 func (h *Handler) Routes(mux *http.ServeMux) {
@@ -83,6 +87,10 @@ func validateWebsite(raw string) error {
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	p, _ := web.PrincipalFromContext(r.Context())
+	if !p.HasRole(web.RoleModerator) && !h.submitLimiter.Allow("target-submit:"+p.UserID.String()) {
+		web.RespondError(w, r, web.ErrRateLimited())
+		return
+	}
 	var req createTargetRequest
 	if err := web.DecodeJSON(w, r, &req); err != nil {
 		web.RespondError(w, r, err)

@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/context';
 import { friendlyAuthError } from '@/auth/friendly-error';
+import { isSignInReason } from '@/auth/pending-intent';
 import { Button } from '@/components/button';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
@@ -14,6 +15,7 @@ import { Spacing } from '@/constants/theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  const { reason } = useLocalSearchParams<{ reason?: string }>();
   const { t } = useTranslation();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -40,6 +42,11 @@ export default function LoginScreen() {
           <ThemedText type="subtitle" themeColor="textSecondary" style={styles.subtitle}>
             {t('auth.signInTitle')}
           </ThemedText>
+          {isSignInReason(reason) ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {t(`auth.reason.${reason}`)}
+            </ThemedText>
+          ) : null}
 
           <TextField
             label={t('auth.emailOrPhone')}
