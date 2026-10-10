@@ -1,10 +1,12 @@
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { components } from '@/api/schema';
 import { useRequireSignIn } from '@/auth/use-require-sign-in';
+import { PhotoViewer, type ViewerPhoto } from '@/components/photo-viewer';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -21,6 +23,7 @@ const COLLAPSE_AT_CHARS = 280;
 export function ReviewCard({ review, targetId, targetName }: { review: ListedReview; targetId: string; targetName: string }) {
   const [expanded, setExpanded] = useState(false);
   const [photosRequested, setPhotosRequested] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState<number>();
   const { dataSaver } = useSettings();
   const toggleHelpful = useToggleHelpful(targetId);
   const requireSignIn = useRequireSignIn();
@@ -30,6 +33,9 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
   const body = review.body ?? '';
   const isLong = body.length > COLLAPSE_AT_CHARS;
   const shownBody = isLong && !expanded ? `${body.slice(0, COLLAPSE_AT_CHARS)}…` : body;
+  const photos: ViewerPhoto[] = (review.media ?? [])
+    .filter((item) => item.id && item.url)
+    .map((item) => ({ id: item.id!, url: item.url!, thumbUrl: item.thumb_url ?? undefined }));
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
@@ -51,19 +57,29 @@ export function ReviewCard({ review, targetId, targetName }: { review: ListedRev
         </Pressable>
       ) : null}
 
-      {review.media && review.media.length > 0 ? (
+      {photos.length > 0 ? (
         dataSaver && !photosRequested ? (
           // Data saver: nothing is downloaded until the reader asks.
           <Pressable onPress={() => setPhotosRequested(true)} accessibilityRole="button" style={styles.helpfulRow}>
-            <ThemedText type="linkPrimary">{t('review.showPhotos', { count: review.media.length })}</ThemedText>
+            <ThemedText type="linkPrimary">{t('review.showPhotos', { count: photos.length })}</ThemedText>
           </Pressable>
         ) : (
           <View style={styles.mediaRow}>
-            {review.media.map((item) => (
-              <Image key={item.id} source={{ uri: item.thumb_url ?? item.url }} style={styles.thumbnail} />
+            {photos.map((photo, index) => (
+              <Pressable
+                key={photo.id}
+                onPress={() => setViewerIndex(index)}
+                accessibilityRole="imagebutton"
+                accessibilityLabel={t('photos.open', { index: index + 1, count: photos.length })}>
+                <Image source={{ uri: photo.thumbUrl ?? photo.url }} transition={150} style={styles.thumbnail} />
+              </Pressable>
             ))}
           </View>
         )
+      ) : null}
+
+      {viewerIndex !== undefined ? (
+        <PhotoViewer photos={photos} initialIndex={viewerIndex} onClose={() => setViewerIndex(undefined)} />
       ) : null}
 
       {review.business_response ? (

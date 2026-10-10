@@ -1,6 +1,7 @@
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -68,7 +69,7 @@ export function TextPhotoStep({
       <View style={styles.photosRow}>
         {photos.map((photo, index) => (
           <View key={photo.uri} style={styles.photoWrapper}>
-            <Image source={{ uri: photo.uri }} style={styles.photo} />
+            <Image source={{ uri: photo.uri }} cachePolicy="none" style={styles.photo} />
             <Pressable
               onPress={() => {
                 deletePersistedPhoto(photo.uri);

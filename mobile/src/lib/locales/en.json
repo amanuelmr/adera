@@ -299,7 +299,10 @@
     "camera": "Camera",
     "gallery": "Gallery",
     "takePhoto": "Take a photo",
-    "cameraDenied": "Camera access is needed to take a photo."
+    "cameraDenied": "Camera access is needed to take a photo.",
+    "open": "Open photo {{index}} of {{count}}",
+    "position": "Photo {{index}} of {{count}}",
+    "close": "Close photo"
   },
   "myReviews": {
     "deleteTitle": "Delete this review?",

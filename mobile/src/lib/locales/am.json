@@ -299,7 +299,10 @@
     "camera": "ካሜራ",
     "gallery": "ማዕከለ ስዕላት",
     "takePhoto": "ፎቶ አንሳ",
-    "cameraDenied": "ፎቶ ለማንሳት የካሜራ ፍቃድ ያስፈልጋል።"
+    "cameraDenied": "ፎቶ ለማንሳት የካሜራ ፍቃድ ያስፈልጋል።",
+    "open": "ፎቶ {{index}} ከ{{count}} ክፈት",
+    "position": "ፎቶ {{index}} ከ{{count}}",
+    "close": "ፎቶውን ዝጋ"
   },
   "myReviews": {
     "deleteTitle": "ይህ ግምገማ ይሰረዝ?",
