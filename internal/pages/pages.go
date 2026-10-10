@@ -1,7 +1,8 @@
 // Package pages is Adera's thin server-rendered web layer
 // (docs/mobile-plan.md §1): target profiles, review permalinks, and the
 // Trust Center, so a link shared on Telegram lands somewhere readable
-// without the app. Plain HTML with one small stylesheet and no JavaScript,
+// without the app; plus a home page, category pages and a sitemap, so the
+// places can be found from a search engine too (discovery.go). Plain HTML with one small stylesheet and no JavaScript,
 // sized for the slow connections docs/frontend-handoff.md §5 budgets for.
 package pages
 
@@ -77,7 +78,7 @@ func NewHandler(deps Dependencies, cfg Config) (*Handler, error) {
 		return nil, err
 	}
 	h := &Handler{deps: deps, cfg: cfg, dicts: dicts, templates: map[string]*template.Template{}}
-	for _, name := range []string{"target", "review", "trust", "notfound"} {
+	for _, name := range []string{"home", "category", "target", "review", "trust", "notfound"} {
 		t, err := template.New("layout.html").Funcs(template.FuncMap{"stars": stars}).
 			ParseFS(templateFS, "templates/layout.html", "templates/partials.html", "templates/"+name+".html")
 		if err != nil {
@@ -95,12 +96,15 @@ func NewHandler(deps Dependencies, cfg Config) (*Handler, error) {
 }
 
 func (h *Handler) Routes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /{$}", h.home)
+	mux.HandleFunc("GET /c/{code}", h.category)
 	mux.HandleFunc("GET /t/{slug}", h.target)
 	mux.HandleFunc("GET /r/{id}", h.review)
 	mux.HandleFunc("GET /trust", h.trust)
 	mux.HandleFunc("GET /banner/dismiss", h.dismissBanner)
 	mux.HandleFunc("GET /.well-known/assetlinks.json", h.assetLinks)
 	mux.HandleFunc("GET /robots.txt", h.robots)
+	mux.HandleFunc("GET /sitemap.xml", h.sitemap)
 	mux.HandleFunc("GET /favicon.ico", h.favicon)
 	static, _ := fs.Sub(staticFS, "static")
 	files := http.StripPrefix("/static/", http.FileServerFS(static))
@@ -113,11 +117,15 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 // base is the data every template gets: language, strings, and the shared
 // head/banner/footer fields.
 type base struct {
-	Lang          string
-	Title         string
-	Description   string
-	Canonical     string
-	LangSwitchURL string
+	Lang        string
+	Title       string
+	Description string
+	Canonical   string
+	// Alternates are the hreflang URLs: each language explicitly, and the
+	// bare path (language picked from the browser) as x-default.
+	AltEN, AltAM, AltDefault string
+	OGImage                  string
+	LangSwitchURL            string
 	// AppLink is the app's own deep link. html/template rejects non-http
 	// schemes, so it's built here from an escaped slug and marked trusted.
 	AppLink      template.URL
@@ -154,13 +162,23 @@ func (h *Handler) newBase(r *http.Request, path string) base {
 	}
 	switchQuery := r.URL.Query()
 	switchQuery.Set("lang", other)
+	abs := h.absURL(path)
 	b := base{
-		Lang:          lang,
-		Canonical:     strings.TrimRight(h.cfg.BaseURL, "/") + path,
+		Lang: lang,
+		// A page chosen by ?lang= is its own language version; the bare URL
+		// negotiates and is the x-default.
+		Canonical:     abs,
+		AltEN:         abs + "?lang=en",
+		AltAM:         abs + "?lang=am",
+		AltDefault:    abs,
+		OGImage:       h.absURL("/static/og.png"),
 		LangSwitchURL: path + "?" + switchQuery.Encode(),
 		OGType:        "website",
 		dicts:         h.dicts,
 		explicitLang:  explicit,
+	}
+	if explicit {
+		b.Canonical = abs + "?lang=" + lang
 	}
 	if h.cfg.AndroidStoreURL != "" {
 		if c, err := r.Cookie(bannerCookie); err != nil || c.Value != "off" {
@@ -220,6 +238,7 @@ type targetPage struct {
 	Reviews         []reviewView
 	NextURL         string
 	AllRatingsURL   string
+	JSONLD          *structuredData
 }
 
 func (h *Handler) target(w http.ResponseWriter, r *http.Request) {
@@ -266,6 +285,7 @@ func (h *Handler) target(w http.ResponseWriter, r *http.Request) {
 		p.Title = fmt.Sprintf("%s — %s★ (%d)", t.Name, p.Average, stats.ReviewCount)
 	}
 	p.Description = strings.Join(nonEmpty(p.Category, t.AddressText, p.T("tagline")), " · ")
+	p.JSONLD = h.targetStructuredData(t, stats, p.ShowAggregate)
 
 	if n, err := strconv.Atoi(r.URL.Query().Get("rating")); err == nil && n >= 1 && n <= 5 {
 		p.Rating = n
@@ -454,23 +474,6 @@ func (h *Handler) assetLinks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	_, _ = w.Write(body)
-}
-
-// robots.txt: the public pages are meant to be found; the JSON API and
-// the banner-dismiss redirect aren't pages.
-const robotsTxt = `User-agent: *
-Allow: /t/
-Allow: /r/
-Allow: /trust
-Disallow: /api/
-Disallow: /banner/
-Disallow: /docs
-`
-
-func (h *Handler) robots(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	_, _ = w.Write([]byte(robotsTxt))
 }
 
 // favicon: browsers and crawlers request /favicon.ico regardless of the
