@@ -1,3 +1,4 @@
+{{define "head"}}{{if .JSONLD}}<script type="application/ld+json">{{.JSONLD}}</script>{{end}}{{end}}
 {{define "content"}}
 <h1>{{.Target.Name}}</h1>
 {{if or .Category .Target.AddressText}}<p class="meta">{{if .Category}}{{.Category}}{{end}}{{if and .Category .Target.AddressText}} · {{end}}{{.Target.AddressText}}</p>{{end}}

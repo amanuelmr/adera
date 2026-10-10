@@ -113,13 +113,38 @@ func TestPageHeadersReplaceTheAPIDefaults(t *testing.T) {
 }
 
 func TestNoInlineStylesOrScripts(t *testing.T) {
-	// The CSP blocks both; this catches a template reintroducing them.
-	for _, name := range []string{"layout", "partials", "target", "review", "trust", "notfound"} {
+	// The CSP blocks both; this catches a template reintroducing them. The
+	// one script tag allowed is JSON-LD, a data block browsers never run.
+	for _, name := range []string{"layout", "partials", "home", "category", "target", "review", "trust", "notfound"} {
 		raw, err := templateFS.ReadFile("templates/" + name + ".html")
 		require.NoError(t, err)
 		assert.NotContains(t, string(raw), "style=", name)
-		assert.NotContains(t, string(raw), "<script", name)
+		withoutData := strings.ReplaceAll(string(raw), `<script type="application/ld+json">`, "")
+		assert.NotContains(t, withoutData, "<script", name)
 	}
+}
+
+func TestLanguageAlternatesAndCanonical(t *testing.T) {
+	_, mux := newTestHandler(t, Config{BaseURL: "https://adera.example"})
+
+	body := get(mux, "/trust").Body.String()
+	assert.Contains(t, body, `<link rel="canonical" href="https://adera.example/trust">`)
+	assert.Contains(t, body, `<link rel="alternate" hreflang="en" href="https://adera.example/trust?lang=en">`)
+	assert.Contains(t, body, `<link rel="alternate" hreflang="am" href="https://adera.example/trust?lang=am">`)
+	assert.Contains(t, body, `<link rel="alternate" hreflang="x-default" href="https://adera.example/trust">`)
+	assert.Contains(t, body, `<meta property="og:image" content="https://adera.example/static/og.png">`)
+
+	am := get(mux, "/trust?lang=am").Body.String()
+	assert.Contains(t, am, `<link rel="canonical" href="https://adera.example/trust?lang=am">`,
+		"a chosen language is its own version")
+}
+
+func TestShareImage(t *testing.T) {
+	_, mux := newTestHandler(t, Config{})
+	rec := get(mux, "/static/og.png")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "image/png", rec.Header().Get("Content-Type"))
+	assert.Less(t, rec.Body.Len(), 100<<10)
 }
 
 func TestInstallBannerAndDismissal(t *testing.T) {
@@ -185,7 +210,12 @@ func TestRobotsAndFavicon(t *testing.T) {
 	require.Equal(t, http.StatusOK, robots.Code)
 	assert.True(t, strings.HasPrefix(robots.Header().Get("Content-Type"), "text/plain"))
 	assert.Contains(t, robots.Body.String(), "Allow: /t/")
+	assert.Contains(t, robots.Body.String(), "Allow: /c/")
 	assert.Contains(t, robots.Body.String(), "Disallow: /api/")
+	assert.NotContains(t, robots.Body.String(), "Sitemap:", "no absolute URL without a base URL")
+
+	_, withBase := newTestHandler(t, Config{BaseURL: "https://adera.example/"})
+	assert.Contains(t, get(withBase, "/robots.txt").Body.String(), "Sitemap: https://adera.example/sitemap.xml")
 
 	ico := get(mux, "/favicon.ico")
 	assert.Equal(t, http.StatusMovedPermanently, ico.Code)

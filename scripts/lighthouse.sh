@@ -48,8 +48,9 @@ read -r SLUG TARGET_ID < <(curl -sf "${BASE}/api/v1/targets/top-rated?limit=50" 
 REVIEW_ID=$(curl -sf "${BASE}/api/v1/targets/${TARGET_ID}/reviews?limit=1" |
   node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).data[0].id))')
 
-echo "Measuring /t/${SLUG}, /r/${REVIEW_ID}, /trust"
+echo "Measuring /, /c/restaurant_cafe, /t/${SLUG}, /r/${REVIEW_ID}, /trust"
 LHCI=(npx --yes "@lhci/cli@${LHCI_VERSION}")
-"${LHCI[@]}" collect --url="${BASE}/t/${SLUG}" --url="${BASE}/r/${REVIEW_ID}" --url="${BASE}/trust"
+"${LHCI[@]}" collect --url="${BASE}/" --url="${BASE}/c/restaurant_cafe" \
+  --url="${BASE}/t/${SLUG}" --url="${BASE}/r/${REVIEW_ID}" --url="${BASE}/trust"
 "${LHCI[@]}" assert
 "${LHCI[@]}" upload --target=filesystem --outputDir=.lighthouseci/reports

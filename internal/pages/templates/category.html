@@ -1,0 +1,18 @@
+{{define "content"}}
+<h1>{{.Name}}</h1>
+{{if .Intro}}<p class="lead">{{.Intro}}</p>{{end}}
+
+{{if .TopRated}}
+<section aria-labelledby="top-rated">
+  <h2 id="top-rated">{{.T "category.topRated"}}</h2>
+  {{template "places" .TopRated}}
+</section>
+{{end}}
+
+<section aria-labelledby="all-places">
+  <h2 id="all-places">{{.T "category.all"}}</h2>
+  {{if .Places}}{{template "places" .Places}}{{else}}<p class="meta">{{.T "category.empty"}}</p>{{end}}
+</section>
+{{if .NextURL}}<p><a class="button" href="{{.NextURL}}">{{.T "category.more"}}</a></p>{{end}}
+<p><a href="{{.Link "/" nil}}">{{.T "category.backHome"}}</a></p>
+{{end}}
