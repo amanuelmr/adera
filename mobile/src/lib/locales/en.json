@@ -249,7 +249,18 @@
     "draftSaved": "Saved {{when}}.",
     "draftResume": "Continue it",
     "draftStartOver": "Start over",
-    "shareYours": "Share your review"
+    "shareYours": "Share your review",
+    "dateToday": "Today",
+    "dateYesterday": "Yesterday",
+    "datePick": "Pick a date",
+    "dateFieldLabel": "Date of your visit",
+    "titleLabel": "Review title (optional)",
+    "bodyLabel": "Your review",
+    "prompt": {
+      "low": "What went wrong? Did you raise it, and was it resolved?",
+      "mid": "What was good, and what could have been better?",
+      "high": "What stood out? Mention anything worth ordering, asking for, or knowing before you go."
+    }
   },
   "report": {
     "title": "Report review",

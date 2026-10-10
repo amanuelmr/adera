@@ -249,7 +249,18 @@
     "draftSaved": "የተቀመጠው {{when}}።",
     "draftResume": "ይቀጥሉ",
     "draftStartOver": "እንደገና ይጀምሩ",
-    "shareYours": "ግምገማዎን ያጋሩ"
+    "shareYours": "ግምገማዎን ያጋሩ",
+    "dateToday": "ዛሬ",
+    "dateYesterday": "ትናንት",
+    "datePick": "ቀን ይምረጡ",
+    "dateFieldLabel": "የጎበኙበት ቀን",
+    "titleLabel": "የግምገማ ርዕስ (አማራጭ)",
+    "bodyLabel": "ግምገማዎ",
+    "prompt": {
+      "low": "ምን ችግር ተፈጠረ? አሳውቀዋል? ተፈቷል?",
+      "mid": "ምን ጥሩ ነበር? ምን የተሻለ ሊሆን ይችል ነበር?",
+      "high": "ምን ጎልቶ ታየዎት? ሊታዘዝ፣ ሊጠየቅ ወይም ከመሄድ በፊት ሊታወቅ የሚገባ ነገር ካለ ይጥቀሱ።"
+    }
   },
   "report": {
     "title": "ግምገማ ሪፖርት አድርግ",
