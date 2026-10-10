@@ -437,5 +437,10 @@
     "submittedTitle": "Thanks — place submitted",
     "submittedBody": "A moderator will check it. We'll notify you when it's live, and you can review it then.",
     "rateLimited": "You've added a lot of places today — try again tomorrow."
+  },
+  "cache": {
+    "offline": "You're offline — showing what was saved {{when}}.",
+    "refreshFailed": "Couldn't refresh — showing what was saved {{when}}.",
+    "savedAt": "Saved on {{when}}"
   }
 }

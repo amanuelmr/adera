@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CachedDataBanner } from '@/components/cached-data-banner';
 import { QueryError } from '@/components/query-error';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -88,6 +89,7 @@ export default function TargetProfileScreen() {
           }}
           ListHeaderComponent={
             <View style={styles.header}>
+              <CachedDataBanner query={target} />
               <ThemedText type="title" style={styles.name}>
                 {target.data.name}
               </ThemedText>
