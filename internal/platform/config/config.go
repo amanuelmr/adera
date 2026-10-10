@@ -98,6 +98,11 @@ type Config struct {
 	CORSAllowedOrigins []string
 	TrustProxyHeaders  bool
 
+	// Key for the HMAC that hashes review fraud signals (network prefix and
+	// app install ID). Signals are not recorded when it is empty. Changing it
+	// stops new reviews matching older signals, so set it once per environment.
+	SignalHashKey string
+
 	RateLimitEnabled bool
 
 	LogLevel  string
@@ -162,6 +167,7 @@ func Load() (Config, error) {
 
 		CORSAllowedOrigins: splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")),
 		TrustProxyHeaders:  getEnvBool("TRUST_PROXY_HEADERS", false),
+		SignalHashKey:      os.Getenv("SIGNAL_HASH_KEY"),
 
 		RateLimitEnabled: getEnvBool("RATE_LIMIT_ENABLED", true),
 
@@ -195,6 +201,9 @@ func (c Config) Validate() error {
 		}
 	} else if len(c.JWTSecret) < 32 {
 		errs = append(errs, errors.New("JWT_SECRET must be at least 32 bytes"))
+	}
+	if c.SignalHashKey != "" && len(c.SignalHashKey) < 32 {
+		errs = append(errs, errors.New("SIGNAL_HASH_KEY must be at least 32 bytes"))
 	}
 	if c.AccessTokenTTL <= 0 || c.AccessTokenTTL > time.Hour {
 		errs = append(errs, errors.New("ACCESS_TOKEN_TTL must be positive and at most 1h"))

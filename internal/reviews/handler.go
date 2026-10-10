@@ -15,10 +15,11 @@ import (
 type Handler struct {
 	repo    *Repo
 	limiter ratelimit.Limiter // per-account write limiter
+	signals *SignalHasher     // nil records no fraud signals
 }
 
-func NewHandler(repo *Repo, limiter ratelimit.Limiter) *Handler {
-	return &Handler{repo: repo, limiter: limiter}
+func NewHandler(repo *Repo, limiter ratelimit.Limiter, signals *SignalHasher) *Handler {
+	return &Handler{repo: repo, limiter: limiter, signals: signals}
 }
 
 func (h *Handler) Routes(mux *http.ServeMux) {
@@ -122,6 +123,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, r, err)
 		return
 	}
+	in.Signals = h.signals.Capture(r)
 	if !h.limiter.Allow("review:" + p.UserID.String()) {
 		web.RespondError(w, r, web.ErrRateLimited())
 		return

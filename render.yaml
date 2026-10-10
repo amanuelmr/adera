@@ -40,6 +40,9 @@ services:
       # generated value clears that (see DEPLOY.md step 4).
       - key: JWT_SECRET
         generateValue: true
+      # Review fraud signals; must be at least 32 bytes (see DEPLOY.md).
+      - key: SIGNAL_HASH_KEY
+        generateValue: true
 
       - key: STORAGE_ENABLED
         value: "false"

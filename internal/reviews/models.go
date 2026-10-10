@@ -159,6 +159,8 @@ type Input struct {
 	MaterialConnection string
 	DisclosureDetails  string
 	CriterionScores    map[string]int // keyed by criterion code
+	// Signals are captured from the request on create, never from the body.
+	Signals Signals
 }
 
 var socialURLDomains = []string{
