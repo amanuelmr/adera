@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { ApiError, apiClient, unwrap, isTransientFailure } from '@/api/client';
 import { File } from 'expo-file-system';
 
+import { getInstallId } from '@/lib/install-id';
 import { queryClient } from '@/lib/query-client';
 import { deletePersistedPhoto } from './photos';
 import type { ReviewFormState } from './types';
@@ -38,9 +39,10 @@ function buildReviewBody(targetId: string, form: ReviewFormState) {
 }
 
 export async function createReview(targetId: string, form: ReviewFormState, idempotencyKey: string): Promise<string> {
+  const installId = await getInstallId();
   const created = unwrap(
     await apiClient.POST('/api/v1/reviews', {
-      headers: { 'Idempotency-Key': idempotencyKey },
+      headers: { 'Idempotency-Key': idempotencyKey, ...(installId ? { 'X-Install-ID': installId } : {}) },
       body: buildReviewBody(targetId, form),
     })
   );
