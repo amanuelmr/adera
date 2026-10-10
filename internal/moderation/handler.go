@@ -35,6 +35,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST /api/v1/moderation/reviews/{id}/decision", mod(http.HandlerFunc(h.decideReview)))
 	mux.Handle("POST /api/v1/moderation/targets/{id}/decision", mod(http.HandlerFunc(h.decideTarget)))
 	mux.Handle("GET /api/v1/moderation/reviews/{id}/evidence", mod(http.HandlerFunc(h.reviewEvidence)))
+	mux.Handle("GET /api/v1/moderation/targets/{id}/review-signals", mod(http.HandlerFunc(h.reviewSignals)))
 	mux.Handle("POST /api/v1/moderation/evidence/{id}/decision", mod(http.HandlerFunc(h.decideEvidence)))
 	mux.Handle("POST /api/v1/moderation/notes", mod(http.HandlerFunc(h.addNote)))
 	mux.Handle("GET /api/v1/moderation/audit", mod(http.HandlerFunc(h.audit)))
@@ -197,6 +198,22 @@ func (h *Handler) reviewEvidence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.Respond(w, http.StatusOK, items)
+}
+
+// reviewSignals lists reviews of a place that share a device or network with
+// another account's review. Signals for a moderator to weigh, not verdicts.
+func (h *Handler) reviewSignals(w http.ResponseWriter, r *http.Request) {
+	id, err := web.ParseUUID(r, "id")
+	if err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	groups, err := h.svc.reviewsRepo.SignalGroupsForTarget(r.Context(), id)
+	if err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	web.Respond(w, http.StatusOK, groups)
 }
 
 type evidenceDecisionRequest struct {

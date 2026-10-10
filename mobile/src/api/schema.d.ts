@@ -1824,6 +1824,8 @@ export interface paths {
                 header?: {
                     /** @description Client-generated key; replays return the stored response. */
                     "Idempotency-Key"?: string;
+                    /** @description Random per-install app identifier. Stored only as a keyed hash, as a fraud signal for moderators (see `GET /moderation/targets/{id}/review-signals`); anything but a UUID is ignored. */
+                    "X-Install-ID"?: string;
                 };
                 path?: never;
                 cookie?: never;
@@ -3196,6 +3198,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/moderation/targets/{id}/review-signals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reviews of a place that share a device or network across accounts
+         * @description Fraud signals, not verdicts: groups of this place's reviews, by more
+         *     than one account, created from the same app install (`device`) or
+         *     the same /24 IPv4 or /48 IPv6 network (`network`). Device groups come
+         *     first; shared networks are common among honest reviewers (offices,
+         *     cafés, carrier pools). Signals are keyed hashes, kept 90 days.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["PathID"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Signal groups (empty when nothing is shared). */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReviewSignalGroupList"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/moderation/evidence/{id}/decision": {
         parameters: {
             query?: never;
@@ -4531,6 +4579,28 @@ export interface components {
         };
         EvidenceListPage: components["schemas"]["DataEnvelope"] & {
             data?: components["schemas"]["Evidence"][];
+        };
+        ReviewSignalGroup: {
+            /** @enum {string} */
+            kind: "device" | "network";
+            /** @description Opaque, stable label for the shared signal; the same key on another place is the same device or network. */
+            key: string;
+            reviews: {
+                /** Format: uuid */
+                review_id: string;
+                /** Format: uuid */
+                user_id: string;
+                reviewer_name: string;
+                /** Format: date-time */
+                account_created_at: string;
+                overall_rating: number;
+                moderation_status: string;
+                /** Format: date-time */
+                created_at: string;
+            }[];
+        };
+        ReviewSignalGroupList: components["schemas"]["DataEnvelope"] & {
+            data?: components["schemas"]["ReviewSignalGroup"][];
         };
         ReportCreate: {
             /** @enum {string} */

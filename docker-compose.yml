@@ -52,6 +52,7 @@ services:
       HTTP_ADDR: ":8080"
       DATABASE_URL: postgres://adera:adera@postgres:5432/adera?sslmode=disable
       JWT_SECRET: dev-only-secret-change-me-32-bytes!!
+      SIGNAL_HASH_KEY: dev-only-signal-key-change-me-32-bytes!!
       STORAGE_ENABLED: "true"
       # NOTE: presigned upload URLs embed this endpoint. Clients inside the
       # compose network can use it as-is; a browser on the host cannot

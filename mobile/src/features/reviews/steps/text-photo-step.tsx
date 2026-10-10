@@ -1,17 +1,19 @@
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { MIN_BODY_LENGTH, writingPromptFor } from '../form-steps';
 import { deletePersistedPhoto, pickAndCompressPhoto, type PhotoSource } from '../photos';
 import type { PickedPhoto } from '../types';
 
 export const MAX_PHOTOS = 5;
-const MIN_BODY_LENGTH = 20;
 
 export function TextPhotoStep({
+  rating,
   title,
   body,
   photos,
@@ -19,6 +21,7 @@ export function TextPhotoStep({
   onChangeBody,
   onChangePhotos,
 }: {
+  rating?: number;
   title: string;
   body: string;
   photos: PickedPhoto[];
@@ -29,6 +32,7 @@ export function TextPhotoStep({
   const theme = useTheme();
   const { t } = useTranslation();
   const [photoError, setPhotoError] = useState<string>();
+  const prompt = writingPromptFor(rating);
 
   async function addPhoto(source: PhotoSource) {
     setPhotoError(undefined);
@@ -47,6 +51,7 @@ export function TextPhotoStep({
         placeholder={t('review.titlePlaceholder')}
         placeholderTextColor={theme.textSecondary}
         maxLength={120}
+        accessibilityLabel={t('review.titleLabel')}
         style={[styles.titleInput, { color: theme.text, backgroundColor: theme.backgroundElement }]}
       />
 
@@ -57,8 +62,15 @@ export function TextPhotoStep({
         placeholderTextColor={theme.textSecondary}
         multiline
         maxLength={5000}
+        accessibilityLabel={t('review.bodyLabel')}
+        accessibilityHint={prompt ? t(`review.prompt.${prompt}`) : undefined}
         style={[styles.bodyInput, { color: theme.text, backgroundColor: theme.backgroundElement }]}
       />
+      {prompt ? (
+        <ThemedText type="small" themeColor="textSecondary" importantForAccessibility="no">
+          {t(`review.prompt.${prompt}`)}
+        </ThemedText>
+      ) : null}
       <ThemedText type="small" themeColor="textSecondary">
         {body.length < MIN_BODY_LENGTH
           ? t('review.charsNeeded', { count: MIN_BODY_LENGTH - body.length })
@@ -68,7 +80,7 @@ export function TextPhotoStep({
       <View style={styles.photosRow}>
         {photos.map((photo, index) => (
           <View key={photo.uri} style={styles.photoWrapper}>
-            <Image source={{ uri: photo.uri }} style={styles.photo} />
+            <Image source={{ uri: photo.uri }} cachePolicy="none" style={styles.photo} />
             <Pressable
               onPress={() => {
                 deletePersistedPhoto(photo.uri);

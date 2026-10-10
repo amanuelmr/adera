@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -14,6 +15,7 @@ export function StarPicker({
   size?: number;
   label: string;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.row}>
       {[1, 2, 3, 4, 5].map((star) => (
@@ -22,7 +24,7 @@ export function StarPicker({
           onPress={() => onChange(star)}
           accessibilityRole="radio"
           accessibilityState={{ checked: value === star }}
-          accessibilityLabel={`${label}: ${star} stars`}
+          accessibilityLabel={t('rating.starOption', { label, count: star })}
           hitSlop={6}>
           <ThemedText style={{ fontSize: size }}>{value != null && star <= value ? '★' : '☆'}</ThemedText>
         </Pressable>

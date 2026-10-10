@@ -58,6 +58,7 @@ export function DisclosureStep({
             onChangeText={onChangeDisclosureDetails}
             placeholder={t('disclosure.detailsPlaceholder')}
             placeholderTextColor={theme.textSecondary}
+            accessibilityLabel={t(detailsRequired ? 'disclosure.details' : 'disclosure.detailsOptional')}
             style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
           />
         </View>

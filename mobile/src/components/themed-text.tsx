@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
+import { Platform, StyleSheet, Text, type StyleProp, type TextProps, type TextStyle } from 'react-native';
 
 import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ETHIOPIC_FONT_BOLD, ETHIOPIC_FONT_REGULAR } from '@/lib/fonts';
+import { ethiopicLineHeight } from '@/lib/typography';
 
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
@@ -21,24 +22,29 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
   const ethiopicFontFamily =
     i18n.language === 'am' && type !== 'code' ? (BOLD_TYPES.has(type) ? ETHIOPIC_FONT_BOLD : ETHIOPIC_FONT_REGULAR) : undefined;
 
-  return (
-    <Text
-      style={[
-        { color: theme[themeColor ?? 'text'] },
-        type === 'default' && styles.default,
-        type === 'title' && styles.title,
-        type === 'small' && styles.small,
-        type === 'smallBold' && styles.smallBold,
-        type === 'subtitle' && styles.subtitle,
-        type === 'link' && styles.link,
-        type === 'linkPrimary' && styles.linkPrimary,
-        type === 'code' && styles.code,
-        ethiopicFontFamily && { fontFamily: ethiopicFontFamily },
-        style,
-      ]}
-      {...rest}
-    />
-  );
+  const composed: StyleProp<TextStyle>[] = [
+    { color: theme[themeColor ?? 'text'] },
+    type === 'default' && styles.default,
+    type === 'title' && styles.title,
+    type === 'small' && styles.small,
+    type === 'smallBold' && styles.smallBold,
+    type === 'subtitle' && styles.subtitle,
+    type === 'link' && styles.link,
+    type === 'linkPrimary' && styles.linkPrimary,
+    type === 'code' && styles.code,
+    ethiopicFontFamily && { fontFamily: ethiopicFontFamily },
+    style,
+  ];
+
+  // Applied after the caller's style, so screens that set their own size
+  // (e.g. a large place name) get Ethiopic-safe spacing too.
+  let ethiopicSpacing: { lineHeight: number } | undefined;
+  if (ethiopicFontFamily) {
+    const { fontSize, lineHeight } = StyleSheet.flatten(composed);
+    if (typeof fontSize === 'number') ethiopicSpacing = { lineHeight: ethiopicLineHeight(fontSize, lineHeight) };
+  }
+
+  return <Text style={[...composed, ethiopicSpacing]} {...rest} />;
 }
 
 const styles = StyleSheet.create({

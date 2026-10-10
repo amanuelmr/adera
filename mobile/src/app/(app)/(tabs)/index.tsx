@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CachedDataBanner } from '@/components/cached-data-banner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -40,6 +41,10 @@ export default function DiscoverScreen() {
 
           <PendingSyncBanner />
 
+          <View style={styles.cacheBanner}>
+            <CachedDataBanner query={topRated} />
+          </View>
+
           <NearMeSection />
 
           <DiscoverSection
@@ -55,10 +60,11 @@ export default function DiscoverScreen() {
             )}
           />
 
+          {/* A new city has no ratings yet: rather than two "nothing here"
+              rows, these appear once there is something to show. */}
           <DiscoverSection
             title={t('discover.topRated')}
             query={topRated}
-            emptyLabel={t('discover.noTopRated')}
             keyExtractor={(target, index) => target.id ?? target.slug ?? String(index)}
             renderItem={(target) => (
               <TargetCard
@@ -73,7 +79,6 @@ export default function DiscoverScreen() {
           <DiscoverSection
             title={t('discover.trending')}
             query={trending}
-            emptyLabel={t('discover.noTrending')}
             keyExtractor={(target, index) => target.id ?? target.slug ?? String(index)}
             renderItem={(target) => (
               <TargetCard
@@ -109,6 +114,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     lineHeight: 40,
+  },
+  cacheBanner: {
+    paddingHorizontal: Spacing.four,
   },
   searchBar: {
     minHeight: 44,

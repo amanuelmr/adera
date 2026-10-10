@@ -57,3 +57,11 @@ h3, .review-title { font-size: 1rem; margin: .25rem 0; }
 .w90 { width: 90%; }
 .w95 { width: 95%; }
 .w100 { width: 100%; }
+
+/* Place and category lists on the home and category pages. */
+.places, .categories { list-style: none; padding: 0; margin: .5rem 0 1rem; }
+.places li { padding: .6rem 0; border-bottom: 1px solid var(--line); }
+.places li a { font-weight: 600; }
+.places .meta { display: block; }
+.categories { display: flex; flex-wrap: wrap; gap: .5rem; }
+.categories a { display: inline-block; min-height: 44px; padding: .6rem .9rem; border: 1px solid var(--line); border-radius: .5rem; text-decoration: none; }

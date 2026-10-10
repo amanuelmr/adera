@@ -84,7 +84,11 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	locations.NewHandler(locationsRepo).Routes(mux)
 	businesses.NewHandler(bizRepo).Routes(mux)
 	targets.NewHandler(targetsRepo, bizRepo, usersRepo, targetSubmitLimiter).Routes(mux)
-	reviews.NewHandler(reviewsRepo, reviewLimiter).Routes(mux)
+	var signalHasher *reviews.SignalHasher
+	if cfg.SignalHashKey != "" {
+		signalHasher = reviews.NewSignalHasher(cfg.SignalHashKey, cfg.TrustProxyHeaders)
+	}
+	reviews.NewHandler(reviewsRepo, reviewLimiter, signalHasher).Routes(mux)
 	ratings.NewHandler(ratingsRepo).Routes(mux)
 	search.NewHandler(searchRepo, searchLimiter, cfg.TrustProxyHeaders).Routes(mux)
 	media.NewHandler(mediaSvc, presignLimiter).Routes(mux)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -410,6 +411,39 @@ func (r *Repo) Browse(ctx context.Context, f BrowseFilter, cursor *web.Cursor, l
 		next = &c
 	}
 	return out, next, nil
+}
+
+// SitemapEntry is a published target's public path segment and last change.
+type SitemapEntry struct {
+	Slug      string
+	UpdatedAt time.Time
+}
+
+// SitemapEntries lists published targets for /sitemap.xml, most recently
+// changed first, so the limit (a sitemap holds at most 50,000 URLs) drops
+// the stalest ones.
+func (r *Repo) SitemapEntries(ctx context.Context, limit int) ([]SitemapEntry, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT slug, updated_at FROM review_targets
+		WHERE moderation_status = 'published'
+		ORDER BY updated_at DESC, id
+		LIMIT $1`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("listing sitemap targets: %w", err)
+	}
+	defer rows.Close()
+	var out []SitemapEntry
+	for rows.Next() {
+		var e SitemapEntry
+		if err := rows.Scan(&e.Slug, &e.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scanning sitemap target: %w", err)
+		}
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating sitemap targets: %w", err)
+	}
+	return out, nil
 }
 
 // RankedTarget is a target plus its ranking score for top-rated listings.

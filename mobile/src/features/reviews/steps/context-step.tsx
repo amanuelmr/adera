@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, TextInput, View } from 'react-native';
 
@@ -6,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ChipGroup } from '../chip-group';
+import { dateChoiceFor, daysAgo, type DateChoice } from '../form-steps';
 import { DISCOVERY_SOURCES, EXPECTATION_MATCHES, SOCIAL_DISCOVERY_SOURCES } from '../types';
 import { experienceDateError, parsePrice } from '../validation';
 
@@ -35,6 +37,25 @@ export function ContextStep({
   const dateError = experienceDateError(experienceDate);
   const priceError = parsePrice(pricePaid).error;
   const isSocial = discoverySource ? SOCIAL_DISCOVERY_SOURCES.has(discoverySource) : false;
+  // "Pick a date" with nothing typed yet has no stored value to derive from.
+  const [picking, setPicking] = useState(false);
+  const dateChoice = dateChoiceFor(experienceDate) ?? (picking ? 'pick' : undefined);
+  const dateOptions: { value: DateChoice; label: string }[] = [
+    { value: 'today', label: t('review.dateToday') },
+    { value: 'yesterday', label: t('review.dateYesterday') },
+    { value: 'pick', label: t('review.datePick') },
+  ];
+
+  function chooseDate(choice: DateChoice) {
+    // The date is optional: tapping the selected chip again clears it.
+    if (choice === dateChoice) {
+      setPicking(false);
+      onChangeExperienceDate('');
+      return;
+    }
+    setPicking(choice === 'pick');
+    onChangeExperienceDate(choice === 'today' ? daysAgo(0) : choice === 'yesterday' ? daysAgo(1) : '');
+  }
 
   return (
     <View style={styles.container}>
@@ -42,15 +63,20 @@ export function ContextStep({
 
       <View style={styles.field}>
         <ThemedText type="smallBold">{t('review.whenLabel')}</ThemedText>
-        <TextInput
-          value={experienceDate}
-          onChangeText={onChangeExperienceDate}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={theme.textSecondary}
-          keyboardType="numbers-and-punctuation"
-          accessibilityLabel={t('review.whenLabel')}
-          style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
-        />
+        <ChipGroup options={dateOptions} value={dateChoice} onChange={chooseDate} />
+        {dateChoice === 'pick' ? (
+          <TextInput
+            value={experienceDate}
+            onChangeText={onChangeExperienceDate}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={theme.textSecondary}
+            keyboardType="numbers-and-punctuation"
+            autoFocus={picking && !experienceDate}
+            accessibilityLabel={t('review.dateFieldLabel')}
+            accessibilityHint={t('review.dateFormat')}
+            style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
+          />
+        ) : null}
         {dateError ? (
           <ThemedText type="small" style={styles.error}>
             {t(dateError === 'future' ? 'review.dateFuture' : 'review.dateFormat')}

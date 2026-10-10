@@ -19,7 +19,7 @@ import { enqueueReviewSubmission } from '@/features/reviews/offline-queue';
 import { invalidateReviewCaches, submitReview, submitReviewEdit, useCriteria, useReview } from '@/features/reviews/queries';
 import { isConnected } from '@/lib/network-status';
 import { INITIAL_REVIEW_FORM, type ReviewFormState } from '@/features/reviews/types';
-import { experienceDateError, parsePrice } from '@/features/reviews/validation';
+import { canProceedFromStep, REVIEW_STEP_COUNT } from '@/features/reviews/form-steps';
 import { CriteriaStep } from '@/features/reviews/steps/criteria-step';
 import { ContextStep } from '@/features/reviews/steps/context-step';
 import { DisclosureStep } from '@/features/reviews/steps/disclosure-step';
@@ -30,8 +30,6 @@ import { formatRelative } from '@/lib/format';
 import { shareReview } from '@/features/share/share';
 import { useTarget } from '@/features/targets/queries';
 
-const STEP_COUNT = 5;
-const MIN_BODY_LENGTH = 20;
 
 // Existing media is left untouched (photos here are only newly added ones —
 // see submitReviewEdit); discovery_source/expectation_match come back from
@@ -125,7 +123,7 @@ export default function WriteReviewScreen() {
   function resumeDraft() {
     if (!foundDraft) return;
     setForm(withPhoto(foundDraft.form, recoveredPhoto));
-    setStep(Math.min(foundDraft.step, STEP_COUNT - 1));
+    setStep(Math.min(foundDraft.step, REVIEW_STEP_COUNT - 1));
     setDraftState('ready');
   }
 
@@ -316,15 +314,10 @@ export default function WriteReviewScreen() {
   const missingRequiredCriteria = (criteria.data ?? []).filter(
     (criterion) => criterion.required && criterion.code && !form.criterionScores[criterion.code]
   );
-  const detailsRequired = form.incentiveType === 'other' || form.materialConnection === 'other';
-
-  const canProceed = [
-    form.overallRating != null,
-    !criteria.isPending && missingRequiredCriteria.length === 0,
-    form.body.trim().length >= MIN_BODY_LENGTH,
-    !experienceDateError(form.experienceDate) && !parsePrice(form.pricePaid).error,
-    !detailsRequired || form.disclosureDetails.trim().length > 0,
-  ][step];
+  const canProceed = canProceedFromStep(step, form, {
+    pending: criteria.isPending,
+    missingRequired: missingRequiredCriteria.length,
+  });
 
   const submitError = submit.error
     ? submit.error instanceof ApiError && submit.error.code === 'cooldown_active'
@@ -342,10 +335,10 @@ export default function WriteReviewScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <Stack.Screen options={{ title: `${isEditing ? t('nav.editReview') : t('nav.writeReview')} · ${step + 1}/${STEP_COUNT}` }} />
+      <Stack.Screen options={{ title: `${isEditing ? t('nav.editReview') : t('nav.writeReview')} · ${step + 1}/${REVIEW_STEP_COUNT}` }} />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <View style={styles.dots}>
-          {Array.from({ length: STEP_COUNT }).map((_, index) => (
+          {Array.from({ length: REVIEW_STEP_COUNT }).map((_, index) => (
             <View
               key={index}
               style={[styles.dot, { backgroundColor: index <= step ? theme.text : theme.backgroundElement }]}
@@ -364,6 +357,7 @@ export default function WriteReviewScreen() {
             />
           ) : step === 2 ? (
             <TextPhotoStep
+              rating={form.overallRating}
               title={form.title}
               body={form.body}
               photos={form.photos}
@@ -371,26 +365,27 @@ export default function WriteReviewScreen() {
               onChangeBody={(body) => update('body', body)}
               onChangePhotos={(photos) => update('photos', photos)}
             />
-          ) : step === 3 ? (
-            <ContextStep
-              experienceDate={form.experienceDate}
-              discoverySource={form.discoverySource}
-              expectationMatch={form.expectationMatch}
-              pricePaid={form.pricePaid}
-              onChangeExperienceDate={(value) => update('experienceDate', value)}
-              onChangeDiscoverySource={(value) => update('discoverySource', value)}
-              onChangeExpectationMatch={(value) => update('expectationMatch', value)}
-              onChangePricePaid={(value) => update('pricePaid', value)}
-            />
           ) : (
-            <DisclosureStep
-              incentiveType={form.incentiveType}
-              materialConnection={form.materialConnection}
-              disclosureDetails={form.disclosureDetails}
-              onChangeIncentiveType={(value) => update('incentiveType', value)}
-              onChangeMaterialConnection={(value) => update('materialConnection', value)}
-              onChangeDisclosureDetails={(value) => update('disclosureDetails', value)}
-            />
+            <View style={styles.detailsStep}>
+              <ContextStep
+                experienceDate={form.experienceDate}
+                discoverySource={form.discoverySource}
+                expectationMatch={form.expectationMatch}
+                pricePaid={form.pricePaid}
+                onChangeExperienceDate={(value) => update('experienceDate', value)}
+                onChangeDiscoverySource={(value) => update('discoverySource', value)}
+                onChangeExpectationMatch={(value) => update('expectationMatch', value)}
+                onChangePricePaid={(value) => update('pricePaid', value)}
+              />
+              <DisclosureStep
+                incentiveType={form.incentiveType}
+                materialConnection={form.materialConnection}
+                disclosureDetails={form.disclosureDetails}
+                onChangeIncentiveType={(value) => update('incentiveType', value)}
+                onChangeMaterialConnection={(value) => update('materialConnection', value)}
+                onChangeDisclosureDetails={(value) => update('disclosureDetails', value)}
+              />
+            </View>
           )}
         </ScrollView>
 
@@ -406,7 +401,7 @@ export default function WriteReviewScreen() {
           ) : (
             <View style={styles.spacer} />
           )}
-          {step < STEP_COUNT - 1 ? (
+          {step < REVIEW_STEP_COUNT - 1 ? (
             <Button title={t('common.next')} onPress={() => setStep((s) => s + 1)} disabled={!canProceed} />
           ) : (
             <Button
@@ -423,6 +418,9 @@ export default function WriteReviewScreen() {
 }
 
 const styles = StyleSheet.create({
+  detailsStep: {
+    gap: Spacing.five,
+  },
   container: {
     flex: 1,
   },

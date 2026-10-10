@@ -249,7 +249,18 @@
     "draftSaved": "የተቀመጠው {{when}}።",
     "draftResume": "ይቀጥሉ",
     "draftStartOver": "እንደገና ይጀምሩ",
-    "shareYours": "ግምገማዎን ያጋሩ"
+    "shareYours": "ግምገማዎን ያጋሩ",
+    "dateToday": "ዛሬ",
+    "dateYesterday": "ትናንት",
+    "datePick": "ቀን ይምረጡ",
+    "dateFieldLabel": "የጎበኙበት ቀን",
+    "titleLabel": "የግምገማ ርዕስ (አማራጭ)",
+    "bodyLabel": "ግምገማዎ",
+    "prompt": {
+      "low": "ምን ችግር ተፈጠረ? አሳውቀዋል? ተፈቷል?",
+      "mid": "ምን ጥሩ ነበር? ምን የተሻለ ሊሆን ይችል ነበር?",
+      "high": "ምን ጎልቶ ታየዎት? ሊታዘዝ፣ ሊጠየቅ ወይም ከመሄድ በፊት ሊታወቅ የሚገባ ነገር ካለ ይጥቀሱ።"
+    }
   },
   "report": {
     "title": "ግምገማ ሪፖርት አድርግ",
@@ -299,7 +310,10 @@
     "camera": "ካሜራ",
     "gallery": "ማዕከለ ስዕላት",
     "takePhoto": "ፎቶ አንሳ",
-    "cameraDenied": "ፎቶ ለማንሳት የካሜራ ፍቃድ ያስፈልጋል።"
+    "cameraDenied": "ፎቶ ለማንሳት የካሜራ ፍቃድ ያስፈልጋል።",
+    "open": "ፎቶ {{index}} ከ{{count}} ክፈት",
+    "position": "ፎቶ {{index}} ከ{{count}}",
+    "close": "ፎቶውን ዝጋ"
   },
   "myReviews": {
     "deleteTitle": "ይህ ግምገማ ይሰረዝ?",
@@ -318,7 +332,9 @@
     "summary_one": "ከ{{count}} ግምገማ ከ5 {{rating}}",
     "summary_other": "ከ{{count}} ግምገማዎች ከ5 {{rating}}",
     "notYetRated": "እስካሁን ደረጃ አልተሰጠውም",
-    "noReviewsYet": "እስካሁን ግምገማ የለም"
+    "noReviewsYet": "እስካሁን ግምገማ የለም",
+    "starOption_one": "{{label}}፦ {{count}} ኮከብ",
+    "starOption_other": "{{label}}፦ {{count}} ኮከብ"
   },
   "realityCheck": {
     "title": "የእውነታ ማረጋገጫ",
@@ -393,9 +409,7 @@
     "categories": "ምድቦች",
     "noCategories": "እስካሁን ምድቦች የሉም።",
     "topRated": "ከፍተኛ ደረጃ",
-    "noTopRated": "እስካሁን ደረጃ የተሰጠው የለም።",
     "trending": "ተወዳጅ",
-    "noTrending": "እስካሁን ተወዳጅ የለም።",
     "thisMonth_one": "በዚህ ወር {{count}} ግምገማ",
     "thisMonth_other": "በዚህ ወር {{count}} ግምገማዎች"
   },
@@ -437,5 +451,10 @@
     "submittedTitle": "እናመሰግናለን — ቦታው ገብቷል",
     "submittedBody": "አወያይ ያረጋግጠዋል። ሲታተም እናሳውቅዎታለን፣ ከዚያም መገምገም ይችላሉ።",
     "rateLimited": "ዛሬ ብዙ ቦታዎችን ጨምረዋል — ነገ እንደገና ይሞክሩ።"
+  },
+  "cache": {
+    "offline": "ከመስመር ውጭ ነዎት — {{when}} የተቀመጠውን እያሳየን ነው።",
+    "refreshFailed": "ማደስ አልተቻለም — {{when}} የተቀመጠውን እያሳየን ነው።",
+    "savedAt": "የተቀመጠው በ{{when}}"
   }
 }

@@ -20,3 +20,10 @@
   {{if .Helpful}}<p class="meta">{{.B.T "review.helpful" "count" .Helpful}}</p>{{end}}
 </article>
 {{end}}
+{{define "places"}}
+<ul class="places">
+{{range .}}
+  <li><a href="{{.URL}}">{{.Name}}</a> <span class="meta">{{.Meta}}</span></li>
+{{end}}
+</ul>
+{{end}}

@@ -249,7 +249,18 @@
     "draftSaved": "Saved {{when}}.",
     "draftResume": "Continue it",
     "draftStartOver": "Start over",
-    "shareYours": "Share your review"
+    "shareYours": "Share your review",
+    "dateToday": "Today",
+    "dateYesterday": "Yesterday",
+    "datePick": "Pick a date",
+    "dateFieldLabel": "Date of your visit",
+    "titleLabel": "Review title (optional)",
+    "bodyLabel": "Your review",
+    "prompt": {
+      "low": "What went wrong? Did you raise it, and was it resolved?",
+      "mid": "What was good, and what could have been better?",
+      "high": "What stood out? Mention anything worth ordering, asking for, or knowing before you go."
+    }
   },
   "report": {
     "title": "Report review",
@@ -299,7 +310,10 @@
     "camera": "Camera",
     "gallery": "Gallery",
     "takePhoto": "Take a photo",
-    "cameraDenied": "Camera access is needed to take a photo."
+    "cameraDenied": "Camera access is needed to take a photo.",
+    "open": "Open photo {{index}} of {{count}}",
+    "position": "Photo {{index}} of {{count}}",
+    "close": "Close photo"
   },
   "myReviews": {
     "deleteTitle": "Delete this review?",
@@ -318,7 +332,9 @@
     "summary_one": "Rated {{rating}} out of 5 from {{count}} review",
     "summary_other": "Rated {{rating}} out of 5 from {{count}} reviews",
     "notYetRated": "Not yet rated",
-    "noReviewsYet": "No reviews yet"
+    "noReviewsYet": "No reviews yet",
+    "starOption_one": "{{label}}: {{count}} star",
+    "starOption_other": "{{label}}: {{count}} stars"
   },
   "realityCheck": {
     "title": "Reality Check",
@@ -393,9 +409,7 @@
     "categories": "Categories",
     "noCategories": "No categories yet.",
     "topRated": "Top rated",
-    "noTopRated": "Nothing rated yet.",
     "trending": "Trending",
-    "noTrending": "Nothing trending yet.",
     "thisMonth_one": "{{count}} review this month",
     "thisMonth_other": "{{count}} reviews this month"
   },
@@ -437,5 +451,10 @@
     "submittedTitle": "Thanks — place submitted",
     "submittedBody": "A moderator will check it. We'll notify you when it's live, and you can review it then.",
     "rateLimited": "You've added a lot of places today — try again tomorrow."
+  },
+  "cache": {
+    "offline": "You're offline — showing what was saved {{when}}.",
+    "refreshFailed": "Couldn't refresh — showing what was saved {{when}}.",
+    "savedAt": "Saved on {{when}}"
   }
 }

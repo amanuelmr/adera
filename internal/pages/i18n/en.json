@@ -118,5 +118,25 @@
         ]
       }
     ]
+  },
+  "home": {
+    "description": "Read and write honest reviews of restaurants, cafés, shops and services across Ethiopia.",
+    "intro": "Real reviews from people who went, with every incentive or connection to the business labeled.",
+    "topRated": "Top rated",
+    "trending": "Popular this month",
+    "categories": "Browse by category",
+    "thisMonth_one": "{{count}} new review this month",
+    "thisMonth_other": "{{count}} new reviews this month"
+  },
+  "place": {
+    "average": "{{rating}} ★"
+  },
+  "category": {
+    "description": "Reviews of {{name}} in Ethiopia.",
+    "topRated": "Top rated",
+    "all": "All places, newest first",
+    "empty": "No places in this category yet.",
+    "more": "More places",
+    "backHome": "All categories"
   }
 }

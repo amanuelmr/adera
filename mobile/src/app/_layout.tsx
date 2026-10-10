@@ -1,4 +1,4 @@
-import { QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
@@ -6,20 +6,21 @@ import { AuthProvider, useAuth } from '@/auth/context';
 import { SplashScreenController } from '@/components/splash-screen-controller';
 import { useVersionGate } from '@/features/app-version/queries';
 import { UpdateRequiredScreen } from '@/features/app-version/update-required-screen';
+import { LanguageChoice } from '@/features/language/language-choice';
 import { useEthiopicFonts } from '@/lib/fonts';
 import i18n, { useI18nReady } from '@/lib/i18n';
-import { queryClient } from '@/lib/query-client';
+import { persistOptions, queryClient } from '@/lib/query-client';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
       <AuthProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <AppGate />
         </ThemeProvider>
       </AuthProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }
 
@@ -45,7 +46,10 @@ function AppGate() {
       {ready && versionGate.data?.update_required ? (
         <UpdateRequiredScreen storeUrl={versionGate.data.store_url} />
       ) : (
-        <RootNavigator />
+        <>
+          <RootNavigator />
+          {ready ? <LanguageChoice /> : null}
+        </>
       )}
     </>
   );

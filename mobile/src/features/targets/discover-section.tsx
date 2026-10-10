@@ -10,7 +10,8 @@ import { Spacing } from '@/constants/theme';
 export type DiscoverSectionProps<T> = {
   title: string;
   query: UseQueryResult<T[]>;
-  emptyLabel: string;
+  /** Without one, the whole section is left out while it has nothing to show. */
+  emptyLabel?: string;
   /** Shown under the empty label, e.g. a way to add what's missing. */
   emptyAction?: ReactElement;
   keyExtractor: (item: T, index: number) => string;
@@ -26,6 +27,8 @@ export function DiscoverSection<T>({
   keyExtractor,
   renderItem,
 }: DiscoverSectionProps<T>) {
+  if (!emptyLabel && query.isSuccess && query.data.length === 0) return null;
+
   return (
     <ThemedView>
       <ThemedText type="smallBold" style={styles.title}>

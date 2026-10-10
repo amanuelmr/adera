@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { apiClient, unwrap } from '@/api/client';
 import type { components } from '@/api/schema';
 import { unregisterCurrentDevice } from '@/features/push/register';
-import { queryClient } from '@/lib/query-client';
+import { clearQueryCache } from '@/lib/query-client';
 import { onForcedSignOut } from './events';
 import { clearTokens, getAccessToken, getCurrentUserId, getRefreshToken, setCurrentUserId, setTokens } from './storage';
 // Registers the auth middleware (token attachment + refresh-on-401) on
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(
     () =>
       onForcedSignOut(() => {
-        queryClient.clear();
+        void clearQueryCache();
         setStatus('signedOut');
       }),
     []
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     await setTokens({ accessToken: data.tokens.access_token, refreshToken: data.tokens.refresh_token });
     await setCurrentUserId(data.user.id);
-    queryClient.clear();
+    void clearQueryCache();
     setStatus('signedIn');
   }, []);
 
@@ -101,13 +101,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     await setTokens({ accessToken: data.tokens.access_token, refreshToken: data.tokens.refresh_token });
     await setCurrentUserId(data.user.id);
-    queryClient.clear();
+    void clearQueryCache();
     setStatus('signedIn');
   }, []);
 
   const signOutLocally = useCallback(async () => {
     await clearTokens();
-    queryClient.clear();
+    void clearQueryCache();
     setStatus('signedOut');
   }, []);
 

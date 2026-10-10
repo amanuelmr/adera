@@ -1,0 +1,26 @@
+{{define "content"}}
+<h1>{{.T "tagline"}}</h1>
+<p class="lead">{{.T "home.intro"}}</p>
+
+{{if .TopRated}}
+<section aria-labelledby="top-rated">
+  <h2 id="top-rated">{{.T "home.topRated"}}</h2>
+  {{template "places" .TopRated}}
+</section>
+{{end}}
+
+{{if .Trending}}
+<section aria-labelledby="trending">
+  <h2 id="trending">{{.T "home.trending"}}</h2>
+  {{template "places" .Trending}}
+</section>
+{{end}}
+
+<section aria-labelledby="categories">
+  <h2 id="categories">{{.T "home.categories"}}</h2>
+  <ul class="categories">
+  {{range .Categories}}<li><a href="{{.URL}}">{{.Name}}</a></li>{{end}}
+  </ul>
+</section>
+
+{{end}}

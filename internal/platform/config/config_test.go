@@ -45,6 +45,9 @@ func TestConfigValidate(t *testing.T) {
 			c.JWTSecret = ""
 		}, true},
 		{"short jwt secret", func(c *Config) { c.JWTSecret = "too-short" }, true},
+		{"signal hash key unset disables signals", func(c *Config) { c.SignalHashKey = "" }, false},
+		{"short signal hash key", func(c *Config) { c.SignalHashKey = "too-short" }, true},
+		{"signal hash key", func(c *Config) { c.SignalHashKey = "signal-key-at-least-32-bytes-long!!" }, false},
 		{"zero access token ttl", func(c *Config) { c.AccessTokenTTL = 0 }, true},
 		{"access token ttl over an hour", func(c *Config) { c.AccessTokenTTL = 2 * time.Hour }, true},
 		{"refresh token ttl under an hour", func(c *Config) { c.RefreshTokenTTL = time.Minute }, true},
