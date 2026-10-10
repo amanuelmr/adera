@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from '@/auth/context';
 import { SplashScreenController } from '@/components/splash-screen-controller';
 import { useVersionGate } from '@/features/app-version/queries';
 import { UpdateRequiredScreen } from '@/features/app-version/update-required-screen';
+import { LanguageChoice } from '@/features/language/language-choice';
 import { useEthiopicFonts } from '@/lib/fonts';
 import i18n, { useI18nReady } from '@/lib/i18n';
 import { persistOptions, queryClient } from '@/lib/query-client';
@@ -45,7 +46,10 @@ function AppGate() {
       {ready && versionGate.data?.update_required ? (
         <UpdateRequiredScreen storeUrl={versionGate.data.store_url} />
       ) : (
-        <RootNavigator />
+        <>
+          <RootNavigator />
+          {ready ? <LanguageChoice /> : null}
+        </>
       )}
     </>
   );

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
 import i18next from 'i18next';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { initReactI18next } from 'react-i18next';
 
 import am from './locales/am.json';
@@ -20,9 +20,34 @@ function isSupported(code: string | null | undefined): code is AppLanguage {
   return !!code && (SUPPORTED_LANGUAGES as readonly string[]).includes(code);
 }
 
+// First run: nobody has picked a language yet, so the device language is
+// only a guess and the app asks once (see LanguageChoice). Choosing either
+// language, here or in Account, stores it and ends that.
+let languageChosen = true;
+const choiceListeners = new Set<() => void>();
+
+function setLanguageChosen(value: boolean) {
+  if (languageChosen === value) return;
+  languageChosen = value;
+  choiceListeners.forEach((listener) => listener());
+}
+
+/** Whether the first-run language choice should be shown (false until i18n has loaded). */
+export function needsLanguageChoice(): boolean {
+  return !languageChosen;
+}
+
+export function useNeedsLanguageChoice(): boolean {
+  return useSyncExternalStore((listener) => {
+    choiceListeners.add(listener);
+    return () => choiceListeners.delete(listener);
+  }, needsLanguageChoice);
+}
+
 async function detectInitialLanguage(): Promise<AppLanguage> {
   const stored = await AsyncStorage.getItem(STORAGE_KEY);
   if (isSupported(stored)) return stored;
+  setLanguageChosen(false);
 
   const deviceLanguage = Localization.getLocales()[0]?.languageCode;
   return isSupported(deviceLanguage) ? deviceLanguage : 'en';
@@ -32,6 +57,7 @@ export async function setAppLanguage(language: AppLanguage): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEY, language);
   // eslint-disable-next-line import/no-named-as-default-member -- i18next's default export is the singleton instance; this is its documented usage.
   await i18next.changeLanguage(language);
+  setLanguageChosen(true);
 }
 
 let initialized: Promise<unknown> | undefined;

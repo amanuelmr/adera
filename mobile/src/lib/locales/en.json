@@ -409,9 +409,7 @@
     "categories": "Categories",
     "noCategories": "No categories yet.",
     "topRated": "Top rated",
-    "noTopRated": "Nothing rated yet.",
     "trending": "Trending",
-    "noTrending": "Nothing trending yet.",
     "thisMonth_one": "{{count}} review this month",
     "thisMonth_other": "{{count}} reviews this month"
   },

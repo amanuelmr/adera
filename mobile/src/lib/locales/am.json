@@ -409,9 +409,7 @@
     "categories": "ምድቦች",
     "noCategories": "እስካሁን ምድቦች የሉም።",
     "topRated": "ከፍተኛ ደረጃ",
-    "noTopRated": "እስካሁን ደረጃ የተሰጠው የለም።",
     "trending": "ተወዳጅ",
-    "noTrending": "እስካሁን ተወዳጅ የለም።",
     "thisMonth_one": "በዚህ ወር {{count}} ግምገማ",
     "thisMonth_other": "በዚህ ወር {{count}} ግምገማዎች"
   },

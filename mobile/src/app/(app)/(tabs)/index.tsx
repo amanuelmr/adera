@@ -60,10 +60,11 @@ export default function DiscoverScreen() {
             )}
           />
 
+          {/* A new city has no ratings yet: rather than two "nothing here"
+              rows, these appear once there is something to show. */}
           <DiscoverSection
             title={t('discover.topRated')}
             query={topRated}
-            emptyLabel={t('discover.noTopRated')}
             keyExtractor={(target, index) => target.id ?? target.slug ?? String(index)}
             renderItem={(target) => (
               <TargetCard
@@ -78,7 +79,6 @@ export default function DiscoverScreen() {
           <DiscoverSection
             title={t('discover.trending')}
             query={trending}
-            emptyLabel={t('discover.noTrending')}
             keyExtractor={(target, index) => target.id ?? target.slug ?? String(index)}
             renderItem={(target) => (
               <TargetCard
