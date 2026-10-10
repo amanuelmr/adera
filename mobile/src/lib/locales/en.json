@@ -332,7 +332,9 @@
     "summary_one": "Rated {{rating}} out of 5 from {{count}} review",
     "summary_other": "Rated {{rating}} out of 5 from {{count}} reviews",
     "notYetRated": "Not yet rated",
-    "noReviewsYet": "No reviews yet"
+    "noReviewsYet": "No reviews yet",
+    "starOption_one": "{{label}}: {{count}} star",
+    "starOption_other": "{{label}}: {{count}} stars"
   },
   "realityCheck": {
     "title": "Reality Check",

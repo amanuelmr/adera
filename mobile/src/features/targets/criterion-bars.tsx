@@ -19,7 +19,7 @@ export function CriterionBars({ criteria }: { criteria: Criterion[] }) {
     <View style={styles.container}>
       {criteria.map((criterion) => (
         <View key={criterion.code} style={styles.row}>
-          <ThemedText type="small" style={styles.label} numberOfLines={1}>
+          <ThemedText type="small" style={styles.label}>
             {criterion.name ?? criterion.code}
           </ThemedText>
           <View style={[styles.track, { backgroundColor: theme.backgroundElement }]}>
@@ -49,8 +49,9 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     minHeight: 24,
   },
+  // Wraps rather than truncating: Amharic criterion names run longer.
   label: {
-    width: 96,
+    width: '35%',
   },
   track: {
     flex: 1,

@@ -332,7 +332,9 @@
     "summary_one": "ከ{{count}} ግምገማ ከ5 {{rating}}",
     "summary_other": "ከ{{count}} ግምገማዎች ከ5 {{rating}}",
     "notYetRated": "እስካሁን ደረጃ አልተሰጠውም",
-    "noReviewsYet": "እስካሁን ግምገማ የለም"
+    "noReviewsYet": "እስካሁን ግምገማ የለም",
+    "starOption_one": "{{label}}፦ {{count}} ኮከብ",
+    "starOption_other": "{{label}}፦ {{count}} ኮከብ"
   },
   "realityCheck": {
     "title": "የእውነታ ማረጋገጫ",
