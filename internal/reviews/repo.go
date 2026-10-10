@@ -354,6 +354,9 @@ func (r *Repo) Create(ctx context.Context, userID uuid.UUID, in Input) (Review, 
 			return err
 		}
 		rv.CriterionScores = in.CriterionScores
+		if err := insertSignals(ctx, tx, rv.ID, rv.TargetID, in.Signals); err != nil {
+			return err
+		}
 		if err := statsDelta(ctx, tx, rv, +1); err != nil {
 			return err
 		}

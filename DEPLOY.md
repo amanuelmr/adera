@@ -79,7 +79,12 @@ In the service's **Environment** tab:
   openssl rand -base64 48
   ```
 
-Changing either triggers a redeploy.
+- `SIGNAL_HASH_KEY` — also generated, also at least 32 bytes (same check, same
+  fix). It keys the hashes of review fraud signals; set it once and leave it,
+  since a new key stops new reviews matching older signals. Clearing it turns
+  signal recording off.
+
+Changing any of these triggers a redeploy.
 
 ### Optional: email, push, and the version gate
 

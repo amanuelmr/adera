@@ -958,6 +958,7 @@ paths:
       security: [{bearerAuth: []}]
       parameters:
         - {name: Idempotency-Key, in: header, schema: {type: string, maxLength: 200}, description: Client-generated key; replays return the stored response.}
+        - {name: X-Install-ID, in: header, schema: {type: string, format: uuid}, description: 'Random per-install app identifier. Stored only as a keyed hash, as a fraud signal for moderators (see `GET /moderation/targets/{id}/review-signals`); anything but a UUID is ignored.'}
       requestBody:
         required: true
         content:
@@ -1573,6 +1574,22 @@ paths:
       parameters: [{$ref: '#/components/parameters/PathID'}]
       responses:
         '200': {description: Evidence items (access URLs valid 10 minutes)., content: {application/json: {schema: {$ref: '#/components/schemas/EvidenceListPage'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /api/v1/moderation/targets/{id}/review-signals:
+    get:
+      tags: [moderation]
+      summary: Reviews of a place that share a device or network across accounts
+      description: |
+        Fraud signals, not verdicts: groups of this place's reviews, by more
+        than one account, created from the same app install (`device`) or
+        the same /24 IPv4 or /48 IPv6 network (`network`). Device groups come
+        first; shared networks are common among honest reviewers (offices,
+        cafés, carrier pools). Signals are keyed hashes, kept 90 days.
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/PathID'}]
+      responses:
+        '200': {description: Signal groups (empty when nothing is shared)., content: {application/json: {schema: {$ref: '#/components/schemas/ReviewSignalGroupList'}}}}
         '403': {$ref: '#/components/responses/Forbidden'}
 
   /api/v1/moderation/evidence/{id}/decision:
@@ -2569,6 +2586,34 @@ components:
             data:
               type: array
               items: {$ref: '#/components/schemas/Evidence'}
+
+    ReviewSignalGroup:
+      type: object
+      required: [kind, key, reviews]
+      properties:
+        kind: {type: string, enum: [device, network]}
+        key: {type: string, description: 'Opaque, stable label for the shared signal; the same key on another place is the same device or network.'}
+        reviews:
+          type: array
+          items:
+            type: object
+            required: [review_id, user_id, reviewer_name, account_created_at, overall_rating, moderation_status, created_at]
+            properties:
+              review_id: {type: string, format: uuid}
+              user_id: {type: string, format: uuid}
+              reviewer_name: {type: string}
+              account_created_at: {type: string, format: date-time}
+              overall_rating: {type: integer, minimum: 1, maximum: 5}
+              moderation_status: {type: string}
+              created_at: {type: string, format: date-time}
+
+    ReviewSignalGroupList:
+      allOf:
+        - $ref: '#/components/schemas/DataEnvelope'
+        - properties:
+            data:
+              type: array
+              items: {$ref: '#/components/schemas/ReviewSignalGroup'}
 
     ReportCreate:
       type: object

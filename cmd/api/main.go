@@ -27,6 +27,7 @@ import (
 	"github.com/adera-platform/backend/internal/platform/database"
 	"github.com/adera-platform/backend/internal/platform/logging"
 	"github.com/adera-platform/backend/internal/platform/storage"
+	"github.com/adera-platform/backend/internal/reviews"
 	"github.com/adera-platform/backend/migrations"
 )
 
@@ -141,6 +142,26 @@ func notificationProvider(cfg config.Config, svc *notifications.Service) (notifi
 	return provider, nil
 }
 
+// purgeReviewSignals enforces the fraud-signal retention period: once at
+// startup, then daily. Runs even when recording is off, so turning the key
+// off doesn't leave old signals behind.
+func purgeReviewSignals(ctx context.Context, repo *reviews.Repo) {
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+	for {
+		if n, err := repo.PurgeExpiredSignals(ctx); err != nil {
+			slog.Error("purging review signals", "error", err)
+		} else if n > 0 {
+			slog.Info("purged expired review signals", "count", n)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
 func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 	var store storage.Store
 	if cfg.StorageEnabled {
@@ -171,6 +192,11 @@ func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 	}
 	dispatcher := notifications.NewDispatcher(notificationSvc, notifyProvider)
 	go dispatcher.Run(ctx)
+
+	if cfg.SignalHashKey == "" {
+		slog.Warn("SIGNAL_HASH_KEY not set; review fraud signals will not be recorded")
+	}
+	go purgeReviewSignals(ctx, reviews.NewRepo(pool, cfg.StoragePublicBaseURL, nil))
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

@@ -62,8 +62,30 @@ resolved | dismissed`).
   account; reports 10/min; presigns 20/h; search 2 rps per IP.
 - Idempotency keys prevent duplicate submissions from flaky connections.
 - No self-votes; one helpful vote per user per review (primary key).
-- Review-fraud gig economies exist locally (see market research §7); device
-  fingerprinting and collusion heuristics are documented future work.
+- Review-fraud gig economies exist locally (see market research §7). The
+  fraud signals below help moderators spot them; automated collusion
+  heuristics are still future work.
+
+## Fraud signals
+
+Signals for a moderator to weigh, never automatic verdicts: every review still
+publishes immediately, and nothing is hidden or ranked down because of them.
+
+- **What is recorded.** When a review is created: a keyed hash (HMAC-SHA256,
+  `SIGNAL_HASH_KEY`) of the network it came from, reduced to the /24 (IPv4)
+  or /48 (IPv6) prefix, and of the app's random install ID (`X-Install-ID`,
+  generated on first launch, not tied to the hardware). Raw IP addresses and
+  install IDs are never stored, and the hashes can't be reversed or matched
+  against a known address without the key. Edits record nothing.
+- **What moderators see.** `GET /moderation/targets/{id}/review-signals`
+  groups a place's reviews that share a device or a network across different
+  accounts, with each account's age. One phone behind several accounts is a
+  strong signal. A shared network is weak on its own: offices, cafés and
+  mobile carrier pools put many honest people behind one prefix. Weigh it
+  together with account age, timing, wording, and ratings.
+- **Retention.** 90 days, enforced by a daily purge; deleted reviews take
+  their signals with them. Leaving `SIGNAL_HASH_KEY` unset turns recording
+  off. Changing it stops new reviews matching older signals.
 
 ## Retention & deactivation
 
@@ -80,5 +102,5 @@ Queue (`GET /moderation/reports`), report detail/resolve, review decisions
 (approve/hide/remove/restore), evidence accept/reject (drives verification),
 claim approve/reject/revoke, free-form notes, per-subject audit trail
 (`GET /moderation/audit`), account suspension/reinstatement (admin), duplicate
-target merge (admin). Function-level authorization: `moderator` role (admins
+target merge (admin), review fraud signals per place. Function-level authorization: `moderator` role (admins
 inherit it); admin-only for suspension, category management, and merges.
