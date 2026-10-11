@@ -15,7 +15,7 @@ import (
 const ThumbMaxEdge = 480
 
 // maxSamplesPerAxis bounds how many source pixels are averaged along each
-// axis for one output pixel. Without it a 40 MP upload would read 40 million
+// axis for one output pixel. Without it a 24 MP upload would read 24 million
 // pixels on a user-facing request; with it the cost tracks the thumbnail size
 // instead. For photographic downscales a 4x4 sample grid is visually
 // indistinguishable from averaging every pixel in the box.
