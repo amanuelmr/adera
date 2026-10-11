@@ -128,8 +128,10 @@ export interface paths {
          * Rotate the refresh token and get a new access token
          * @description Single-use rotation with theft detection: presenting an
          *     already-rotated or revoked refresh token revokes the **entire session
-         *     family** and returns 401. Rate limited per refresh token, not per
-         *     address.
+         *     family** and returns 401. A session also ends SESSION_MAX_LIFETIME
+         *     (default 180 days) after sign-in, however often it is refreshed;
+         *     after that, refresh returns 401 and the user signs in again. Rate
+         *     limited per refresh token, not per address.
          */
         post: {
             parameters: {

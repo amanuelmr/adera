@@ -44,6 +44,9 @@ type Config struct {
 	JWTSecret       string
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
+	// SessionMaxLifetime ends a session this long after sign-in, however
+	// often it is refreshed (SESSION_MAX_LIFETIME).
+	SessionMaxLifetime time.Duration
 
 	// Argon2id parameters. Defaults follow the OWASP Password Storage
 	// Cheat Sheet baseline (19 MiB memory, 2 iterations, 1 lane); see
@@ -137,6 +140,9 @@ func Load() (Config, error) {
 		JWTSecret:       os.Getenv("JWT_SECRET"),
 		AccessTokenTTL:  getEnvDuration("ACCESS_TOKEN_TTL", 15*time.Minute),
 		RefreshTokenTTL: getEnvDuration("REFRESH_TOKEN_TTL", 30*24*time.Hour),
+		// Half a year: rare enough not to nag, short enough that a stolen
+		// token doesn't last indefinitely.
+		SessionMaxLifetime: getEnvDuration("SESSION_MAX_LIFETIME", 180*24*time.Hour),
 
 		ArgonMemoryKiB:   uint32(getEnvInt("ARGON_MEMORY_KIB", 19456)),
 		ArgonIterations:  uint32(getEnvInt("ARGON_ITERATIONS", 2)),
@@ -227,6 +233,9 @@ func (c Config) Validate() error {
 	}
 	if c.RefreshTokenTTL < time.Hour {
 		errs = append(errs, errors.New("REFRESH_TOKEN_TTL must be at least 1h"))
+	}
+	if c.SessionMaxLifetime < c.RefreshTokenTTL || c.SessionMaxLifetime > 2*365*24*time.Hour {
+		errs = append(errs, errors.New("SESSION_MAX_LIFETIME must be at least REFRESH_TOKEN_TTL and at most 2 years"))
 	}
 	if c.ArgonMemoryKiB < 19456 {
 		errs = append(errs, errors.New("ARGON_MEMORY_KIB must be at least 19456 (19 MiB, OWASP minimum)"))

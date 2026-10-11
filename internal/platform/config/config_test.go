@@ -11,14 +11,15 @@ import (
 
 func validConfig() Config {
 	return Config{
-		Env:              EnvDevelopment,
-		DatabaseURL:      "postgres://localhost/adera",
-		JWTSecret:        "development-secret-at-least-32-bytes!!",
-		AccessTokenTTL:   15 * time.Minute,
-		RefreshTokenTTL:  24 * time.Hour,
-		ArgonMemoryKiB:   19456,
-		ArgonIterations:  2,
-		ArgonParallelism: 1,
+		Env:                EnvDevelopment,
+		DatabaseURL:        "postgres://localhost/adera",
+		JWTSecret:          "development-secret-at-least-32-bytes!!",
+		AccessTokenTTL:     15 * time.Minute,
+		RefreshTokenTTL:    24 * time.Hour,
+		SessionMaxLifetime: 30 * 24 * time.Hour,
+		ArgonMemoryKiB:     19456,
+		ArgonIterations:    2,
+		ArgonParallelism:   1,
 	}
 }
 
@@ -220,5 +221,15 @@ func TestConfigValidateMetricsToken(t *testing.T) {
 	c.MetricsToken = "too-short"
 	assert.ErrorContains(t, c.Validate(), "METRICS_TOKEN")
 	c.MetricsToken = "metrics-scrape-token-at-least-32-bytes"
+	assert.NoError(t, c.Validate())
+}
+
+func TestConfigValidateSessionMaxLifetime(t *testing.T) {
+	c := validConfig()
+	c.SessionMaxLifetime = c.RefreshTokenTTL - time.Minute
+	assert.ErrorContains(t, c.Validate(), "SESSION_MAX_LIFETIME")
+	c.SessionMaxLifetime = 3 * 365 * 24 * time.Hour
+	assert.ErrorContains(t, c.Validate(), "SESSION_MAX_LIFETIME")
+	c.SessionMaxLifetime = c.RefreshTokenTTL
 	assert.NoError(t, c.Validate())
 }

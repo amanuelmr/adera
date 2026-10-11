@@ -107,8 +107,10 @@ sequenceDiagram
     alt token already rotated or revoked (reuse = theft signal)
         API->>DB: revoke ENTIRE family (commit)
         API-->>C: 401
+    else expired, or family older than SESSION_MAX_LIFETIME
+        API-->>C: 401 (sign in again)
     else valid
-        API->>DB: INSERT new session row (same family), link replaced_by
+        API->>DB: INSERT new session row (same family and sign-in time,\nexpiry capped at the lifetime), link replaced_by
         API->>DB: read roles, COMMIT
         API-->>C: new access JWT (15 min) + new refresh token
     end
