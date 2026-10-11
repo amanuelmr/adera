@@ -22,6 +22,10 @@ const (
 	otpLength     = 6
 	otpTTL        = 15 * time.Minute
 	otpMaxAttempt = 5
+	// Each reset code allows otpMaxAttempt guesses, so capping new codes per
+	// account bounds guessing (25 of a million a day) and stops a stranger
+	// flooding someone's inbox, however many addresses they use.
+	resetRequestsPerDay = 5
 )
 
 // Service implements the authentication domain.
@@ -161,12 +165,7 @@ func (s *Service) Register(ctx context.Context, in RegisterInput, deviceInfo str
 // prevent user enumeration; a deactivated account is reactivated on
 // successful login (documented retention behavior).
 func (s *Service) Login(ctx context.Context, identifier, password, deviceInfo string) (users.User, TokenPair, error) {
-	identifier = strings.TrimSpace(identifier)
-	if p := users.NormalizePhone(identifier); p != "" {
-		identifier = p
-	} else {
-		identifier = strings.ToLower(identifier)
-	}
+	identifier = users.NormalizeIdentifier(identifier)
 
 	u, err := s.usersRepo.GetByIdentifier(ctx, identifier)
 	if err != nil {
@@ -562,18 +561,24 @@ func (s *Service) ConfirmVerification(ctx context.Context, userID uuid.UUID, cha
 // RequestPasswordReset always succeeds from the caller's perspective (no user
 // enumeration); a code is sent only when the account exists.
 func (s *Service) RequestPasswordReset(ctx context.Context, identifier string) error {
-	identifier = strings.TrimSpace(identifier)
-	if p := users.NormalizePhone(identifier); p != "" {
-		identifier = p
-	} else {
-		identifier = strings.ToLower(identifier)
-	}
+	identifier = users.NormalizeIdentifier(identifier)
 	u, err := s.usersRepo.GetByIdentifier(ctx, identifier)
 	if err != nil {
 		if errors.Is(err, users.ErrNotFound) {
 			return nil
 		}
 		return err
+	}
+	var recent int
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(*) FROM verification_tokens
+		WHERE user_id = $1 AND purpose = 'password_reset' AND created_at > now() - interval '1 day'`,
+		u.ID).Scan(&recent); err != nil {
+		return fmt.Errorf("counting reset requests: %w", err)
+	}
+	if recent >= resetRequestsPerDay {
+		// Same answer as a sent code: the cap mustn't reveal the account.
+		return nil
 	}
 	channel, destination := "email", u.Email
 	if identifier == u.Phone {
@@ -610,12 +615,7 @@ func (s *Service) ConfirmPasswordReset(ctx context.Context, identifier, code, ne
 	if err := users.ValidatePassword(newPassword); err != nil {
 		return err
 	}
-	identifier = strings.TrimSpace(identifier)
-	if p := users.NormalizePhone(identifier); p != "" {
-		identifier = p
-	} else {
-		identifier = strings.ToLower(identifier)
-	}
+	identifier = users.NormalizeIdentifier(identifier)
 	u, err := s.usersRepo.GetByIdentifier(ctx, identifier)
 	if err != nil {
 		if errors.Is(err, users.ErrNotFound) {

@@ -7,21 +7,31 @@ import (
 	"github.com/adera-platform/backend/internal/platform/ratelimit"
 	"github.com/adera-platform/backend/internal/platform/security"
 	"github.com/adera-platform/backend/internal/platform/web"
+	"github.com/adera-platform/backend/internal/users"
 )
 
 // Handler exposes the /auth endpoints plus credential endpoints under
 // /users/me (this module owns sessions and credentials).
 type Handler struct {
-	svc *Service
-	// loginLimiter keys on IP and on identifier; otpLimiter guards code
-	// request/confirm endpoints.
-	loginLimiter ratelimit.Limiter
-	otpLimiter   ratelimit.Limiter
-	ipSource     web.IPSource
+	svc      *Service
+	limits   Limits
+	ipSource web.IPSource
 }
 
-func NewHandler(svc *Service, loginLimiter, otpLimiter ratelimit.Limiter, ipSource web.IPSource) *Handler {
-	return &Handler{svc: svc, loginLimiter: loginLimiter, otpLimiter: otpLimiter, ipSource: ipSource}
+// Limits are the rate limiters for the credential endpoints.
+type Limits struct {
+	// IP bounds sign-in, registration and reset attempts per address. It is
+	// looser than Account: carrier NAT puts many phones behind one address.
+	IP ratelimit.Limiter
+	// Account bounds attempts per account (normalized identifier) and
+	// refreshes per refresh token.
+	Account ratelimit.Limiter
+	// OTP guards the signed-in code and password endpoints, per user.
+	OTP ratelimit.Limiter
+}
+
+func NewHandler(svc *Service, limits Limits, ipSource web.IPSource) *Handler {
+	return &Handler{svc: svc, limits: limits, ipSource: ipSource}
 }
 
 func (h *Handler) Routes(mux *http.ServeMux) {
@@ -40,13 +50,17 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("DELETE /api/v1/users/me", web.RequireAuth(http.HandlerFunc(h.deactivate)))
 }
 
-func (h *Handler) allowSensitive(r *http.Request, identifier string) bool {
-	ip := h.ipSource.ClientIP(r)
-	if !h.loginLimiter.Allow("ip:" + ip) {
+// allowSensitive applies the address limit and, for each identifier given,
+// the account limit. Identifiers are normalized first, so spelling a phone
+// number another way doesn't buy a fresh bucket.
+func (h *Handler) allowSensitive(r *http.Request, identifiers ...string) bool {
+	if !h.limits.IP.Allow("ip:" + h.ipSource.ClientIP(r)) {
 		return false
 	}
-	if identifier != "" && !h.loginLimiter.Allow("id:"+identifier) {
-		return false
+	for _, id := range identifiers {
+		if id = users.NormalizeIdentifier(id); id != "" && !h.limits.Account.Allow("id:"+id) {
+			return false
+		}
 	}
 	return true
 }
@@ -70,7 +84,7 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, r, err)
 		return
 	}
-	if !h.allowSensitive(r, req.Email+req.Phone) {
+	if !h.allowSensitive(r, req.Email, req.Phone) {
 		web.RespondError(w, r, web.ErrRateLimited())
 		return
 	}
@@ -140,7 +154,7 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 	// Keyed by the token, not the address: carrier NAT puts many phones
 	// behind one address, and each refreshes on its own schedule. Guessing a
 	// 256-bit token gains nothing from more attempts.
-	if !h.loginLimiter.Allow("refresh:" + hex.EncodeToString(security.HashToken(req.RefreshToken)[:16])) {
+	if !h.limits.Account.Allow("refresh:" + hex.EncodeToString(security.HashToken(req.RefreshToken)[:16])) {
 		web.RespondError(w, r, web.ErrRateLimited())
 		return
 	}
@@ -205,7 +219,7 @@ func (h *Handler) verifyRequest(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, r, err)
 		return
 	}
-	if !h.otpLimiter.Allow("verify:" + p.UserID.String()) {
+	if !h.limits.OTP.Allow("verify:" + p.UserID.String()) {
 		web.RespondError(w, r, web.ErrRateLimited())
 		return
 	}
@@ -228,7 +242,7 @@ func (h *Handler) verifyConfirm(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, r, err)
 		return
 	}
-	if !h.otpLimiter.Allow("confirm:" + p.UserID.String()) {
+	if !h.limits.OTP.Allow("confirm:" + p.UserID.String()) {
 		web.RespondError(w, r, web.ErrRateLimited())
 		return
 	}
@@ -296,7 +310,7 @@ func (h *Handler) changePassword(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, r, err)
 		return
 	}
-	if !h.otpLimiter.Allow("chpw:" + p.UserID.String()) {
+	if !h.limits.OTP.Allow("chpw:" + p.UserID.String()) {
 		web.RespondError(w, r, web.ErrRateLimited())
 		return
 	}

@@ -128,7 +128,8 @@ export interface paths {
          * Rotate the refresh token and get a new access token
          * @description Single-use rotation with theft detection: presenting an
          *     already-rotated or revoked refresh token revokes the **entire session
-         *     family** and returns 401.
+         *     family** and returns 401. Rate limited per refresh token, not per
+         *     address.
          */
         post: {
             parameters: {
@@ -391,7 +392,7 @@ export interface paths {
         put?: never;
         /**
          * Request a password reset code
-         * @description Always 200, whether or not the account exists (no enumeration).
+         * @description Always 200, whether or not the account exists (no enumeration). At most five codes per account per day; requests past that get the same 200 and send nothing.
          */
         post: {
             parameters: {

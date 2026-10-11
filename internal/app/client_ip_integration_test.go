@@ -26,7 +26,7 @@ func TestRateLimitPerClientBehindProxy(t *testing.T) {
 		return status
 	}
 	var last int
-	for i := range 8 {
+	for i := range 35 {
 		last = login("196.188.1.2", i)
 	}
 	require.Equal(t, http.StatusTooManyRequests, last, "one caller is limited")
