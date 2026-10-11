@@ -451,9 +451,20 @@ func (h *Handler) dismissBanner(w http.ResponseWriter, r *http.Request) {
 
 // safeNext keeps the post-dismiss redirect on this site: only a local
 // absolute path, never "//host" or a full URL (an open redirect otherwise).
+// Browsers drop tabs and newlines and read a backslash as "/", so "/\t/evil" would
+// leave the site too: control characters and backslashes are refused
+// anywhere, and what's left must parse as a path with no scheme or host.
 func safeNext(next string) string {
-	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.HasPrefix(next, "/\\") {
-		return "/trust"
+	const fallback = "/trust"
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
+		return fallback
+	}
+	if strings.ContainsFunc(next, func(r rune) bool { return r < 0x20 || r == 0x7f || r == '\\' }) {
+		return fallback
+	}
+	u, err := url.Parse(next)
+	if err != nil || u.Scheme != "" || u.Host != "" || u.Opaque != "" || u.User != nil {
+		return fallback
 	}
 	return next
 }

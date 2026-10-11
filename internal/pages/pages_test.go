@@ -164,10 +164,22 @@ func TestInstallBannerAndDismissal(t *testing.T) {
 }
 
 func TestDismissRedirectStaysOnSite(t *testing.T) {
-	for _, next := range []string{"https://evil.example", "//evil.example", `/\evil.example`, "", "javascript:alert(1)"} {
-		assert.Equal(t, "/trust", safeNext(next), next)
+	for _, next := range []string{
+		"https://evil.example", "//evil.example", `/\evil.example`, "", "javascript:alert(1)",
+		"/\t/evil.example", "/\n/evil.example", "/\r//evil.example", "/\x00/evil", "/\x7f/evil",
+		`/t/\\evil.example`, "/%zz",
+	} {
+		assert.Equal(t, "/trust", safeNext(next), "%q", next)
 	}
-	assert.Equal(t, "/t/tomoca", safeNext("/t/tomoca"))
+	for _, next := range []string{"/t/tomoca", "/trust?lang=am", "/t/ቶሞካ", "/t/x?cursor=a%2Fb#reviews"} {
+		assert.Equal(t, next, safeNext(next))
+	}
+
+	// End to end: a tab survives the query string and reaches the handler.
+	_, mux := newTestHandler(t, Config{})
+	rec := get(mux, "/banner/dismiss?next=%2F%09%2Fevil.example")
+	assert.Equal(t, http.StatusSeeOther, rec.Code)
+	assert.Equal(t, "/trust", rec.Header().Get("Location"))
 }
 
 func TestAssetLinks(t *testing.T) {
