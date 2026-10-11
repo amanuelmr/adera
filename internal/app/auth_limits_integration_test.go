@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/adera-platform/backend/internal/platform/config"
+	"github.com/adera-platform/backend/internal/platform/security"
 	"github.com/adera-platform/backend/internal/platform/web"
 )
 
@@ -58,4 +59,24 @@ func TestPasswordResetRequestsAreCappedPerAccount(t *testing.T) {
 		SELECT count(*) FROM verification_tokens WHERE user_id = $1 AND purpose = 'password_reset'`, u.ID).Scan(&stored))
 	assert.Equal(t, 5, stored, "five codes a day")
 	assert.LessOrEqual(t, len(codes), 5, "nothing sent past the cap")
+}
+
+// A copy of the codes table mustn't give codes away: a plain digest of six
+// digits is reversed by trying all million.
+func TestOneTimeCodesAreStoredKeyed(t *testing.T) {
+	a := newTestAPI(t)
+	u := a.register("keyedcode")
+	status, _ := a.do("POST", "/api/v1/auth/password-reset/request", map[string]any{"identifier": u.Email}, "")
+	require.Equal(t, http.StatusOK, status)
+	code := a.codes.last(u.Email)
+	require.NotEmpty(t, code)
+
+	var stored []byte
+	require.NoError(t, a.pool.QueryRow(context.Background(), `
+		SELECT code_hash FROM verification_tokens WHERE user_id = $1 AND purpose = 'password_reset'`, u.ID).Scan(&stored))
+	assert.NotEqual(t, security.HashToken(code), stored)
+
+	status, _ = a.do("POST", "/api/v1/auth/password-reset/confirm",
+		map[string]any{"identifier": u.Email, "code": code, "new_password": "password456"}, "")
+	assert.Equal(t, http.StatusOK, status, "the keyed hash still verifies")
 }

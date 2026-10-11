@@ -93,17 +93,24 @@ func RandomToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-// RandomDigits returns an n-digit numeric OTP code.
+// RandomDigits returns an n-digit numeric OTP code. Bytes of 250 and up are
+// redrawn, since 256 isn't a multiple of 10 and keeping them would make low
+// digits slightly likelier.
 func RandomDigits(n int) (string, error) {
 	const digits = "0123456789"
-	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("generating code: %w", err)
+	out := make([]byte, 0, n)
+	buf := make([]byte, n)
+	for len(out) < n {
+		if _, err := rand.Read(buf); err != nil {
+			return "", fmt.Errorf("generating code: %w", err)
+		}
+		for _, b := range buf {
+			if b < 250 && len(out) < n {
+				out = append(out, digits[b%10])
+			}
+		}
 	}
-	for i := range b {
-		b[i] = digits[int(b[i])%10]
-	}
-	return string(b), nil
+	return string(out), nil
 }
 
 // HashToken returns the hex-free SHA-256 digest of a token for storage.

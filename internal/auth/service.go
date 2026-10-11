@@ -34,15 +34,16 @@ type Service struct {
 	usersRepo  *users.Repo
 	hasher     *security.Hasher
 	tokens     *security.TokenManager
+	codes      *security.CodeHasher
 	provider   Provider
 	refreshTTL time.Duration
 }
 
 func NewService(pool *pgxpool.Pool, usersRepo *users.Repo, hasher *security.Hasher,
-	tokens *security.TokenManager, provider Provider, refreshTTL time.Duration) *Service {
+	tokens *security.TokenManager, codes *security.CodeHasher, provider Provider, refreshTTL time.Duration) *Service {
 	return &Service{
 		pool: pool, usersRepo: usersRepo, hasher: hasher,
-		tokens: tokens, provider: provider, refreshTTL: refreshTTL,
+		tokens: tokens, codes: codes, provider: provider, refreshTTL: refreshTTL,
 	}
 }
 
@@ -462,7 +463,7 @@ func (s *Service) sendVerificationCode(ctx context.Context, userID uuid.UUID, ch
 	if _, err := s.pool.Exec(ctx, `
 		INSERT INTO verification_tokens (id, user_id, purpose, code_hash, expires_at)
 		VALUES ($1, $2, $3, $4, $5)`,
-		uuid.New(), userID, purpose, security.HashToken(code), time.Now().UTC().Add(otpTTL)); err != nil {
+		uuid.New(), userID, purpose, s.codes.Hash(userID, purpose, code), time.Now().UTC().Add(otpTTL)); err != nil {
 		return fmt.Errorf("storing verification code: %w", err)
 	}
 	if err := s.provider.SendCode(ctx, channel, destination, purpose, code); err != nil {
@@ -524,7 +525,7 @@ func (s *Service) consumeCode(ctx context.Context, userID uuid.UUID, purpose, co
 		if attempts >= otpMaxAttempt {
 			return invalid
 		}
-		if !security.ConstantTimeEqual(security.HashToken(code), codeHash) {
+		if !security.ConstantTimeEqual(s.codes.Hash(userID, purpose, code), codeHash) {
 			if _, err := tx.Exec(ctx, `UPDATE verification_tokens SET attempts = attempts + 1 WHERE id = $1`, id); err != nil {
 				return fmt.Errorf("recording failed attempt: %w", err)
 			}
@@ -596,7 +597,7 @@ func (s *Service) RequestPasswordReset(ctx context.Context, identifier string) e
 	if _, err := s.pool.Exec(ctx, `
 		INSERT INTO verification_tokens (id, user_id, purpose, code_hash, expires_at)
 		VALUES ($1, $2, 'password_reset', $3, $4)`,
-		uuid.New(), u.ID, security.HashToken(code), time.Now().UTC().Add(otpTTL)); err != nil {
+		uuid.New(), u.ID, s.codes.Hash(u.ID, "password_reset", code), time.Now().UTC().Add(otpTTL)); err != nil {
 		return fmt.Errorf("storing reset code: %w", err)
 	}
 	if err := s.provider.SendCode(ctx, channel, destination, "password_reset", code); err != nil {
