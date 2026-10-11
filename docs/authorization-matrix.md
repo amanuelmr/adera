@@ -45,11 +45,11 @@ Legend: ✅ allowed · Ⓞ allowed with object-level check · ❌ forbidden
 | POST /reviews/{id}/response · PUT /responses/{id} | ❌ | ❌ | Ⓞ member of the review's business | ❌² | ❌² |
 | **Claims** |
 | POST /businesses/{id}/claims · GET /claims/mine | ❌ | ✅ | ✅ | ✅ | ✅ |
-| POST /moderation/claims/{id}/decision, /revoke | ❌ | ❌ | ❌ | ✅ | ✅ |
+| POST /moderation/claims/{id}/decision, /revoke | ❌ | ❌ | ❌ | ✅⁴ | ✅⁴ |
 | **Reports & moderation** |
 | POST /reviews/{id}/reports · /targets/{id}/reports | ❌ | ✅ | ✅ | ✅ | ✅ |
 | GET /moderation/reports*, /moderation/audit | ❌ | ❌ | ❌ | ✅ | ✅ |
-| POST /moderation/reviews/{id}/decision · targets · evidence · notes · reports/{id}/resolve | ❌ | ❌ | ❌ | ✅ | ✅ |
+| POST /moderation/reviews/{id}/decision · targets · evidence · notes · reports/{id}/resolve | ❌ | ❌ | ❌ | ✅⁴ | ✅⁴ |
 | **Admin** |
 | /admin/users/{id}/suspend, /reinstate, /roles | ❌ | ❌ | ❌ | ❌ | ✅ (not self) |
 | /admin/categories*, /admin/criteria/{id} | ❌ | ❌ | ❌ | ❌ | ✅ |
@@ -63,6 +63,9 @@ endpoints — moderators cannot rewrite someone's words, only change status.
 ² Moderators/admins respond to reviews only if they are themselves members of
 the business; roles alone don't speak for a business.
 ³ `/metrics` is open in development. In production it needs `METRICS_TOKEN` as a bearer token, and isn't served at all without one.
+⁴ Not for their own case: a moderator's own claim decision, evidence for
+their own review, or their own review's decision is 403; another moderator
+must decide it.
 
 **Invariants enforced by tests** (`internal/app/platform_integration_test.go`
 and friends): every protected endpoint 401s anonymously; every

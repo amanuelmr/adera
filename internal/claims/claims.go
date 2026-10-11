@@ -153,6 +153,11 @@ func (s *Service) Decide(ctx context.Context, claimID, actorID uuid.UUID, decisi
 		if c.Status != StatusPending {
 			return web.ErrConflict("this claim is already decided")
 		}
+		// Approval makes the claimant an owner, so a moderator mustn't be
+		// able to grant it to themselves.
+		if c.UserID == actorID {
+			return web.ErrForbidden("another moderator must decide your own claim")
+		}
 		if err := tx.QueryRow(ctx, `
 			UPDATE business_claims
 			SET status = $2, decided_by = $3, decided_at = now(), decision_note = $4

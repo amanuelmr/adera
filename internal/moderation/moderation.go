@@ -252,6 +252,19 @@ func (s *Service) DecideReview(ctx context.Context, reviewID, actorID uuid.UUID,
 			WithDetail("action", "must be approve, restore, under_review, hide, reject, or remove")
 	}
 	err := database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		var authorID uuid.UUID
+		err := tx.QueryRow(ctx, `SELECT user_id FROM reviews WHERE id = $1`, reviewID).Scan(&authorID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return web.ErrNotFound("review")
+		}
+		if err != nil {
+			return fmt.Errorf("loading review author: %w", err)
+		}
+		// Moderators don't decide their own reviews (restoring a removed one,
+		// say): another moderator must.
+		if authorID == actorID {
+			return web.ErrForbidden("another moderator must decide your own review")
+		}
 		oldStatus, err := s.reviewsRepo.SetModerationStatusTx(ctx, tx, reviewID, newStatus)
 		if err != nil {
 			return err
@@ -263,10 +276,6 @@ func (s *Service) DecideReview(ctx context.Context, reviewID, actorID uuid.UUID,
 			map[string]string{"from": oldStatus, "to": newStatus})
 		if err != nil {
 			return err
-		}
-		var authorID uuid.UUID
-		if err := tx.QueryRow(ctx, `SELECT user_id FROM reviews WHERE id = $1`, reviewID).Scan(&authorID); err != nil {
-			return fmt.Errorf("loading review author for notification: %w", err)
 		}
 		return s.notifications.EnqueueTx(ctx, tx, authorID, "review."+action, "review", reviewID,
 			map[string]string{"status": newStatus}, "moderation:"+actionID.String())
@@ -362,6 +371,11 @@ func (s *Service) DecideEvidence(ctx context.Context, evidenceID, actorID uuid.U
 		}
 		if status != "submitted" {
 			return web.ErrConflict("this evidence is already decided")
+		}
+		// Acceptance raises the review's verification level, so a moderator
+		// mustn't verify their own review.
+		if authorID == actorID {
+			return web.ErrForbidden("another moderator must decide evidence for your own review")
 		}
 		if _, err := tx.Exec(ctx, `
 			UPDATE review_evidence SET status = $2, reviewed_by = $3, reviewed_at = now(), note = $4

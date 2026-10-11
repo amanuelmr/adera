@@ -3073,7 +3073,7 @@ export interface paths {
         put?: never;
         /**
          * Decide a review (approve/restore/under_review/hide/reject/remove)
-         * @description Status change + aggregate adjustment happen in one transaction; every decision is audited.
+         * @description Status change + aggregate adjustment happen in one transaction; every decision is audited. 403 for the review's own author, since another moderator must decide it.
          */
         post: {
             parameters: {
@@ -3256,7 +3256,7 @@ export interface paths {
         put?: never;
         /**
          * Accept or reject submitted evidence
-         * @description Acceptance upgrades the review's verification level (receipt kinds → receipt_submitted, location_qr → location_verified) and adjusts verified aggregates transactionally.
+         * @description Acceptance upgrades the review's verification level (receipt kinds → receipt_submitted, location_qr → location_verified) and adjusts verified aggregates transactionally. 403 for the review's own author.
          */
         post: {
             parameters: {
@@ -3299,7 +3299,7 @@ export interface paths {
         put?: never;
         /**
          * Approve or reject a business claim
-         * @description Approval atomically grants membership + business_owner role and marks the business claimed. Claiming never grants moderation permissions.
+         * @description Approval atomically grants membership + business_owner role and marks the business claimed. Claiming never grants moderation permissions. 403 for the claimant, since another moderator must decide it.
          */
         post: {
             parameters: {
