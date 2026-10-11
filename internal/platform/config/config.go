@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -128,47 +129,48 @@ type Config struct {
 // Load reads configuration from the environment, applying development
 // defaults for anything optional.
 func Load() (Config, error) {
+	r := &envReader{}
 	cfg := Config{
 		Env:      getEnv("APP_ENV", EnvDevelopment),
 		HTTPAddr: getEnv("HTTP_ADDR", ":8080"),
 		BaseURL:  getEnv("BASE_URL", "http://localhost:8080"),
 
 		DatabaseURL:          os.Getenv("DATABASE_URL"),
-		DatabaseMaxConns:     int32(getEnvInt("DATABASE_MAX_CONNS", 10)),
-		DatabaseQueryTimeout: getEnvDuration("DATABASE_QUERY_TIMEOUT", 5*time.Second),
+		DatabaseMaxConns:     int32(r.int("DATABASE_MAX_CONNS", 10)),
+		DatabaseQueryTimeout: r.duration("DATABASE_QUERY_TIMEOUT", 5*time.Second),
 
 		JWTSecret:       os.Getenv("JWT_SECRET"),
-		AccessTokenTTL:  getEnvDuration("ACCESS_TOKEN_TTL", 15*time.Minute),
-		RefreshTokenTTL: getEnvDuration("REFRESH_TOKEN_TTL", 30*24*time.Hour),
+		AccessTokenTTL:  r.duration("ACCESS_TOKEN_TTL", 15*time.Minute),
+		RefreshTokenTTL: r.duration("REFRESH_TOKEN_TTL", 30*24*time.Hour),
 		// Half a year: rare enough not to nag, short enough that a stolen
 		// token doesn't last indefinitely.
-		SessionMaxLifetime: getEnvDuration("SESSION_MAX_LIFETIME", 180*24*time.Hour),
+		SessionMaxLifetime: r.duration("SESSION_MAX_LIFETIME", 180*24*time.Hour),
 
-		ArgonMemoryKiB:   uint32(getEnvInt("ARGON_MEMORY_KIB", 19456)),
-		ArgonIterations:  uint32(getEnvInt("ARGON_ITERATIONS", 2)),
-		ArgonParallelism: uint8(getEnvInt("ARGON_PARALLELISM", 1)),
+		ArgonMemoryKiB:   uint32(r.int("ARGON_MEMORY_KIB", 19456)),
+		ArgonIterations:  uint32(r.int("ARGON_ITERATIONS", 2)),
+		ArgonParallelism: uint8(r.int("ARGON_PARALLELISM", 1)),
 
-		StorageEnabled:       getEnvBool("STORAGE_ENABLED", false),
+		StorageEnabled:       r.bool("STORAGE_ENABLED", false),
 		StorageEndpoint:      getEnv("STORAGE_ENDPOINT", "localhost:9000"),
 		StorageAccessKey:     os.Getenv("STORAGE_ACCESS_KEY"),
 		StorageSecretKey:     os.Getenv("STORAGE_SECRET_KEY"),
-		StorageUseSSL:        getEnvBool("STORAGE_USE_SSL", false),
+		StorageUseSSL:        r.bool("STORAGE_USE_SSL", false),
 		StoragePublicBucket:  getEnv("STORAGE_PUBLIC_BUCKET", "adera-public"),
 		StoragePrivateBucket: getEnv("STORAGE_PRIVATE_BUCKET", "adera-private"),
 		StorageRegion:        getEnv("STORAGE_REGION", "us-east-1"),
 		StoragePublicBaseURL: getEnv("STORAGE_PUBLIC_BASE_URL", "http://localhost:9000/adera-public"),
 
 		SMTPHost:        os.Getenv("SMTP_HOST"),
-		SMTPPort:        getEnvInt("SMTP_PORT", 587),
+		SMTPPort:        r.int("SMTP_PORT", 587),
 		SMTPUsername:    os.Getenv("SMTP_USERNAME"),
 		SMTPPassword:    os.Getenv("SMTP_PASSWORD"),
 		SMTPFromAddress: os.Getenv("SMTP_FROM_ADDRESS"),
 		SMTPFromName:    getEnv("SMTP_FROM_NAME", "Adera"),
 		SMTPTLS:         getEnv("SMTP_TLS", SMTPTLSStartTLS),
-		SMTPTimeout:     getEnvDuration("SMTP_TIMEOUT", 10*time.Second),
+		SMTPTimeout:     r.duration("SMTP_TIMEOUT", 10*time.Second),
 
 		FCMCredentialsFile: os.Getenv("FCM_CREDENTIALS_FILE"),
-		FCMTimeout:         getEnvDuration("FCM_TIMEOUT", 10*time.Second),
+		FCMTimeout:         r.duration("FCM_TIMEOUT", 10*time.Second),
 
 		AndroidMinVersion:    os.Getenv("APP_ANDROID_MIN_VERSION"),
 		AndroidLatestVersion: os.Getenv("APP_ANDROID_LATEST_VERSION"),
@@ -180,11 +182,11 @@ func Load() (Config, error) {
 		AndroidPackage:     getEnv("ANDROID_PACKAGE", "work.amanuel.adera"),
 		AndroidCertSHA256s: splitAndTrim(os.Getenv("ANDROID_CERT_SHA256")),
 
-		CORSAllowedOrigins: splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")),
+		CORSAllowedOrigins: splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", defaultCORSOrigins())),
 		SignalHashKey:      os.Getenv("SIGNAL_HASH_KEY"),
 		MetricsToken:       os.Getenv("METRICS_TOKEN"),
 
-		RateLimitEnabled: getEnvBool("RATE_LIMIT_ENABLED", true),
+		RateLimitEnabled: r.bool("RATE_LIMIT_ENABLED", true),
 
 		LogLevel:  getEnv("LOG_LEVEL", "info"),
 		LogFormat: getEnv("LOG_FORMAT", "json"),
@@ -192,11 +194,16 @@ func Load() (Config, error) {
 		SeedAdminEmail:    getEnv("SEED_ADMIN_EMAIL", "admin@adera.local"),
 		SeedAdminPassword: os.Getenv("SEED_ADMIN_PASSWORD"),
 	}
-	src, err := clientIPSource()
+	src, err := clientIPSource(r)
 	if err != nil {
 		return Config{}, err
 	}
 	cfg.ClientIPSource = src
+	// A value that doesn't parse is a typo, and silently using the default
+	// instead (rate limiting on when it was meant off, say) hides it.
+	if len(r.errs) > 0 {
+		return Config{}, errors.Join(r.errs...)
+	}
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
 	}
@@ -296,7 +303,58 @@ func (c Config) Validate() error {
 	if c.Env == EnvProduction && c.SeedAdminPassword != "" {
 		errs = append(errs, errors.New("SEED_ADMIN_PASSWORD must not be set in production"))
 	}
+	if c.Env == EnvProduction {
+		errs = append(errs, c.productionErrors()...)
+	}
 	return errors.Join(errs...)
+}
+
+// productionErrors refuses settings that are fine on a laptop but unsafe
+// with real users: everything leaving the process must be encrypted, and
+// the brakes must be on.
+func (c Config) productionErrors() []error {
+	var errs []error
+	if !c.RateLimitEnabled {
+		errs = append(errs, errors.New("RATE_LIMIT_ENABLED must not be false in production"))
+	}
+	if c.DatabaseURL != "" {
+		switch databaseSSLMode(c.DatabaseURL) {
+		case "require", "verify-ca", "verify-full":
+		default:
+			// Unset means "prefer", which quietly falls back to plaintext.
+			errs = append(errs, errors.New("DATABASE_URL must set sslmode=require (or verify-ca, verify-full) in production"))
+		}
+	}
+	if !strings.HasPrefix(c.BaseURL, "https://") {
+		errs = append(errs, errors.New("BASE_URL must be https in production"))
+	}
+	if c.StorageEnabled {
+		if !c.StorageUseSSL {
+			errs = append(errs, errors.New("STORAGE_USE_SSL must be true in production"))
+		}
+		if !strings.HasPrefix(c.StoragePublicBaseURL, "https://") {
+			errs = append(errs, errors.New("STORAGE_PUBLIC_BASE_URL must be https in production"))
+		}
+	}
+	return errs
+}
+
+// databaseSSLMode returns the sslmode of a postgres URL or key=value DSN, or
+// "" when it isn't set.
+func databaseSSLMode(dsn string) string {
+	if strings.Contains(dsn, "://") {
+		u, err := url.Parse(dsn)
+		if err != nil {
+			return ""
+		}
+		return u.Query().Get("sslmode")
+	}
+	for _, field := range strings.Fields(dsn) {
+		if v, ok := strings.CutPrefix(field, "sslmode="); ok {
+			return strings.Trim(v, "'")
+		}
+	}
+	return ""
 }
 
 // IsDev reports whether the service runs in a non-production environment.
@@ -315,52 +373,71 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-func getEnvInt(key string, fallback int) int {
+// defaultCORSOrigins allows a local web client in development. Production
+// allows no cross-origin callers unless they are listed: the app isn't a
+// browser, and the web pages are served from the API's own origin.
+func defaultCORSOrigins() string {
+	if os.Getenv("APP_ENV") == EnvProduction {
+		return ""
+	}
+	return "http://localhost:3000"
+}
+
+// envReader reads typed environment values, collecting any that don't
+// parse so Load can refuse to start rather than fall back to a default.
+type envReader struct {
+	errs []error
+}
+
+func (r *envReader) int(key string, fallback int) int {
 	v := os.Getenv(key)
 	if v == "" {
 		return fallback
 	}
 	n, err := strconv.Atoi(v)
 	if err != nil {
+		r.errs = append(r.errs, fmt.Errorf("%s must be an integer; got %q", key, v))
 		return fallback
 	}
 	return n
 }
 
-// clientIPSource reads CLIENT_IP_SOURCE. The older TRUST_PROXY_HEADERS=true
-// still means the rightmost X-Forwarded-For hop when the new one is unset.
-func clientIPSource() (web.IPSource, error) {
-	if v := os.Getenv("CLIENT_IP_SOURCE"); v != "" {
-		return web.ParseIPSource(v)
-	}
-	if getEnvBool("TRUST_PROXY_HEADERS", false) {
-		return web.IPSource{Hops: 1}, nil
-	}
-	return web.IPSource{}, nil
-}
-
-func getEnvBool(key string, fallback bool) bool {
+func (r *envReader) bool(key string, fallback bool) bool {
 	v := os.Getenv(key)
 	if v == "" {
 		return fallback
 	}
 	b, err := strconv.ParseBool(v)
 	if err != nil {
+		r.errs = append(r.errs, fmt.Errorf("%s must be true or false; got %q", key, v))
 		return fallback
 	}
 	return b
 }
 
-func getEnvDuration(key string, fallback time.Duration) time.Duration {
+func (r *envReader) duration(key string, fallback time.Duration) time.Duration {
 	v := os.Getenv(key)
 	if v == "" {
 		return fallback
 	}
 	d, err := time.ParseDuration(v)
 	if err != nil {
+		r.errs = append(r.errs, fmt.Errorf("%s must be a duration such as 15m or 720h; got %q", key, v))
 		return fallback
 	}
 	return d
+}
+
+// clientIPSource reads CLIENT_IP_SOURCE. The older TRUST_PROXY_HEADERS=true
+// still means the rightmost X-Forwarded-For hop when the new one is unset.
+func clientIPSource(r *envReader) (web.IPSource, error) {
+	if v := os.Getenv("CLIENT_IP_SOURCE"); v != "" {
+		return web.ParseIPSource(v)
+	}
+	if r.bool("TRUST_PROXY_HEADERS", false) {
+		return web.IPSource{Hops: 1}, nil
+	}
+	return web.IPSource{}, nil
 }
 
 func splitAndTrim(s string) []string {

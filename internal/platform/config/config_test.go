@@ -23,6 +23,16 @@ func validConfig() Config {
 	}
 }
 
+// withProduction makes c a valid production configuration, so a production
+// case fails only for the reason it tests.
+func withProduction(c *Config) {
+	c.Env = EnvProduction
+	c.JWTSecret = "production-secret-at-least-32-bytes!!"
+	c.DatabaseURL = "postgres://u:p@db.example/adera?sslmode=require"
+	c.BaseURL = "https://adera.example"
+	c.RateLimitEnabled = true
+}
+
 // withSMTP turns on a valid outbound-email configuration.
 func withSMTP(c *Config) {
 	c.SMTPHost = "smtp.example.com"
@@ -96,8 +106,7 @@ func TestConfigValidate(t *testing.T) {
 		}, false},
 		{"plaintext smtp refused in production", func(c *Config) {
 			withSMTP(c)
-			c.Env = EnvProduction
-			c.JWTSecret = "production-secret-at-least-32-bytes!!"
+			withProduction(c)
 			c.SMTPTLS = SMTPTLSNone
 		}, true},
 		{"non-positive smtp timeout", func(c *Config) {
@@ -113,8 +122,9 @@ func TestConfigValidate(t *testing.T) {
 			c.FCMCredentialsFile = "/run/secrets/fcm.json"
 			c.FCMTimeout = 0
 		}, true},
+		{"valid production config", withProduction, false},
 		{"seed admin password in production", func(c *Config) {
-			c.Env = EnvProduction
+			withProduction(c)
 			c.SeedAdminPassword = "admin12345!"
 		}, true},
 	}
@@ -191,27 +201,27 @@ func TestClientIPSourceFromEnv(t *testing.T) {
 	t.Run("unset is the TCP peer", func(t *testing.T) {
 		t.Setenv("CLIENT_IP_SOURCE", "")
 		t.Setenv("TRUST_PROXY_HEADERS", "")
-		src, err := clientIPSource()
+		src, err := clientIPSource(&envReader{})
 		assert.NoError(t, err)
 		assert.Equal(t, web.IPSource{}, src)
 	})
 	t.Run("legacy TRUST_PROXY_HEADERS is the rightmost hop", func(t *testing.T) {
 		t.Setenv("CLIENT_IP_SOURCE", "")
 		t.Setenv("TRUST_PROXY_HEADERS", "true")
-		src, err := clientIPSource()
+		src, err := clientIPSource(&envReader{})
 		assert.NoError(t, err)
 		assert.Equal(t, web.IPSource{Hops: 1}, src)
 	})
 	t.Run("CLIENT_IP_SOURCE wins", func(t *testing.T) {
 		t.Setenv("CLIENT_IP_SOURCE", "header:CF-Connecting-IP")
 		t.Setenv("TRUST_PROXY_HEADERS", "true")
-		src, err := clientIPSource()
+		src, err := clientIPSource(&envReader{})
 		assert.NoError(t, err)
 		assert.Equal(t, web.IPSource{Header: "Cf-Connecting-Ip"}, src)
 	})
 	t.Run("a bad value stops startup", func(t *testing.T) {
 		t.Setenv("CLIENT_IP_SOURCE", "xff:zero")
-		_, err := clientIPSource()
+		_, err := clientIPSource(&envReader{})
 		assert.Error(t, err)
 	})
 }
@@ -232,4 +242,81 @@ func TestConfigValidateSessionMaxLifetime(t *testing.T) {
 	assert.ErrorContains(t, c.Validate(), "SESSION_MAX_LIFETIME")
 	c.SessionMaxLifetime = c.RefreshTokenTTL
 	assert.NoError(t, c.Validate())
+}
+
+func TestProductionRefusesUnsafeSettings(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+		want   string
+	}{
+		{"rate limiting off", func(c *Config) { c.RateLimitEnabled = false }, "RATE_LIMIT_ENABLED"},
+		{"database without sslmode", func(c *Config) { c.DatabaseURL = "postgres://u:p@db.example/adera" }, "sslmode"},
+		{"database sslmode prefer", func(c *Config) { c.DatabaseURL = "postgres://u:p@db.example/adera?sslmode=prefer" }, "sslmode"},
+		{"database sslmode disable", func(c *Config) { c.DatabaseURL = "host=db.example sslmode=disable" }, "sslmode"},
+		{"plain http base url", func(c *Config) { c.BaseURL = "http://adera.example" }, "BASE_URL"},
+		{"storage without tls", func(c *Config) {
+			c.StorageEnabled, c.StorageAccessKey, c.StorageSecretKey = true, "k", "s"
+			c.StoragePublicBaseURL = "https://media.adera.example"
+		}, "STORAGE_USE_SSL"},
+		{"storage public url over http", func(c *Config) {
+			c.StorageEnabled, c.StorageAccessKey, c.StorageSecretKey = true, "k", "s"
+			c.StorageUseSSL = true
+			c.StoragePublicBaseURL = "http://media.adera.example"
+		}, "STORAGE_PUBLIC_BASE_URL"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := validConfig()
+			withProduction(&c)
+			tt.mutate(&c)
+			assert.ErrorContains(t, c.Validate(), tt.want)
+
+			c.Env = EnvDevelopment
+			assert.NoError(t, c.Validate(), "allowed in development")
+		})
+	}
+
+	ok := validConfig()
+	withProduction(&ok)
+	ok.StorageEnabled, ok.StorageAccessKey, ok.StorageSecretKey = true, "k", "s"
+	ok.StorageUseSSL, ok.StoragePublicBaseURL = true, "https://media.adera.example"
+	for _, dsn := range []string{
+		"postgresql://u:p@ep-x-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+		"postgres://u:p@db.example/adera?sslmode=verify-full",
+		"host=db.example dbname=adera sslmode='verify-ca'",
+	} {
+		ok.DatabaseURL = dsn
+		assert.NoError(t, ok.Validate(), dsn)
+	}
+}
+
+func TestLoadRefusesMalformedValues(t *testing.T) {
+	t.Setenv("APP_ENV", EnvDevelopment)
+	t.Setenv("DATABASE_URL", "postgres://localhost/adera")
+	t.Setenv("RATE_LIMIT_ENABLED", "flase")
+	t.Setenv("ACCESS_TOKEN_TTL", "15 minutes")
+	t.Setenv("SMTP_PORT", "five-eight-seven")
+	_, err := Load()
+	assert.ErrorContains(t, err, "RATE_LIMIT_ENABLED")
+	assert.ErrorContains(t, err, "ACCESS_TOKEN_TTL")
+	assert.ErrorContains(t, err, "SMTP_PORT")
+}
+
+func TestLoadDefaults(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/adera")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+
+	t.Setenv("APP_ENV", EnvDevelopment)
+	c, err := Load()
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"http://localhost:3000"}, c.CORSAllowedOrigins)
+
+	t.Setenv("APP_ENV", EnvProduction)
+	t.Setenv("JWT_SECRET", "production-secret-at-least-32-bytes!!")
+	t.Setenv("DATABASE_URL", "postgres://u:p@db.example/adera?sslmode=require")
+	t.Setenv("BASE_URL", "https://adera.example")
+	c, err = Load()
+	assert.NoError(t, err)
+	assert.Empty(t, c.CORSAllowedOrigins, "no cross-origin callers by default in production")
 }

@@ -34,6 +34,10 @@ project. Copy the **pooled** connection string; it looks like:
 postgresql://USER:PASSWORD@ep-xxx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
 ```
 
+Keep the `sslmode=require`: in production the API refuses to start without
+it (or `verify-ca` / `verify-full`), since an unset mode quietly falls back to
+plaintext.
+
 Use the pooled URL, not the direct one — Render's free instance opens and drops
 connections as it sleeps and wakes, and the pooler absorbs that.
 
@@ -194,6 +198,22 @@ generates one), and then only to a scrape that sends it as a bearer token.
 
 `/ready` is the one that matters: it returns unhealthy when `DATABASE_URL` is
 wrong or Neon is unreachable, which is how a bad deploy shows up.
+
+## If it won't start
+
+Production refuses settings that are fine locally but unsafe with real users,
+and says which in the deploy log:
+
+- `DATABASE_URL` without `sslmode=require` (or `verify-ca`, `verify-full`);
+- `BASE_URL` that isn't `https://`;
+- `RATE_LIMIT_ENABLED=false`;
+- with storage on, `STORAGE_USE_SSL=false` or an `http://` `STORAGE_PUBLIC_BASE_URL`;
+- any value that doesn't parse, e.g. `ACCESS_TOKEN_TTL=15 minutes` (use
+  `15m`) or `RATE_LIMIT_ENABLED=yes` (use `true`). Elsewhere too: a typo
+  fails at startup rather than silently using the default.
+
+`CORS_ALLOWED_ORIGINS` defaults to none in production. Neither the app nor the
+web pages need it; list an origin only for a browser client on another domain.
 
 ## Notes
 
