@@ -54,6 +54,7 @@ Legend: ✅ allowed · Ⓞ allowed with object-level check · ❌ forbidden
 | /admin/users/{id}/suspend, /reinstate, /roles | ❌ | ❌ | ❌ | ❌ | ✅ (not self) |
 | /admin/categories*, /admin/criteria/{id} | ❌ | ❌ | ❌ | ❌ | ✅ |
 | /admin/targets/{id}/merge | ❌ | ❌ | ❌ | ❌ | ✅ |
+| /admin/request-info | ❌ | ❌ | ❌ | ❌ | ✅ (own request only) |
 | **Ops** |
 | GET /health, /ready, /metrics³ | ✅ | ✅ | ✅ | ✅ | ✅ |
 

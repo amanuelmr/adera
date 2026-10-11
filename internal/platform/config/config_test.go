@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/adera-platform/backend/internal/platform/web"
 )
 
 func validConfig() Config {
@@ -182,4 +184,33 @@ func TestConfigValidateRejectsMalformedAppVersions(t *testing.T) {
 	c.AndroidMinVersion = "1.2.0"
 	c.AndroidLatestVersion = "1.3"
 	assert.NoError(t, c.Validate())
+}
+
+func TestClientIPSourceFromEnv(t *testing.T) {
+	t.Run("unset is the TCP peer", func(t *testing.T) {
+		t.Setenv("CLIENT_IP_SOURCE", "")
+		t.Setenv("TRUST_PROXY_HEADERS", "")
+		src, err := clientIPSource()
+		assert.NoError(t, err)
+		assert.Equal(t, web.IPSource{}, src)
+	})
+	t.Run("legacy TRUST_PROXY_HEADERS is the rightmost hop", func(t *testing.T) {
+		t.Setenv("CLIENT_IP_SOURCE", "")
+		t.Setenv("TRUST_PROXY_HEADERS", "true")
+		src, err := clientIPSource()
+		assert.NoError(t, err)
+		assert.Equal(t, web.IPSource{Hops: 1}, src)
+	})
+	t.Run("CLIENT_IP_SOURCE wins", func(t *testing.T) {
+		t.Setenv("CLIENT_IP_SOURCE", "header:CF-Connecting-IP")
+		t.Setenv("TRUST_PROXY_HEADERS", "true")
+		src, err := clientIPSource()
+		assert.NoError(t, err)
+		assert.Equal(t, web.IPSource{Header: "Cf-Connecting-Ip"}, src)
+	})
+	t.Run("a bad value stops startup", func(t *testing.T) {
+		t.Setenv("CLIENT_IP_SOURCE", "xff:zero")
+		_, err := clientIPSource()
+		assert.Error(t, err)
+	})
 }

@@ -1,9 +1,11 @@
 package auth
 
 import (
+	"encoding/hex"
 	"net/http"
 
 	"github.com/adera-platform/backend/internal/platform/ratelimit"
+	"github.com/adera-platform/backend/internal/platform/security"
 	"github.com/adera-platform/backend/internal/platform/web"
 )
 
@@ -15,11 +17,11 @@ type Handler struct {
 	// request/confirm endpoints.
 	loginLimiter ratelimit.Limiter
 	otpLimiter   ratelimit.Limiter
-	trustProxy   bool
+	ipSource     web.IPSource
 }
 
-func NewHandler(svc *Service, loginLimiter, otpLimiter ratelimit.Limiter, trustProxy bool) *Handler {
-	return &Handler{svc: svc, loginLimiter: loginLimiter, otpLimiter: otpLimiter, trustProxy: trustProxy}
+func NewHandler(svc *Service, loginLimiter, otpLimiter ratelimit.Limiter, ipSource web.IPSource) *Handler {
+	return &Handler{svc: svc, loginLimiter: loginLimiter, otpLimiter: otpLimiter, ipSource: ipSource}
 }
 
 func (h *Handler) Routes(mux *http.ServeMux) {
@@ -39,7 +41,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 }
 
 func (h *Handler) allowSensitive(r *http.Request, identifier string) bool {
-	ip := web.ClientIP(r, h.trustProxy)
+	ip := h.ipSource.ClientIP(r)
 	if !h.loginLimiter.Allow("ip:" + ip) {
 		return false
 	}
@@ -135,7 +137,10 @@ func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, r, web.ErrValidation("invalid request").WithDetail("refresh_token", "required"))
 		return
 	}
-	if !h.allowSensitive(r, "") {
+	// Keyed by the token, not the address: carrier NAT puts many phones
+	// behind one address, and each refreshes on its own schedule. Guessing a
+	// 256-bit token gains nothing from more attempts.
+	if !h.loginLimiter.Allow("refresh:" + hex.EncodeToString(security.HashToken(req.RefreshToken)[:16])) {
 		web.RespondError(w, r, web.ErrRateLimited())
 		return
 	}

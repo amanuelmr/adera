@@ -152,6 +152,32 @@ One gotcha: GitHub disables scheduled workflows after **60 days without repo
 activity**. If the API starts sleeping again, re-enable it under the Actions
 tab.
 
+## 7. Set the client address source
+
+Requests reach the API through Render's proxy, so without this every caller
+shares one rate-limit bucket: a handful of failed logins anywhere locks
+everyone out, and every review gets the same fraud-signal network hash.
+
+Sign in as an admin, then compare what the server sees with your own public
+address (e.g. from `curl -s https://ifconfig.me`):
+
+```sh
+curl -s -H "Authorization: Bearer $ADMIN_ACCESS_TOKEN" \
+  https://adera.amanuel.work/api/v1/admin/request-info
+```
+
+Pick the source that yields your address and that a caller can't forge:
+
+- `header:CF-Connecting-IP` if that header is present and correct — the edge
+  proxy overwrites it, so a value sent by the caller doesn't survive.
+- otherwise `xff:N`, where N counts from the right of `x_forwarded_for` to
+  your address (1 = the last entry). Entries further left are whatever the
+  caller sent.
+
+Set `CLIENT_IP_SOURCE` to it, redeploy, and call the endpoint again:
+`client_ip` should now be your address. Re-check after any hosting or proxy
+change.
+
 ## Verifying
 
 ```sh

@@ -1816,6 +1816,25 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '409': {$ref: '#/components/responses/Conflict'}
 
+  /api/v1/admin/request-info:
+    get:
+      tags: [admin]
+      summary: Show how the server sees this request's address
+      description: For checking CLIENT_IP_SOURCE once per deployment — compare client_ip with your own public address. Reflects only the caller's own request. Requires the admin role.
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: The request as received
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/RequestInfo'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
   /api/v1/admin/privacy/erasure-requests:
     get:
       tags: [privacy, admin]
@@ -2614,6 +2633,19 @@ components:
             data:
               type: array
               items: {$ref: '#/components/schemas/ReviewSignalGroup'}
+
+    RequestInfo:
+      type: object
+      required: [remote_addr, x_forwarded_for, proxy_headers, client_ip_source, client_ip]
+      properties:
+        remote_addr: {type: string, description: The TCP peer, usually the nearest proxy}
+        x_forwarded_for: {type: array, items: {type: string}}
+        proxy_headers:
+          type: object
+          description: Common proxy address headers present on the request (CF-Connecting-IP, True-Client-IP, X-Real-IP, Fly-Client-IP)
+          additionalProperties: {type: string}
+        client_ip_source: {type: string, example: 'header:Cf-Connecting-Ip'}
+        client_ip: {type: string, description: The address rate limits and fraud signals use}
 
     ReportCreate:
       type: object

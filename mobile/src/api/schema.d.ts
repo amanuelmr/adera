@@ -3762,6 +3762,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/request-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show how the server sees this request's address
+         * @description For checking CLIENT_IP_SOURCE once per deployment — compare client_ip with your own public address. Reflects only the caller's own request. Requires the admin role.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The request as received */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["RequestInfo"];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/privacy/erasure-requests": {
         parameters: {
             query?: never;
@@ -4601,6 +4644,19 @@ export interface components {
         };
         ReviewSignalGroupList: components["schemas"]["DataEnvelope"] & {
             data?: components["schemas"]["ReviewSignalGroup"][];
+        };
+        RequestInfo: {
+            /** @description The TCP peer */
+            remote_addr: string;
+            x_forwarded_for: string[];
+            /** @description Common proxy address headers present on the request (CF-Connecting-IP, True-Client-IP, X-Real-IP, Fly-Client-IP) */
+            proxy_headers: {
+                [key: string]: string;
+            };
+            /** @example header:Cf-Connecting-Ip */
+            client_ip_source: string;
+            /** @description The address rate limits and fraud signals use */
+            client_ip: string;
         };
         ReportCreate: {
             /** @enum {string} */

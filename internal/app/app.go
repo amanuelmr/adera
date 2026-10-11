@@ -76,7 +76,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	adminSvc := admin.NewService(pool, usersRepo)
 
 	mux := http.NewServeMux()
-	auth.NewHandler(authSvc, loginLimiter, otpLimiter, cfg.TrustProxyHeaders).Routes(mux)
+	auth.NewHandler(authSvc, loginLimiter, otpLimiter, cfg.ClientIPSource).Routes(mux)
 	users.NewHandler(usersRepo).Routes(mux)
 	notifications.NewHandler(notificationSvc).Routes(mux)
 	privacy.NewHandler(privacySvc).Routes(mux)
@@ -86,15 +86,15 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	targets.NewHandler(targetsRepo, bizRepo, usersRepo, targetSubmitLimiter).Routes(mux)
 	var signalHasher *reviews.SignalHasher
 	if cfg.SignalHashKey != "" {
-		signalHasher = reviews.NewSignalHasher(cfg.SignalHashKey, cfg.TrustProxyHeaders)
+		signalHasher = reviews.NewSignalHasher(cfg.SignalHashKey, cfg.ClientIPSource)
 	}
 	reviews.NewHandler(reviewsRepo, reviewLimiter, signalHasher).Routes(mux)
 	ratings.NewHandler(ratingsRepo).Routes(mux)
-	search.NewHandler(searchRepo, searchLimiter, cfg.TrustProxyHeaders).Routes(mux)
+	search.NewHandler(searchRepo, searchLimiter, cfg.ClientIPSource).Routes(mux)
 	media.NewHandler(mediaSvc, presignLimiter).Routes(mux)
 	claims.NewHandler(claimsSvc).Routes(mux)
 	moderation.NewHandler(moderationSvc, mediaSvc, reportLimiter).Routes(mux)
-	admin.NewHandler(adminSvc).Routes(mux)
+	admin.NewHandler(adminSvc, cfg.ClientIPSource).Routes(mux)
 	appversion.NewHandler(appversion.Policy{
 		Android: appversion.Gate{
 			MinimumSupported: cfg.AndroidMinVersion,

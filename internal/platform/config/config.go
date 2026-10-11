@@ -6,12 +6,14 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/adera-platform/backend/internal/appversion"
 	"net/mail"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/adera-platform/backend/internal/appversion"
+	"github.com/adera-platform/backend/internal/platform/web"
 )
 
 // Environment names.
@@ -96,7 +98,10 @@ type Config struct {
 	AndroidCertSHA256s []string
 
 	CORSAllowedOrigins []string
-	TrustProxyHeaders  bool
+	// Where the caller's address comes from (CLIENT_IP_SOURCE): the TCP
+	// peer, an X-Forwarded-For hop, or one proxy-written header. Rate limits
+	// and fraud signals key on it. See web.IPSource.
+	ClientIPSource web.IPSource
 
 	// Key for the HMAC that hashes review fraud signals (network prefix and
 	// app install ID). Signals are not recorded when it is empty. Changing it
@@ -166,7 +171,6 @@ func Load() (Config, error) {
 		AndroidCertSHA256s: splitAndTrim(os.Getenv("ANDROID_CERT_SHA256")),
 
 		CORSAllowedOrigins: splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")),
-		TrustProxyHeaders:  getEnvBool("TRUST_PROXY_HEADERS", false),
 		SignalHashKey:      os.Getenv("SIGNAL_HASH_KEY"),
 
 		RateLimitEnabled: getEnvBool("RATE_LIMIT_ENABLED", true),
@@ -177,6 +181,11 @@ func Load() (Config, error) {
 		SeedAdminEmail:    getEnv("SEED_ADMIN_EMAIL", "admin@adera.local"),
 		SeedAdminPassword: os.Getenv("SEED_ADMIN_PASSWORD"),
 	}
+	src, err := clientIPSource()
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.ClientIPSource = src
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
 	}
@@ -299,6 +308,18 @@ func getEnvInt(key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+// clientIPSource reads CLIENT_IP_SOURCE. The older TRUST_PROXY_HEADERS=true
+// still means the rightmost X-Forwarded-For hop when the new one is unset.
+func clientIPSource() (web.IPSource, error) {
+	if v := os.Getenv("CLIENT_IP_SOURCE"); v != "" {
+		return web.ParseIPSource(v)
+	}
+	if getEnvBool("TRUST_PROXY_HEADERS", false) {
+		return web.IPSource{Hops: 1}, nil
+	}
+	return web.IPSource{}, nil
 }
 
 func getEnvBool(key string, fallback bool) bool {

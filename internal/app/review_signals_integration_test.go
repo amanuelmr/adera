@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/adera-platform/backend/internal/platform/config"
+	"github.com/adera-platform/backend/internal/platform/web"
 	"github.com/adera-platform/backend/internal/reviews"
 )
 
@@ -55,7 +56,7 @@ func (a *testAPI) signalGroups(mod testUser, targetID string) []signalGroup {
 
 func TestReviewSignals(t *testing.T) {
 	a := newTestAPIWith(t, func(c *config.Config) {
-		c.TrustProxyHeaders = true
+		c.ClientIPSource = web.IPSource{Hops: 1}
 		c.SignalHashKey = "integration-test-signal-key-32-bytes!!"
 	})
 	mod := a.register("signalsmod")
