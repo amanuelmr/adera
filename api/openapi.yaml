@@ -1942,9 +1942,12 @@ paths:
   /metrics:
     get:
       tags: [ops]
-      summary: Prometheus metrics (restrict at the network layer in production)
+      summary: Prometheus metrics
+      description: Open in development. In production it requires METRICS_TOKEN as a bearer token (not a user token), and answers 404 when none is configured.
       responses:
         '200': {description: Prometheus exposition format., content: {text/plain: {schema: {type: string}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
 
 components:
   securitySchemes:

@@ -4034,7 +4034,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Prometheus metrics (restrict at the network layer in production) */
+        /**
+         * Prometheus metrics
+         * @description Open in development. In production it requires METRICS_TOKEN as a bearer token (not a user token), and answers 404 when none is configured.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -4053,6 +4056,8 @@ export interface paths {
                         "text/plain": string;
                     };
                 };
+                401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
             };
         };
         put?: never;

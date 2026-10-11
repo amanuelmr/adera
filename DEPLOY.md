@@ -83,6 +83,8 @@ In the service's **Environment** tab:
   fix). It keys the hashes of review fraud signals; set it once and leave it,
   since a new key stops new reviews matching older signals. Clearing it turns
   signal recording off.
+- `METRICS_TOKEN` — generated too, at least 32 bytes. A Prometheus scrape
+  sends it as a bearer token; without it, `/metrics` isn't served.
 
 Changing any of these triggers a redeploy.
 
@@ -183,8 +185,12 @@ change.
 ```sh
 curl -s https://adera.amanuel.work/health     # liveness
 curl -s https://adera.amanuel.work/ready      # checks the DB connection
-curl -s https://adera.amanuel.work/metrics    # Prometheus metrics
+curl -s -H "Authorization: Bearer $METRICS_TOKEN" \
+  https://adera.amanuel.work/metrics           # Prometheus metrics
 ```
+
+`/metrics` answers 404 in production unless `METRICS_TOKEN` is set (Render
+generates one), and then only to a scrape that sends it as a bearer token.
 
 `/ready` is the one that matters: it returns unhealthy when `DATABASE_URL` is
 wrong or Neon is unreachable, which is how a bad deploy shows up.

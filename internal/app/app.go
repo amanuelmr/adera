@@ -128,8 +128,8 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	}
 	webPages.Routes(mux)
 
-	// Operational endpoints (no auth; restrict /metrics at the network layer
-	// in production deployments).
+	// Operational endpoints. /metrics is served by web.MetricsEndpoint, ahead
+	// of user authentication.
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		web.Respond(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
@@ -143,14 +143,14 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 		}
 		web.Respond(w, http.StatusOK, map[string]string{"status": "ready"})
 	})
-	mux.Handle("GET /metrics", web.MetricsHandler())
 
 	return web.Chain(mux,
 		web.Recover,
 		web.RequestID,
 		web.Metrics,
 		web.Logging,
-		web.SecureHeaders,
+		web.SecureHeaders(cfg.Env == config.EnvProduction),
+		web.MetricsEndpoint(cfg.MetricsToken, cfg.Env != config.EnvProduction),
 		web.CORS(cfg.CORSAllowedOrigins),
 		timeoutMiddleware(cfg.DatabaseQueryTimeout),
 		web.Authenticate(authSvc.VerifyAccess),

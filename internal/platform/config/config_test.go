@@ -214,3 +214,11 @@ func TestClientIPSourceFromEnv(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestConfigValidateMetricsToken(t *testing.T) {
+	c := validConfig()
+	c.MetricsToken = "too-short"
+	assert.ErrorContains(t, c.Validate(), "METRICS_TOKEN")
+	c.MetricsToken = "metrics-scrape-token-at-least-32-bytes"
+	assert.NoError(t, c.Validate())
+}

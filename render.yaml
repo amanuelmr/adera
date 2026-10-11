@@ -43,6 +43,9 @@ services:
       # Review fraud signals; must be at least 32 bytes (see DEPLOY.md).
       - key: SIGNAL_HASH_KEY
         generateValue: true
+      # Bearer token for scraping /metrics; without it /metrics isn't served.
+      - key: METRICS_TOKEN
+        generateValue: true
       # Render sits behind a proxy, so the TCP peer is the proxy and every
       # caller would share one rate-limit bucket. Set this once it has been
       # checked against GET /api/v1/admin/request-info (DEPLOY.md step 7).

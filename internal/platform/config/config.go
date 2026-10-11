@@ -108,6 +108,10 @@ type Config struct {
 	// stops new reviews matching older signals, so set it once per environment.
 	SignalHashKey string
 
+	// Bearer token for scraping /metrics (METRICS_TOKEN). In production the
+	// endpoint isn't served without one; elsewhere it is open.
+	MetricsToken string
+
 	RateLimitEnabled bool
 
 	LogLevel  string
@@ -172,6 +176,7 @@ func Load() (Config, error) {
 
 		CORSAllowedOrigins: splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")),
 		SignalHashKey:      os.Getenv("SIGNAL_HASH_KEY"),
+		MetricsToken:       os.Getenv("METRICS_TOKEN"),
 
 		RateLimitEnabled: getEnvBool("RATE_LIMIT_ENABLED", true),
 
@@ -213,6 +218,9 @@ func (c Config) Validate() error {
 	}
 	if c.SignalHashKey != "" && len(c.SignalHashKey) < 32 {
 		errs = append(errs, errors.New("SIGNAL_HASH_KEY must be at least 32 bytes"))
+	}
+	if c.MetricsToken != "" && len(c.MetricsToken) < 32 {
+		errs = append(errs, errors.New("METRICS_TOKEN must be at least 32 bytes"))
 	}
 	if c.AccessTokenTTL <= 0 || c.AccessTokenTTL > time.Hour {
 		errs = append(errs, errors.New("ACCESS_TOKEN_TTL must be positive and at most 1h"))

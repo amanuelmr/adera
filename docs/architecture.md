@@ -197,7 +197,7 @@ erDiagram
 
 Structured JSON logs (slog, redaction layer), request IDs on every response,
 `/health` (liveness), `/ready` (DB ping), `/metrics` (Prometheus: request
-counts/latency by route pattern, in-flight), panic recovery, config validation
+counts/latency by route pattern, in-flight; bearer-token scrape in production), panic recovery, config validation
 at startup, HTTP server timeouts, per-request 30s context deadline inherited
 by all queries, pooled connections with lifetime/idle limits, graceful
 shutdown on SIGINT/SIGTERM.

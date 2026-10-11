@@ -62,7 +62,7 @@ Legend: ✅ allowed · Ⓞ allowed with object-level check · ❌ forbidden
 endpoints — moderators cannot rewrite someone's words, only change status.
 ² Moderators/admins respond to reviews only if they are themselves members of
 the business; roles alone don't speak for a business.
-³ `/metrics` must be network-restricted in production deployments.
+³ `/metrics` is open in development. In production it needs `METRICS_TOKEN` as a bearer token, and isn't served at all without one.
 
 **Invariants enforced by tests** (`internal/app/platform_integration_test.go`
 and friends): every protected endpoint 401s anonymously; every
