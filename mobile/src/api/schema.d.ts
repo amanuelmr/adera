@@ -4472,8 +4472,13 @@ export interface components {
             id?: string;
             /** Format: uuid */
             target_id?: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The author's account ID, sent only to the author and to moderators. Public responses omit it so one person's reviews can't be collected together.
+             */
             user_id?: string;
+            /** @description Whether the signed-in viewer wrote this review. */
+            is_mine?: boolean;
             overall_rating?: number;
             title?: string;
             body?: string;

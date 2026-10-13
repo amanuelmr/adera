@@ -2453,7 +2453,8 @@ components:
       properties:
         id: {type: string, format: uuid}
         target_id: {type: string, format: uuid}
-        user_id: {type: string, format: uuid}
+        user_id: {type: string, format: uuid, description: "The author's account ID, sent only to the author and to moderators. Public responses omit it so one person's reviews can't be collected together."}
+        is_mine: {type: boolean, description: Whether the signed-in viewer wrote this review.}
         overall_rating: {type: integer}
         title: {type: string}
         body: {type: string}
