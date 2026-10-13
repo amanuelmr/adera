@@ -20,7 +20,6 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/v1/users/me/erasure-requests", auth(http.HandlerFunc(h.listMine)))
 	mux.Handle("DELETE /api/v1/users/me/erasure-requests/{id}", auth(http.HandlerFunc(h.cancelRequest)))
 	mux.Handle("GET /api/v1/admin/privacy/erasure-requests", admin(http.HandlerFunc(h.listAdmin)))
-	mux.Handle("POST /api/v1/admin/privacy/erasure-requests/{id}/decision", admin(http.HandlerFunc(h.decide)))
 }
 
 func (h *Handler) export(w http.ResponseWriter, r *http.Request) {
@@ -103,29 +102,4 @@ func (h *Handler) listAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.RespondPage(w, http.StatusOK, items, pageMeta(next))
-}
-
-type decisionBody struct {
-	Status string `json:"status"`
-	Note   string `json:"note"`
-}
-
-func (h *Handler) decide(w http.ResponseWriter, r *http.Request) {
-	p, _ := web.PrincipalFromContext(r.Context())
-	id, err := web.ParseUUID(r, "id")
-	if err != nil {
-		web.RespondError(w, r, err)
-		return
-	}
-	var req decisionBody
-	if err := web.DecodeJSON(w, r, &req); err != nil {
-		web.RespondError(w, r, err)
-		return
-	}
-	item, err := h.service.DecideRequest(r.Context(), id, p.UserID, req.Status, req.Note)
-	if err != nil {
-		web.RespondError(w, r, err)
-		return
-	}
-	web.Respond(w, http.StatusOK, item)
 }

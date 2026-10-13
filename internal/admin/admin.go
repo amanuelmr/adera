@@ -47,7 +47,7 @@ func (s *Service) SuspendUser(ctx context.Context, userID, actorID uuid.UUID, no
 		return web.ErrValidation("invalid action").WithDetail("user_id", "you cannot suspend yourself")
 	}
 	return database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `UPDATE users SET status = $2 WHERE id = $1`, userID, users.StatusSuspended)
+		tag, err := tx.Exec(ctx, `UPDATE users SET status = $2 WHERE id = $1 AND status <> 'erased'`, userID, users.StatusSuspended)
 		if err != nil {
 			return fmt.Errorf("setting status: %w", err)
 		}
@@ -66,7 +66,7 @@ func (s *Service) SuspendUser(ctx context.Context, userID, actorID uuid.UUID, no
 // ReinstateUser lifts a suspension.
 func (s *Service) ReinstateUser(ctx context.Context, userID, actorID uuid.UUID, note string) error {
 	return database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `UPDATE users SET status = $2 WHERE id = $1`, userID, users.StatusActive)
+		tag, err := tx.Exec(ctx, `UPDATE users SET status = $2 WHERE id = $1 AND status <> 'erased'`, userID, users.StatusActive)
 		if err != nil {
 			return fmt.Errorf("setting status: %w", err)
 		}

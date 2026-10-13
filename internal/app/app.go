@@ -34,6 +34,16 @@ import (
 	"github.com/adera-platform/backend/internal/users"
 )
 
+// PrivacyFiles says where users' stored files live, for export and erasure.
+func PrivacyFiles(cfg config.Config, store storage.Store) privacy.Files {
+	return privacy.Files{
+		Store:         store,
+		PrivateBucket: cfg.StoragePrivateBucket,
+		PublicBucket:  cfg.StoragePublicBucket,
+		PublicBaseURL: cfg.StoragePublicBaseURL,
+	}
+}
+
 // BuildAPI constructs the fully-wired HTTP handler.
 func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provider auth.Provider) http.Handler {
 	hasher := security.NewHasher(security.Argon2Params{
@@ -64,7 +74,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 
 	usersRepo := users.NewRepo(pool)
 	notificationSvc := notifications.NewService(pool)
-	privacySvc := privacy.NewService(pool, notificationSvc)
+	privacySvc := privacy.NewService(pool, notificationSvc, PrivacyFiles(cfg, store))
 	authSvc := auth.NewService(pool, usersRepo, hasher, tokens, security.NewCodeHasher(cfg.JWTSecret), provider, cfg.RefreshTokenTTL, cfg.SessionMaxLifetime)
 	categoriesRepo := categories.NewRepo(pool)
 	locationsRepo := locations.NewRepo(pool)
@@ -122,6 +132,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 			AndroidStoreURL:      cfg.AndroidStoreURL,
 			AndroidPackage:       cfg.AndroidPackage,
 			AndroidCertSHA256s:   cfg.AndroidCertSHA256s,
+			PrivacyContact:       cfg.PrivacyContactEmail,
 		})
 	if err != nil {
 		panic(err)

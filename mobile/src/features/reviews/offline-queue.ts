@@ -99,6 +99,16 @@ export function getQueueSnapshot(): QueueJob[] {
   return jobs ?? EMPTY;
 }
 
+/** Drops every queued job, and the photos they would have uploaded (on sign-out). */
+export async function clearQueue(): Promise<void> {
+  const current = await hydrate();
+  current.forEach((job) => {
+    if (job.type === 'review-submission') job.pendingPhotoUris.forEach((uri) => deletePersistedPhoto(uri));
+  });
+  jobs = [];
+  await persist();
+}
+
 // Enqueue is only ever called from an authenticated screen (the review
 // wizard, a helpful-vote tap), so a missing user id here means something is
 // badly wrong with the calling code, not a normal runtime condition —

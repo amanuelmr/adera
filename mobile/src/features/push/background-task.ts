@@ -1,8 +1,9 @@
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 
+import { getCurrentUserId } from '@/auth/storage';
 import { describeEventType } from '@/features/activity/event-copy';
-import { parsePushPayload } from './payload';
+import { isForSignedInUser, parsePushPayload } from './payload';
 
 // The backend sends data-only FCM messages on purpose
 // (internal/notifications/fcm.go: "clients translate event_type and
@@ -15,8 +16,9 @@ export const BACKGROUND_NOTIFICATION_TASK = 'adera-background-notification';
 
 TaskManager.defineTask<Notifications.NotificationTaskPayload>(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }) => {
   if (error || !data || 'actionIdentifier' in data) return; // a tap response, not a received message
-  const { eventType, data: eventData } = parsePushPayload((data as { data?: unknown }).data);
-  const body = describeEventType(eventType, eventData);
+  const payload = parsePushPayload((data as { data?: unknown }).data);
+  if (!isForSignedInUser(payload, await getCurrentUserId().catch(() => null))) return;
+  const body = describeEventType(payload.eventType, payload.data);
   await Notifications.scheduleNotificationAsync({ content: { title: 'Adera', body }, trigger: null });
 });
 

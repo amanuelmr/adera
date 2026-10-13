@@ -28,7 +28,12 @@ docs/research/security-and-legal-risks.md §7 and require professional review.
    and relationship disclosures. Public clients must label any value other
    than `none`; selecting `other` requires explanatory details. Disclosure is
    separate from verification and never makes a paid review "verified."
-7. **No one moderates their own case.** A moderator can't decide their own
+7. **Removed photos leave public storage.** When a review leaves public view
+   (removed by its author, or hidden, rejected or removed by a moderator),
+   its photos move from the public bucket to private storage within about
+   five minutes, so a saved link stops working; restoring the review moves
+   them back.
+8. **No one moderates their own case.** A moderator can't decide their own
    business claim, evidence for their own review, or their own review's
    status; another moderator must (403 otherwise).
 
@@ -94,13 +99,32 @@ publishes immediately, and nothing is hidden or ranked down because of them.
   their signals with them. Leaving `SIGNAL_HASH_KEY` unset turns recording
   off. Changing it stops new reviews matching older signals.
 
-## Retention & deactivation
+## Retention & erasure
 
-Account deactivation keeps published reviews (they describe real commerce and
-removing them would enable reputation laundering); the user can log back in to
-reactivate, and can individually remove their own reviews from public view at
-any time. Full data-subject erasure workflows (Proclamation 1321/2024) need
-counsel input and are tracked as an open compliance item.
+**Deactivation** keeps everything; signing in again reactivates the account.
+Users can remove any of their own reviews from public view at any time.
+
+**Erasure** is self-service (`POST /users/me/erasure-requests`). The account
+is locked at once — deactivated, signed out everywhere, push tokens removed —
+and erased seven days later unless the person signs in again, which cancels
+it. Erasure removes:
+
+- the profile: name (replaced by "Former member"), email, phone, password;
+- sessions, verification codes, push tokens, roles, notifications;
+- business claims and memberships;
+- review photos, evidence and fraud signals, including the stored files
+  (deleted from storage by a background worker, retried until done);
+- profile links on reviews, and the request's stated reason.
+
+Reviews themselves stay, with their ratings and text, shown as by a former
+member: they describe real commerce, and deleting them on request would let a
+business pressure reviewers into erasing their accounts to clear bad reviews.
+Also kept, as records: reports filed and moderation history, business
+responses written for a business, places and edits contributed, helpful
+votes (as counts), and the erasure request itself as proof it was done.
+
+Counsel should confirm this scope against Proclamation 1321/2024, along with
+the other open items in `docs/research/security-and-legal-risks.md`.
 
 ## Moderator toolset (implemented)
 

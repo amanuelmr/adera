@@ -34,7 +34,8 @@
     "yourBusinesses": "የእርስዎ ንግዶች",
     "locations": "ቦታዎች",
     "reportReview": "ግምገማ ሪፖርት አድርግ",
-    "addPlace": "ቦታ ጨምር"
+    "addPlace": "ቦታ ጨምር",
+    "yourData": "መረጃዎ እና ግላዊነት"
   },
   "auth": {
     "signInTitle": "ግባ",
@@ -43,6 +44,9 @@
     "forgotPassword": "የይለፍ ቃል ረሱ?",
     "noAccount": "መለያ የለዎትም? አንድ ይፍጠሩ",
     "haveAccount": "መለያ አለዎት? ይግቡ",
+    "acceptPrivacy": "የግላዊነት ማሳወቂያውን አንብቤ ተቀብያለሁ",
+    "readPrivacy": "የግላዊነት ማሳወቂያውን ያንብቡ",
+    "privacyUnavailable": "የግላዊነት ማሳወቂያውን ለመጫን Adera ጋር መድረስ አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
     "createAccountTitle": "መለያዎን ይፍጠሩ",
     "name": "ስም",
     "email": "ኢሜይል",
@@ -234,6 +238,7 @@
     "loadReviewFailed": "ይህን ግምገማ መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
     "loadTargetFailed": "ይህን ቦታ መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
     "anonymous": "ስም-አልባ",
+    "formerMember": "የቀድሞ አባል",
     "showLess": "ያነሰ አሳይ",
     "readMore": "ተጨማሪ ያንብቡ",
     "ownerResponse": "የባለቤቱ ምላሽ",
@@ -292,7 +297,9 @@
     "joined": "የተቀላቀሉት {{date}}",
     "emailVerified": "✓ ኢሜይል ተረጋግጧል",
     "yourReviews": "የእርስዎ ግምገማዎች",
-    "noReviews": "እስካሁን ምንም ግምገማ አልጻፉም።"
+    "noReviews": "እስካሁን ምንም ግምገማ አልጻፉም።",
+    "privacyPrompt": "Adera በመረጃዎ ምን እንደሚያደርግ የሚገልጸውን የግላዊነት ማሳወቂያ ያንብቡ እና ይቀበሉ።",
+    "privacyAccept": "እቀበላለሁ"
   },
   "sessions": {
     "thisDevice": "ይህ መሳሪያ",
@@ -456,5 +463,22 @@
     "offline": "ከመስመር ውጭ ነዎት — {{when}} የተቀመጠውን እያሳየን ነው።",
     "refreshFailed": "ማደስ አልተቻለም — {{when}} የተቀመጠውን እያሳየን ነው።",
     "savedAt": "የተቀመጠው በ{{when}}"
+  },
+  "data": {
+    "noticeTitle": "የግላዊነት ማሳወቂያ",
+    "noticeBody": "Adera ስለእርስዎ ምን እንደሚሰበስብ፣ ለምን፣ ሌላ ማን እንደሚይዘው እና ለምን ያህል ጊዜ እንደሚቀመጥ።",
+    "readNotice": "የግላዊነት ማሳወቂያውን ያንብቡ",
+    "exportHeading": "መረጃዬን አውርድ",
+    "exportBody": "Adera ስለእርስዎ የያዘው ሁሉ፣ ሊያስቀምጡት ወይም ሊልኩት በሚችሉት አንድ ፋይል። በውስጡ ያሉት የፎቶዎችዎ እና የደረሰኞችዎ ሊንኮች ለአንድ ሰዓት ይሰራሉ።",
+    "export": "መረጃዬን አውርድ",
+    "exportTitle": "የእርስዎ የAdera መረጃ",
+    "deleteHeading": "መለያ ሰርዝ",
+    "deleteBody": "ወዲያውኑ ከሁሉም መሣሪያዎች ይወጣሉ፤ መለያዎም ከ7 ቀናት በኋላ ይደመሰሳል። ከዚያ በፊት መግባት ይሰርዘዋል። ስምዎ፣ ኢሜይልዎ፣ የይለፍ ቃልዎ፣ ፎቶዎችዎ እና ደረሰኞችዎ ይሰረዛሉ። ግምገማዎችዎ በቀድሞ አባል ስም ይቆያሉ፤ እንዲጠፉ የሚፈልጓቸውን አስቀድመው ያስወግዱ።",
+    "delete": "መለያ ሰርዝ",
+    "deleteConfirmTitle": "መለያዎን ይሰርዙ?",
+    "deleteConfirmBody": "አሁን ከሁሉም ቦታ ይወጣሉ፤ እንደገና ካልገቡ መለያው በ7 ቀናት ውስጥ ይደመሰሳል።",
+    "deleteConfirm": "ሰርዝ",
+    "deletedTitle": "መለያው እንዲሰረዝ ተይዟል",
+    "deletedBody": "በ{{date}} ይደመሰሳል። ለማቆየት ከዚያ በፊት እንደገና ይግቡ።"
   }
 }

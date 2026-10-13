@@ -39,6 +39,11 @@ export interface paths {
                         phone?: string | null;
                         password: string;
                         preferred_language?: components["schemas"]["Language"];
+                        /**
+                         * @description The privacy notice (/privacy) the person was shown and accepted. Must be the current version, or 422.
+                         * @example 2026-10-13
+                         */
+                        privacy_notice_version: string;
                     };
                 };
             };
@@ -454,6 +459,56 @@ export interface paths {
                 200: components["responses"]["StatusOK"];
                 422: components["responses"]["ValidationError"];
                 429: components["responses"]["RateLimited"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/privacy-consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept the current privacy notice
+         * @description For accounts that accepted an older notice, or none. The version must be the current one.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @example 2026-10-13 */
+                        version: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated profile. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DataEnvelope"] & {
+                            data?: components["schemas"]["Profile"];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                422: components["responses"]["ValidationError"];
             };
         };
         delete?: never;
@@ -1068,8 +1123,14 @@ export interface paths {
         };
         put?: never;
         /**
-         * Request review of personal-data erasure
-         * @description Only one pending, in-review, or approved request may exist per user.
+         * Erase my account
+         * @description Locks the account at once (deactivated, signed out everywhere, push
+         *     tokens removed) and schedules erasure for seven days later
+         *     (`scheduled_for`). Signing in before then cancels it. Erasure removes
+         *     the profile (name, email, phone, password), sessions, roles,
+         *     notifications, push tokens, business claims and memberships, review
+         *     photos, evidence and fraud signals; reviews remain, shown as by a
+         *     former member (`reviewer_erased`). Only one active request per user.
          */
         post: {
             parameters: {
@@ -1086,7 +1147,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Request recorded with append-only history. */
+                /** @description Erasure scheduled; the caller's session is already revoked. */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -1118,7 +1179,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Cancel an owned pending or in-review erasure request */
+        /** Cancel an owned scheduled (or older pending/in-review) erasure request */
         delete: {
             parameters: {
                 query?: never;
@@ -3816,8 +3877,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the data-erasure review queue
-         * @description Requires the admin role.
+         * List erasure requests
+         * @description Requires the admin role. Erasure runs by itself; this is for oversight.
          */
         get: {
             parameters: {
@@ -3848,64 +3909,6 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/privacy/erasure-requests/{id}/decision": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start review, approve, or reject an erasure request
-         * @description Requires the admin role. Approval requires a prior `in_review`
-         *     transition and records acceptance for separately governed fulfillment;
-         *     it does not automatically delete retained review or audit data.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: components["parameters"]["PathID"];
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        status: "in_review" | "approved" | "rejected";
-                        /** @description Required when rejecting. */
-                        note?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Updated request; the user also receives an activity item. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["DataEnvelope"] & {
-                            data?: components["schemas"]["ErasureRequest"];
-                        };
-                    };
-                };
-                403: components["responses"]["Forbidden"];
-                404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
-                422: components["responses"]["ValidationError"];
-            };
-        };
         delete?: never;
         options?: never;
         head?: never;
@@ -4161,7 +4164,7 @@ export interface components {
             /** @description E.164. */
             phone?: string;
             /** @enum {string} */
-            status?: "active" | "suspended" | "deactivated";
+            status?: "active" | "suspended" | "deactivated" | "erased";
             email_verified?: boolean;
             phone_verified?: boolean;
             preferred_language?: components["schemas"]["Language"];
@@ -4169,6 +4172,13 @@ export interface components {
             review_count?: number;
             /** Format: date-time */
             created_at?: string;
+            /** @description Ask the user to accept the notice again when accepted_version differs from current_version. */
+            privacy_notice?: {
+                accepted_version?: string;
+                /** Format: date-time */
+                accepted_at?: string;
+                current_version: string;
+            };
         };
         Category: {
             /** Format: uuid */
@@ -4403,7 +4413,7 @@ export interface components {
         };
         VersionGate: {
             /** @enum {string} */
-            platform?: "android" | "ios";
+            platform: "android" | "ios";
             minimum_supported?: string;
             latest?: string;
             store_url?: string;
@@ -4411,6 +4421,8 @@ export interface components {
             update_required?: boolean;
             /** @description Present only when the caller supplied its own version. */
             update_available?: boolean;
+            /** @description The current privacy notice (/privacy), which registration must accept. */
+            privacy_notice_version: string;
         };
         VersionGatePage: components["schemas"]["DataEnvelope"] & {
             data?: components["schemas"]["VersionGate"];
@@ -4472,8 +4484,13 @@ export interface components {
             id?: string;
             /** Format: uuid */
             target_id?: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The author's account ID, sent only to the author and to moderators. Public responses omit it so one person's reviews can't be collected together.
+             */
             user_id?: string;
+            /** @description Whether the signed-in viewer wrote this review. */
+            is_mine?: boolean;
             overall_rating?: number;
             title?: string;
             body?: string;
@@ -4507,6 +4524,8 @@ export interface components {
         };
         ListedReview: components["schemas"]["Review"] & {
             reviewer_name?: string;
+            /** @description The author erased their account; show 'former member' in the reader's language instead of reviewer_name. */
+            reviewer_erased?: boolean;
             reviewer_review_count?: number;
             helpful_count?: number;
             viewer_voted?: boolean;
@@ -4715,7 +4734,7 @@ export interface components {
             data?: components["schemas"]["Notification"][];
         };
         /** @enum {string} */
-        ErasureRequestStatus: "pending" | "in_review" | "approved" | "rejected" | "cancelled";
+        ErasureRequestStatus: "scheduled" | "completed" | "cancelled" | "pending" | "in_review" | "approved" | "rejected";
         ErasureRequest: {
             /** Format: uuid */
             id: string;
@@ -4730,6 +4749,13 @@ export interface components {
             reviewed_at?: string | null;
             /** Format: date-time */
             decided_at?: string | null;
+            /**
+             * Format: date-time
+             * @description When a scheduled erasure runs.
+             */
+            scheduled_for?: string | null;
+            /** Format: date-time */
+            completed_at?: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -4739,7 +4765,7 @@ export interface components {
             data?: components["schemas"]["ErasureRequest"][];
         };
         PersonalDataExport: {
-            /** @example 1 */
+            /** @example 2 */
             schema_version: string;
             /** Format: date-time */
             generated_at: string;
@@ -4768,10 +4794,24 @@ export interface components {
             review_criterion_scores?: {
                 [key: string]: unknown;
             }[];
+            /** @description Each with url while the photo is in public view. */
             review_media_metadata?: {
                 [key: string]: unknown;
             }[];
+            /** @description Each with download_url, a private link to the file valid for an hour. */
             review_evidence_metadata?: {
+                [key: string]: unknown;
+            }[];
+            /** @description Registered installs (never the push token). */
+            devices?: {
+                [key: string]: unknown;
+            }[];
+            /** @description Which signals were recorded per review (network_recorded, device_recorded), and when. The hashes themselves aren't included: they mean nothing without the server key. */
+            fraud_signals?: {
+                [key: string]: unknown;
+            }[];
+            /** @description Decisions about the person's content, claims and account (action, subject, date). */
+            moderation_decisions?: {
                 [key: string]: unknown;
             }[];
             helpful_votes?: {

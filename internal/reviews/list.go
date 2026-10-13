@@ -148,7 +148,7 @@ func (r *Repo) ListForTarget(ctx context.Context, targetID uuid.UUID, viewer uui
 	args = append(args, limit+1)
 	query := `
 		SELECT ` + prefixed(reviewColumns, "rv.") + `,
-			u.display_name,
+			u.display_name, u.status = 'erased',
 			(SELECT count(*) FROM reviews r2 WHERE r2.user_id = rv.user_id AND r2.moderation_status = 'published'),
 			hc.n,
 			($2::uuid IS NOT NULL AND EXISTS (
@@ -185,7 +185,7 @@ func (r *Repo) ListForTarget(ctx context.Context, targetID uuid.UUID, viewer uui
 			&src, &match, &lr.SocialMediaURL, &lr.IncentiveType, &lr.MaterialConnection,
 			&lr.DisclosureDetails, &lr.VerificationLevel,
 			&lr.ModerationStatus, &lr.EditCount, &lr.EditedAt, &lr.Version, &lr.CreatedAt, &lr.UpdatedAt,
-			&lr.ReviewerName, &lr.ReviewerReviewCount, &lr.HelpfulCount, &lr.ViewerVoted,
+			&lr.ReviewerName, &lr.ReviewerErased, &lr.ReviewerReviewCount, &lr.HelpfulCount, &lr.ViewerVoted,
 			&respID, &respBody, &respCAt, &respUAt)
 		if err != nil {
 			return nil, nil, fmt.Errorf("scanning listed review: %w", err)
@@ -315,7 +315,7 @@ func (r *Repo) attachMedia(ctx context.Context, page []ListedReview) error {
 	}
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, review_id, object_key, thumb_key FROM review_media
-		WHERE review_id = ANY($1) AND status = 'ready'
+		WHERE review_id = ANY($1) AND status = 'ready' AND NOT withheld
 		ORDER BY created_at`, ids)
 	if err != nil {
 		return fmt.Errorf("querying review media: %w", err)

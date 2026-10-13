@@ -11,7 +11,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { FilterChip } from '@/features/search/filter-chip';
-import { useProfile, useUpdateProfile } from '@/features/profile/queries';
+import { useAcceptPrivacyNotice, useProfile, useUpdateProfile } from '@/features/profile/queries';
+import { needsPrivacyConsent } from '@/features/privacy/consent';
+import { openPrivacyNotice } from '@/features/privacy/notice';
 import { MyReviewCard } from '@/features/reviews/my-review-card';
 import { useMyReviews } from '@/features/reviews/queries';
 import { formatDate } from '@/lib/format';
@@ -61,6 +63,22 @@ function DataSaverToggle() {
         accessibilityLabel={t('settings.dataSaver')}
       />
     </View>
+  );
+}
+
+// Accounts created before the privacy notice existed (or before it last
+// changed) are asked to read and accept it.
+function PrivacyPrompt({ version }: { version: string }) {
+  const { t, i18n } = useTranslation();
+  const accept = useAcceptPrivacyNotice();
+  return (
+    <ThemedView type="backgroundElement" style={styles.prompt}>
+      <ThemedText type="small">{t('account.privacyPrompt')}</ThemedText>
+      <View style={styles.promptActions}>
+        <Button title={t('data.readNotice')} variant="secondary" onPress={() => void openPrivacyNotice(i18n.language)} />
+        <Button title={t('account.privacyAccept')} onPress={() => accept.mutate(version)} loading={accept.isPending} />
+      </View>
+    </ThemedView>
   );
 }
 
@@ -136,6 +154,10 @@ function SignedInAccount() {
                 <QueryError onRetry={() => profile.refetch()} retrying={profile.isRefetching} />
               ) : null}
 
+              {profile.data?.privacy_notice && needsPrivacyConsent(profile.data.privacy_notice) ? (
+                <PrivacyPrompt version={profile.data.privacy_notice.current_version} />
+              ) : null}
+
               <ThemedText type="smallBold">{t('account.yourReviews')}</ThemedText>
             </View>
           }
@@ -165,6 +187,9 @@ function SignedInAccount() {
               </Link>
               <Link href="/sessions" style={styles.link}>
                 <ThemedText type="link">{t('auth.devicesLink')}</ThemedText>
+              </Link>
+              <Link href="/your-data" style={styles.link}>
+                <ThemedText type="link">{t('nav.yourData')}</ThemedText>
               </Link>
               <View style={styles.actions}>
                 <Button title={t('common.signOut')} variant="secondary" onPress={() => logout()} />
@@ -224,6 +249,14 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: Spacing.three,
+    gap: Spacing.two,
+  },
+  prompt: {
+    padding: Spacing.three,
+    borderRadius: Spacing.two,
+    gap: Spacing.two,
+  },
+  promptActions: {
     gap: Spacing.two,
   },
 });

@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { apiClient, unwrap } from '@/api/client';
 import type { components } from '@/api/schema';
 import { unregisterCurrentDevice } from '@/features/push/register';
+import { wipeLocalAccountData } from '@/lib/local-data';
 import { clearQueryCache } from '@/lib/query-client';
 import { onForcedSignOut } from './events';
 import { clearTokens, getAccessToken, getCurrentUserId, getRefreshToken, setCurrentUserId, setTokens } from './storage';
@@ -16,6 +17,8 @@ export type RegisterInput = {
   phone?: string;
   password: string;
   preferredLanguage?: components['schemas']['Language'];
+  // The privacy notice version the person was shown and accepted.
+  privacyNoticeVersion: string;
 };
 
 type AuthStatus = 'loading' | 'signedIn' | 'signedOut';
@@ -26,6 +29,11 @@ type AuthContextValue = {
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
+  /**
+   * Schedules the account for erasure. The server signs it out everywhere at
+   * once, so this also leaves the device. Resolves with when erasure runs.
+   */
+  deleteAccount: (reason?: string) => Promise<string | undefined>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -81,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phone: input.phone,
         password: input.password,
         preferred_language: input.preferredLanguage,
+        privacy_notice_version: input.privacyNoticeVersion,
       },
     });
     const { data } = unwrap(result);
@@ -111,6 +120,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('signedOut');
   }, []);
 
+  // An explicit sign-out (or erasure) means this phone may be someone
+  // else's next: the account's drafts and queued work go too.
+  const leaveDevice = useCallback(async () => {
+    await wipeLocalAccountData();
+    await signOutLocally();
+  }, [signOutLocally]);
+
   const logout = useCallback(async () => {
     // Before the tokens that authorize it are gone. Best-effort throughout:
     // an unreachable server shouldn't trap the user in a session they asked
@@ -118,18 +134,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // tokens are cleared.
     await unregisterCurrentDevice().catch(() => undefined);
     await apiClient.POST('/api/v1/auth/logout').catch(() => undefined);
-    await signOutLocally();
-  }, [signOutLocally]);
+    await leaveDevice();
+  }, [leaveDevice]);
 
   const logoutAll = useCallback(async () => {
     await unregisterCurrentDevice().catch(() => undefined);
     await apiClient.POST('/api/v1/auth/logout-all').catch(() => undefined);
-    await signOutLocally();
-  }, [signOutLocally]);
+    await leaveDevice();
+  }, [leaveDevice]);
+
+  const deleteAccount = useCallback(
+    async (reason?: string) => {
+      const { data } = unwrap(
+        await apiClient.POST('/api/v1/users/me/erasure-requests', { body: reason ? { reason } : {} })
+      );
+      await leaveDevice();
+      return data.scheduled_for ?? undefined;
+    },
+    [leaveDevice]
+  );
 
   const value = useMemo(
-    () => ({ status, register, login, logout, logoutAll }),
-    [status, register, login, logout, logoutAll]
+    () => ({ status, register, login, logout, logoutAll, deleteAccount }),
+    [status, register, login, logout, logoutAll, deleteAccount]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

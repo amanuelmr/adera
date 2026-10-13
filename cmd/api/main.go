@@ -22,11 +22,13 @@ import (
 
 	"github.com/adera-platform/backend/internal/app"
 	"github.com/adera-platform/backend/internal/auth"
+	"github.com/adera-platform/backend/internal/media"
 	"github.com/adera-platform/backend/internal/notifications"
 	"github.com/adera-platform/backend/internal/platform/config"
 	"github.com/adera-platform/backend/internal/platform/database"
 	"github.com/adera-platform/backend/internal/platform/logging"
 	"github.com/adera-platform/backend/internal/platform/storage"
+	"github.com/adera-platform/backend/internal/privacy"
 	"github.com/adera-platform/backend/internal/reviews"
 	"github.com/adera-platform/backend/migrations"
 )
@@ -162,6 +164,63 @@ func purgeReviewSignals(ctx context.Context, repo *reviews.Repo) {
 	}
 }
 
+// syncPhotoVisibility keeps review photos in the bucket that matches their
+// review: out of public view within minutes of the review leaving it, and
+// back when it is restored.
+func syncPhotoVisibility(ctx context.Context, svc *media.Service) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		for {
+			n, err := svc.SyncVisibility(ctx, 100)
+			if err != nil {
+				slog.Error("syncing review photo visibility", "error", err)
+			} else if n > 0 {
+				slog.Info("moved review photos", "count", n)
+			}
+			if err != nil || n < 100 {
+				break
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+// runErasures carries out account erasures whose grace period is over, then
+// deletes the files they (and anything else) queued for deletion. Every 15
+// minutes; files wait while storage is off.
+func runErasures(ctx context.Context, svc *privacy.Service) {
+	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
+	for {
+		if n, err := svc.RunDueErasures(ctx, 50); err != nil {
+			slog.Error("running account erasures", "error", err)
+		} else if n > 0 {
+			slog.Info("erased accounts", "count", n)
+		}
+		for {
+			n, err := svc.PurgeQueuedObjects(ctx, 200)
+			if err != nil {
+				slog.Error("deleting queued files", "error", err)
+			} else if n > 0 {
+				slog.Info("deleted queued files", "count", n)
+			}
+			if err != nil || n < 200 {
+				break
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
 func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 	var store storage.Store
 	if cfg.StorageEnabled {
@@ -197,6 +256,10 @@ func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 		slog.Warn("SIGNAL_HASH_KEY not set; review fraud signals will not be recorded")
 	}
 	go purgeReviewSignals(ctx, reviews.NewRepo(pool, cfg.StoragePublicBaseURL, nil))
+	go runErasures(ctx, privacy.NewService(pool, notificationSvc, app.PrivacyFiles(cfg, store)))
+	if store != nil {
+		go syncPhotoVisibility(ctx, media.NewService(pool, store, nil, cfg.StoragePrivateBucket, cfg.StoragePublicBucket))
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

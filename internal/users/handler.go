@@ -20,6 +20,7 @@ func NewHandler(repo *Repo) *Handler { return &Handler{repo: repo} }
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /api/v1/users/me", web.RequireAuth(http.HandlerFunc(h.getMe)))
 	mux.Handle("PATCH /api/v1/users/me", web.RequireAuth(http.HandlerFunc(h.updateMe)))
+	mux.Handle("POST /api/v1/users/me/privacy-consent", web.RequireAuth(http.HandlerFunc(h.acceptPrivacy)))
 }
 
 // ProfileResponse is the caller's own profile. Email/phone are shown only to
@@ -36,6 +37,15 @@ type ProfileResponse struct {
 	Roles             []string  `json:"roles"`
 	ReviewCount       int       `json:"review_count"`
 	CreatedAt         time.Time `json:"created_at"`
+	// PrivacyNotice says which privacy notice the user accepted and which
+	// is current; the app asks again when they differ.
+	PrivacyNotice privacyNoticeStatus `json:"privacy_notice"`
+}
+
+type privacyNoticeStatus struct {
+	Accepted   string     `json:"accepted_version,omitempty"`
+	AcceptedAt *time.Time `json:"accepted_at,omitempty"`
+	Current    string     `json:"current_version"`
 }
 
 func (h *Handler) profileResponse(r *http.Request, u User) (ProfileResponse, error) {
@@ -59,7 +69,38 @@ func (h *Handler) profileResponse(r *http.Request, u User) (ProfileResponse, err
 		Roles:             roles,
 		ReviewCount:       count,
 		CreatedAt:         u.CreatedAt.UTC(),
+		PrivacyNotice: privacyNoticeStatus{
+			Accepted:   u.PrivacyNoticeVersion,
+			AcceptedAt: u.PrivacyAcceptedAt,
+			Current:    PrivacyNoticeVersion,
+		},
 	}, nil
+}
+
+type acceptPrivacyRequest struct {
+	Version string `json:"version"`
+}
+
+// acceptPrivacy records consent to the current notice. The version sent must
+// be the current one, so a client can't record consent to a notice it didn't
+// show.
+func (h *Handler) acceptPrivacy(w http.ResponseWriter, r *http.Request) {
+	p, _ := web.PrincipalFromContext(r.Context())
+	var req acceptPrivacyRequest
+	if err := web.DecodeJSON(w, r, &req); err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	if req.Version != PrivacyNoticeVersion {
+		web.RespondError(w, r, web.ErrValidation("invalid consent").
+			WithDetail("version", "must be the current privacy notice version, "+PrivacyNoticeVersion))
+		return
+	}
+	if err := h.repo.AcceptPrivacyNotice(r.Context(), p.UserID); err != nil {
+		web.RespondError(w, r, err)
+		return
+	}
+	h.getMe(w, r)
 }
 
 func (h *Handler) getMe(w http.ResponseWriter, r *http.Request) {

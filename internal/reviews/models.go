@@ -85,10 +85,16 @@ const (
 )
 
 // Review is the full review record.
+//
+// The author's account ID isn't public: with it, anyone could collect
+// everything one person has written. It is sent only to the author and to
+// moderators (AuthorID); everyone else gets IsMine = false.
 type Review struct {
 	ID                 uuid.UUID  `json:"id"`
 	TargetID           uuid.UUID  `json:"target_id"`
-	UserID             uuid.UUID  `json:"user_id"`
+	UserID             uuid.UUID  `json:"-"`
+	AuthorID           *uuid.UUID `json:"user_id,omitempty"`
+	IsMine             bool       `json:"is_mine"`
 	OverallRating      int        `json:"overall_rating"`
 	Title              string     `json:"title,omitempty"`
 	Body               string     `json:"body"`
@@ -118,7 +124,10 @@ type Review struct {
 // ListedReview is a review as shown in listings, with social context.
 type ListedReview struct {
 	Review
-	ReviewerName        string     `json:"reviewer_name"`
+	ReviewerName string `json:"reviewer_name"`
+	// ReviewerErased is set when the author erased their account; clients
+	// show "former member" in the reader's language instead of the name.
+	ReviewerErased      bool       `json:"reviewer_erased,omitempty"`
 	ReviewerReviewCount int        `json:"reviewer_review_count"`
 	HelpfulCount        int        `json:"helpful_count"`
 	ViewerVoted         bool       `json:"viewer_voted"`
@@ -277,4 +286,16 @@ func contains(list []string, v string) bool {
 		}
 	}
 	return false
+}
+
+// ForViewer sets what the viewer may know about the review's author: whether
+// it is them, and, for the author or a moderator, the author's account ID.
+func (r *Review) ForViewer(viewer uuid.UUID, moderator bool) {
+	r.IsMine = viewer != uuid.Nil && viewer == r.UserID
+	if r.IsMine || moderator {
+		id := r.UserID
+		r.AuthorID = &id
+	} else {
+		r.AuthorID = nil
+	}
 }

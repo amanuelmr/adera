@@ -26,12 +26,14 @@ type Repo struct {
 func NewRepo(pool *pgxpool.Pool) *Repo { return &Repo{pool: pool} }
 
 const userColumns = `id, display_name, coalesce(email, ''), coalesce(phone, ''), coalesce(password_hash, ''),
-	status, email_verified_at, phone_verified_at, preferred_language, created_at, updated_at`
+	status, email_verified_at, phone_verified_at, preferred_language,
+	coalesce(privacy_notice_version, ''), privacy_accepted_at, created_at, updated_at`
 
 func scanUser(row pgx.Row) (User, error) {
 	var u User
 	err := row.Scan(&u.ID, &u.DisplayName, &u.Email, &u.Phone, &u.PasswordHash,
-		&u.Status, &u.EmailVerifiedAt, &u.PhoneVerifiedAt, &u.PreferredLanguage, &u.CreatedAt, &u.UpdatedAt)
+		&u.Status, &u.EmailVerifiedAt, &u.PhoneVerifiedAt, &u.PreferredLanguage,
+		&u.PrivacyNoticeVersion, &u.PrivacyAcceptedAt, &u.CreatedAt, &u.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
@@ -44,9 +46,11 @@ func scanUser(row pgx.Row) (User, error) {
 // Create inserts a new user and grants the customer role.
 func (r *Repo) Create(ctx context.Context, u User) error {
 	_, err := r.pool.Exec(ctx, `
-		INSERT INTO users (id, display_name, email, phone, password_hash, status, preferred_language)
-		VALUES ($1, $2, nullif($3, ''), nullif($4, ''), nullif($5, ''), $6, $7)`,
-		u.ID, u.DisplayName, u.Email, u.Phone, u.PasswordHash, u.Status, u.PreferredLanguage)
+		INSERT INTO users (id, display_name, email, phone, password_hash, status, preferred_language,
+			privacy_notice_version, privacy_accepted_at)
+		VALUES ($1, $2, nullif($3, ''), nullif($4, ''), nullif($5, ''), $6, $7, nullif($8, ''), $9)`,
+		u.ID, u.DisplayName, u.Email, u.Phone, u.PasswordHash, u.Status, u.PreferredLanguage,
+		u.PrivacyNoticeVersion, u.PrivacyAcceptedAt)
 	if isUniqueViolation(err) {
 		return ErrDuplicate
 	}
@@ -177,4 +181,15 @@ func (r *Repo) ReviewCount(ctx context.Context, id uuid.UUID) (int, error) {
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
+// AcceptPrivacyNotice records that the user accepted the current notice.
+func (r *Repo) AcceptPrivacyNotice(ctx context.Context, id uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE users SET privacy_notice_version = $2, privacy_accepted_at = now() WHERE id = $1`,
+		id, PrivacyNoticeVersion)
+	if err != nil {
+		return fmt.Errorf("recording privacy consent: %w", err)
+	}
+	return nil
 }

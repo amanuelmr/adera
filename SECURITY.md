@@ -5,7 +5,8 @@
 Email the maintainers (see repository owner profile) with details and
 reproduction steps. Please do not open public issues for security reports and
 do not access other users' data while demonstrating an issue. We aim to
-acknowledge within 72 hours.
+acknowledge within 72 hours. Confirmed breaches of personal data follow
+[docs/incident-response.md](docs/incident-response.md).
 
 ## Scope highlights
 

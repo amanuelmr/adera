@@ -14,11 +14,19 @@ import (
 	"github.com/adera-platform/backend/internal/platform/web"
 )
 
+// PrivacyNoticeVersion dates the privacy notice served at /privacy. Each
+// account records the version it accepted at registration; change it
+// whenever the notice changes in substance.
+const PrivacyNoticeVersion = "2026-10-13"
+
 // Account statuses.
 const (
 	StatusActive      = "active"
 	StatusSuspended   = "suspended"
 	StatusDeactivated = "deactivated"
+	// StatusErased marks a tombstone: the account's personal data is gone
+	// and its reviews show as by a former member.
+	StatusErased = "erased"
 )
 
 // SupportedLanguages are the UI/content language codes the platform accepts.
@@ -35,8 +43,12 @@ type User struct {
 	EmailVerifiedAt   *time.Time
 	PhoneVerifiedAt   *time.Time
 	PreferredLanguage string
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	// PrivacyNoticeVersion is the notice the account accepted; "" for
+	// accounts created before there was one.
+	PrivacyNoticeVersion string
+	PrivacyAcceptedAt    *time.Time
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 // Verified reports whether at least one contact channel is verified.

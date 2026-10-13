@@ -3,7 +3,7 @@
 // own fields as a JSON string. Unverified on a real device: the fields can
 // arrive as direct keys or JSON-encoded under `dataString` depending on
 // platform/OS version, so both are handled.
-export type PushPayload = { eventType?: string; data: Record<string, string> };
+export type PushPayload = { eventType?: string; userId?: string; data: Record<string, string> };
 
 export function parsePushPayload(payloadData: unknown): PushPayload {
   if (!payloadData || typeof payloadData !== 'object') return { data: {} };
@@ -17,8 +17,17 @@ export function parsePushPayload(payloadData: unknown): PushPayload {
   }
   return {
     eventType: typeof record.event_type === 'string' ? record.event_type : undefined,
+    userId: typeof record.user_id === 'string' ? record.user_id : undefined,
     data: parseData(record.data),
   };
+}
+
+// A push is shown only to the account it was sent to. The server stops
+// sending once a sign-in ends, but a message already in flight, or a phone
+// handed to someone else who signed in, must not show another person's
+// activity.
+export function isForSignedInUser(payload: PushPayload, signedInUserId: string | null): boolean {
+  return !!payload.userId && !!signedInUserId && payload.userId === signedInUserId;
 }
 
 function parseData(raw: unknown): Record<string, string> {

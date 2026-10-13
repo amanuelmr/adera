@@ -15,6 +15,7 @@ import (
 	"github.com/adera-platform/backend/internal/platform/database"
 	"github.com/adera-platform/backend/internal/platform/security"
 	"github.com/adera-platform/backend/internal/platform/web"
+	"github.com/adera-platform/backend/internal/privacy"
 	"github.com/adera-platform/backend/internal/users"
 )
 
@@ -96,6 +97,9 @@ type RegisterInput struct {
 	Phone       string // any accepted format; normalized here
 	Password    string
 	Language    string
+	// PrivacyNoticeVersion is the privacy notice the person accepted; it
+	// must be the current one.
+	PrivacyNoticeVersion string
 }
 
 // Register creates the account, sends a verification code when a provider is
@@ -128,11 +132,16 @@ func (s *Service) Register(ctx context.Context, in RegisterInput, deviceInfo str
 	if !users.ValidLanguage(in.Language) {
 		return users.User{}, TokenPair{}, web.ErrValidation("invalid registration").WithDetail("preferred_language", "unsupported language")
 	}
+	if in.PrivacyNoticeVersion != users.PrivacyNoticeVersion {
+		return users.User{}, TokenPair{}, web.ErrValidation("invalid registration").
+			WithDetail("privacy_notice_version", "accept the current privacy notice ("+users.PrivacyNoticeVersion+")")
+	}
 
 	hash, err := s.hasher.Hash(in.Password)
 	if err != nil {
 		return users.User{}, TokenPair{}, fmt.Errorf("hashing password: %w", err)
 	}
+	accepted := time.Now().UTC()
 	u := users.User{
 		ID:                uuid.New(),
 		DisplayName:       in.DisplayName,
@@ -141,6 +150,9 @@ func (s *Service) Register(ctx context.Context, in RegisterInput, deviceInfo str
 		PasswordHash:      hash,
 		Status:            users.StatusActive,
 		PreferredLanguage: in.Language,
+
+		PrivacyNoticeVersion: in.PrivacyNoticeVersion,
+		PrivacyAcceptedAt:    &accepted,
 	}
 	if err := s.usersRepo.Create(ctx, u); err != nil {
 		if errors.Is(err, users.ErrDuplicate) {
@@ -197,7 +209,14 @@ func (s *Service) Login(ctx context.Context, identifier, password, deviceInfo st
 			Status: http.StatusForbidden, Code: web.CodeAccountSuspended, Message: "this account is suspended",
 		}
 	case users.StatusDeactivated:
-		if err := s.usersRepo.SetStatus(ctx, u.ID, users.StatusActive); err != nil {
+		// Signing in reactivates the account and cancels a scheduled
+		// erasure: the grace period exists for exactly this.
+		if err := database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, `UPDATE users SET status = 'active' WHERE id = $1`, u.ID); err != nil {
+				return fmt.Errorf("reactivating account: %w", err)
+			}
+			return privacy.CancelOnSignIn(ctx, tx, u.ID)
+		}); err != nil {
 			return users.User{}, TokenPair{}, err
 		}
 		u.Status = users.StatusActive
@@ -374,15 +393,20 @@ func (s *Service) Logout(ctx context.Context, sessionID uuid.UUID) error {
 	return nil
 }
 
-// LogoutAll revokes every session of the user.
+// LogoutAll revokes every session of the user and drops their push tokens,
+// so no signed-out phone keeps receiving their notifications.
 func (s *Service) LogoutAll(ctx context.Context, userID uuid.UUID) error {
-	_, err := s.pool.Exec(ctx, `
-		UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'logout_all'
-		WHERE user_id = $1 AND revoked_at IS NULL`, userID)
-	if err != nil {
-		return fmt.Errorf("revoking all sessions: %w", err)
-	}
-	return nil
+	return database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'logout_all'
+			WHERE user_id = $1 AND revoked_at IS NULL`, userID); err != nil {
+			return fmt.Errorf("revoking all sessions: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM device_tokens WHERE user_id = $1`, userID); err != nil {
+			return fmt.Errorf("removing push tokens: %w", err)
+		}
+		return nil
+	})
 }
 
 // Session is one active session (family head) for display.

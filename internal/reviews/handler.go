@@ -160,6 +160,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, r, err)
 		return
 	}
+	rv.ForViewer(p.UserID, false)
 	if idemKey != "" {
 		if err := h.repo.CompleteIdempotent(r.Context(), p.UserID, endpoint, idemKey, http.StatusCreated, rv); err != nil {
 			web.RespondError(w, r, err)
@@ -180,13 +181,12 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, r, err)
 		return
 	}
-	if rv.ModerationStatus != StatusPublished {
-		p, ok := web.PrincipalFromContext(r.Context())
-		if !ok || (p.UserID != rv.UserID && !p.HasRole(web.RoleModerator)) {
-			web.RespondError(w, r, web.ErrNotFound("review"))
-			return
-		}
+	p, _ := web.PrincipalFromContext(r.Context())
+	if rv.ModerationStatus != StatusPublished && p.UserID != rv.UserID && !p.HasRole(web.RoleModerator) {
+		web.RespondError(w, r, web.ErrNotFound("review"))
+		return
 	}
+	rv.ForViewer(p.UserID, p.HasRole(web.RoleModerator))
 	web.Respond(w, http.StatusOK, rv)
 }
 
@@ -216,6 +216,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, r, err)
 		return
 	}
+	rv.ForViewer(p.UserID, false)
 	web.Respond(w, http.StatusOK, rv)
 }
 
@@ -293,14 +294,14 @@ func (h *Handler) listForTarget(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, r, err)
 		return
 	}
-	var viewer uuid.UUID
-	if p, ok := web.PrincipalFromContext(r.Context()); ok {
-		viewer = p.UserID
-	}
-	items, next, err := h.repo.ListForTarget(r.Context(), targetID, viewer, f, q.Get("sort"), cursor, web.ParseLimit(r))
+	p, _ := web.PrincipalFromContext(r.Context())
+	items, next, err := h.repo.ListForTarget(r.Context(), targetID, p.UserID, f, q.Get("sort"), cursor, web.ParseLimit(r))
 	if err != nil {
 		web.RespondError(w, r, err)
 		return
+	}
+	for i := range items {
+		items[i].ForViewer(p.UserID, p.HasRole(web.RoleModerator))
 	}
 	meta := web.Meta{HasMore: next != nil}
 	if next != nil {
@@ -354,6 +355,9 @@ func (h *Handler) listMine(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		web.RespondError(w, r, err)
 		return
+	}
+	for i := range items {
+		items[i].ForViewer(p.UserID, false)
 	}
 	meta := web.Meta{HasMore: next != nil}
 	if next != nil {

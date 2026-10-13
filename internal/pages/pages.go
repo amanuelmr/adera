@@ -30,6 +30,7 @@ import (
 	"github.com/adera-platform/backend/internal/ratings"
 	"github.com/adera-platform/backend/internal/reviews"
 	"github.com/adera-platform/backend/internal/targets"
+	"github.com/adera-platform/backend/internal/users"
 )
 
 //go:embed templates/*.html
@@ -62,6 +63,9 @@ type Config struct {
 	AndroidStoreURL    string
 	AndroidPackage     string
 	AndroidCertSHA256s []string
+	// PrivacyContact is the address for data requests shown on /privacy;
+	// without it the page points to the app's own controls.
+	PrivacyContact string
 }
 
 type Handler struct {
@@ -78,7 +82,7 @@ func NewHandler(deps Dependencies, cfg Config) (*Handler, error) {
 		return nil, err
 	}
 	h := &Handler{deps: deps, cfg: cfg, dicts: dicts, templates: map[string]*template.Template{}}
-	for _, name := range []string{"home", "category", "target", "review", "trust", "notfound"} {
+	for _, name := range []string{"home", "category", "target", "review", "trust", "privacy", "notfound"} {
 		t, err := template.New("layout.html").Funcs(template.FuncMap{"stars": stars}).
 			ParseFS(templateFS, "templates/layout.html", "templates/partials.html", "templates/"+name+".html")
 		if err != nil {
@@ -101,6 +105,7 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /t/{slug}", h.target)
 	mux.HandleFunc("GET /r/{id}", h.review)
 	mux.HandleFunc("GET /trust", h.trust)
+	mux.HandleFunc("GET /privacy", h.privacy)
 	mux.HandleFunc("GET /banner/dismiss", h.dismissBanner)
 	mux.HandleFunc("GET /.well-known/assetlinks.json", h.assetLinks)
 	mux.HandleFunc("GET /robots.txt", h.robots)
@@ -397,6 +402,9 @@ func (h *Handler) reviewView(b base, rv reviews.ListedReview) reviewView {
 		Media:             rv.Media,
 		Permalink:         b.Link("/r/"+rv.ID.String(), nil),
 	}
+	if rv.ReviewerErased {
+		v.Reviewer = b.T("review.formerMember")
+	}
 	switch rv.VerificationLevel {
 	case "receipt_submitted", "location_verified", "partner_verified":
 		v.Verified = true
@@ -436,6 +444,29 @@ func (h *Handler) trust(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.render(w, r, "trust", http.StatusOK, p)
+}
+
+// ---- privacy notice ----
+
+type privacyPage struct {
+	base
+	Updated  string
+	Contact  string
+	Sections []trustSection
+}
+
+func (h *Handler) privacy(w http.ResponseWriter, r *http.Request) {
+	p := privacyPage{base: h.newBase(r, "/privacy"), Contact: h.cfg.PrivacyContact}
+	p.Title = p.T("privacy.title")
+	p.Description = p.T("privacy.intro")
+	updated, _ := time.Parse(time.DateOnly, users.PrivacyNoticeVersion)
+	p.Updated = formatDate(p.Lang, updated)
+	raw, _ := json.Marshal(h.dicts[p.Lang].lookup("privacy.sections"))
+	if err := json.Unmarshal(raw, &p.Sections); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	h.render(w, r, "privacy", http.StatusOK, p)
 }
 
 // ---- banner, app links ----

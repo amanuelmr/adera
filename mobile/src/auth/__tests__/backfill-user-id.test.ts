@@ -8,6 +8,7 @@ jest.mock('expo-secure-store', () => ({
 jest.mock('@/api/env', () => ({ apiBaseUrl: 'http://api.test' }));
 jest.mock('@/features/push/register', () => ({ unregisterCurrentDevice: async () => undefined }));
 jest.mock('@/lib/query-client', () => ({ queryClient: { clear: jest.fn() } }));
+jest.mock('@/lib/local-data', () => ({ wipeLocalAccountData: async () => undefined }));
 
 let mockFetch: (req: Request) => Response;
 globalThis.fetch = jest.fn(async (input: RequestInfo | URL, init?: RequestInit) =>

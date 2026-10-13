@@ -78,13 +78,17 @@ paths:
           application/json:
             schema:
               type: object
-              required: [display_name, password]
+              required: [display_name, password, privacy_notice_version]
               properties:
                 display_name: {type: string, minLength: 2, maxLength: 80, example: "Abebe Kebede"}
                 email: {type: string, format: email, nullable: true}
                 phone: {type: string, nullable: true, example: "0911234567"}
                 password: {type: string, minLength: 8, maxLength: 128}
                 preferred_language: {$ref: '#/components/schemas/Language'}
+                privacy_notice_version:
+                  type: string
+                  example: "2026-10-13"
+                  description: The privacy notice (/privacy) the person was shown and accepted. Must be the current version, or 422.
       responses:
         '201':
           description: Account created and logged in.
@@ -287,6 +291,34 @@ paths:
         '200': {$ref: '#/components/responses/StatusOK'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '429': {$ref: '#/components/responses/RateLimited'}
+
+  /api/v1/users/me/privacy-consent:
+    post:
+      tags: [users, privacy]
+      summary: Accept the current privacy notice
+      description: For accounts that accepted an older notice, or none. The version must be the current one.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version: {type: string, example: "2026-10-13"}
+      responses:
+        '200':
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/Profile'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
 
   /api/v1/users/me:
     get:
@@ -578,8 +610,15 @@ paths:
   /api/v1/users/me/erasure-requests:
     post:
       tags: [privacy]
-      summary: Request review of personal-data erasure
-      description: Only one pending, in-review, or approved request may exist per user.
+      summary: Erase my account
+      description: |
+        Locks the account at once (deactivated, signed out everywhere, push
+        tokens removed) and schedules erasure for seven days later
+        (`scheduled_for`). Signing in before then cancels it. Erasure removes
+        the profile (name, email, phone, password), sessions, roles,
+        notifications, push tokens, business claims and memberships, review
+        photos, evidence and fraud signals; reviews remain, shown as by a
+        former member (`reviewer_erased`). Only one active request per user.
       security: [{bearerAuth: []}]
       requestBody:
         content:
@@ -590,7 +629,7 @@ paths:
                 reason: {type: string, maxLength: 1000}
       responses:
         '201':
-          description: Request recorded with append-only history.
+          description: Erasure scheduled; the caller's session is already revoked.
           content:
             application/json:
               schema:
@@ -619,7 +658,7 @@ paths:
   /api/v1/users/me/erasure-requests/{id}:
     delete:
       tags: [privacy]
-      summary: Cancel an owned pending or in-review erasure request
+      summary: Cancel an owned scheduled (or older pending/in-review) erasure request
       security: [{bearerAuth: []}]
       parameters: [{$ref: '#/components/parameters/PathID'}]
       responses:
@@ -1841,8 +1880,8 @@ paths:
   /api/v1/admin/privacy/erasure-requests:
     get:
       tags: [privacy, admin]
-      summary: List the data-erasure review queue
-      description: Requires the admin role.
+      summary: List erasure requests
+      description: Requires the admin role. Erasure runs by itself; this is for oversight.
       security: [{bearerAuth: []}]
       parameters:
         - name: status
@@ -1857,41 +1896,6 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/ErasureRequestPage'}
         '403': {$ref: '#/components/responses/Forbidden'}
-        '422': {$ref: '#/components/responses/ValidationError'}
-
-  /api/v1/admin/privacy/erasure-requests/{id}/decision:
-    post:
-      tags: [privacy, admin]
-      summary: Start review, approve, or reject an erasure request
-      description: |
-        Requires the admin role. Approval requires a prior `in_review`
-        transition and records acceptance for separately governed fulfillment;
-        it does not automatically delete retained review or audit data.
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/PathID'}]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [status]
-              properties:
-                status: {type: string, enum: [in_review, approved, rejected]}
-                note: {type: string, maxLength: 2000, description: Required when rejecting.}
-      responses:
-        '200':
-          description: Updated request; the user also receives an activity item.
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/DataEnvelope'
-                  - properties:
-                      data: {$ref: '#/components/schemas/ErasureRequest'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
 
   /api/v1/app/version:
@@ -2158,13 +2162,21 @@ components:
         display_name: {type: string}
         email: {type: string}
         phone: {type: string, description: E.164.}
-        status: {type: string, enum: [active, suspended, deactivated]}
+        status: {type: string, enum: [active, suspended, deactivated, erased]}
         email_verified: {type: boolean}
         phone_verified: {type: boolean}
         preferred_language: {$ref: '#/components/schemas/Language'}
         roles: {type: array, items: {type: string}}
         review_count: {type: integer}
         created_at: {type: string, format: date-time}
+        privacy_notice:
+          type: object
+          required: [current_version]
+          description: Ask the user to accept the notice again when accepted_version differs from current_version.
+          properties:
+            accepted_version: {type: string}
+            accepted_at: {type: string, format: date-time}
+            current_version: {type: string}
 
     Category:
       type: object
@@ -2385,6 +2397,8 @@ components:
         store_url: {type: string}
         update_required: {type: boolean, description: "Present only when the caller supplied its own version."}
         update_available: {type: boolean, description: "Present only when the caller supplied its own version."}
+        privacy_notice_version: {type: string, description: "The current privacy notice (/privacy), which registration must accept."}
+      required: [platform, privacy_notice_version]
     VersionGatePage:
       allOf:
         - $ref: '#/components/schemas/DataEnvelope'
@@ -2453,7 +2467,8 @@ components:
       properties:
         id: {type: string, format: uuid}
         target_id: {type: string, format: uuid}
-        user_id: {type: string, format: uuid}
+        user_id: {type: string, format: uuid, description: "The author's account ID, sent only to the author and to moderators. Public responses omit it so one person's reviews can't be collected together."}
+        is_mine: {type: boolean, description: Whether the signed-in viewer wrote this review.}
         overall_rating: {type: integer}
         title: {type: string}
         body: {type: string}
@@ -2483,6 +2498,7 @@ components:
         - type: object
           properties:
             reviewer_name: {type: string}
+            reviewer_erased: {type: boolean, description: "The author erased their account; show 'former member' in the reader's language instead of reviewer_name."}
             reviewer_review_count: {type: integer}
             helpful_count: {type: integer}
             viewer_voted: {type: boolean}
@@ -2707,7 +2723,7 @@ components:
 
     ErasureRequestStatus:
       type: string
-      enum: [pending, in_review, approved, rejected, cancelled]
+      enum: [scheduled, completed, cancelled, pending, in_review, approved, rejected]
 
     ErasureRequest:
       type: object
@@ -2721,6 +2737,8 @@ components:
         reviewed_by: {type: string, format: uuid, nullable: true}
         reviewed_at: {type: string, format: date-time, nullable: true}
         decided_at: {type: string, format: date-time, nullable: true}
+        scheduled_for: {type: string, format: date-time, nullable: true, description: When a scheduled erasure runs.}
+        completed_at: {type: string, format: date-time, nullable: true}
         created_at: {type: string, format: date-time}
         updated_at: {type: string, format: date-time}
 
@@ -2736,7 +2754,7 @@ components:
       type: object
       required: [schema_version, generated_at, profile]
       properties:
-        schema_version: {type: string, example: "1"}
+        schema_version: {type: string, example: "2"}
         generated_at: {type: string, format: date-time}
         profile: {type: object, additionalProperties: true}
         roles: {type: array, items: {type: object, additionalProperties: true}}
@@ -2747,8 +2765,11 @@ components:
         target_edit_suggestions: {type: array, items: {type: object, additionalProperties: true}}
         reviews: {type: array, items: {$ref: '#/components/schemas/Review'}}
         review_criterion_scores: {type: array, items: {type: object, additionalProperties: true}}
-        review_media_metadata: {type: array, items: {type: object, additionalProperties: true}}
-        review_evidence_metadata: {type: array, items: {type: object, additionalProperties: true}}
+        review_media_metadata: {type: array, items: {type: object, additionalProperties: true}, description: Each with url while the photo is in public view.}
+        review_evidence_metadata: {type: array, items: {type: object, additionalProperties: true}, description: "Each with download_url, a private link to the file valid for an hour."}
+        devices: {type: array, items: {type: object, additionalProperties: true}, description: Registered installs (never the push token).}
+        fraud_signals: {type: array, items: {type: object, additionalProperties: true}, description: "Which signals were recorded per review (network_recorded, device_recorded), and when. The hashes themselves aren't included: they mean nothing without the server key."}
+        moderation_decisions: {type: array, items: {type: object, additionalProperties: true}, description: "Decisions about the person's content, claims and account (action, subject, date)."}
         helpful_votes: {type: array, items: {type: object, additionalProperties: true}}
         reports: {type: array, items: {$ref: '#/components/schemas/Report'}}
         business_claims: {type: array, items: {type: object, additionalProperties: true}}
