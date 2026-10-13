@@ -22,6 +22,7 @@ import (
 
 	"github.com/adera-platform/backend/internal/app"
 	"github.com/adera-platform/backend/internal/auth"
+	"github.com/adera-platform/backend/internal/media"
 	"github.com/adera-platform/backend/internal/notifications"
 	"github.com/adera-platform/backend/internal/platform/config"
 	"github.com/adera-platform/backend/internal/platform/database"
@@ -162,6 +163,32 @@ func purgeReviewSignals(ctx context.Context, repo *reviews.Repo) {
 	}
 }
 
+// syncPhotoVisibility keeps review photos in the bucket that matches their
+// review: out of public view within minutes of the review leaving it, and
+// back when it is restored.
+func syncPhotoVisibility(ctx context.Context, svc *media.Service) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		for {
+			n, err := svc.SyncVisibility(ctx, 100)
+			if err != nil {
+				slog.Error("syncing review photo visibility", "error", err)
+			} else if n > 0 {
+				slog.Info("moved review photos", "count", n)
+			}
+			if err != nil || n < 100 {
+				break
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
 func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 	var store storage.Store
 	if cfg.StorageEnabled {
@@ -197,6 +224,9 @@ func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 		slog.Warn("SIGNAL_HASH_KEY not set; review fraud signals will not be recorded")
 	}
 	go purgeReviewSignals(ctx, reviews.NewRepo(pool, cfg.StoragePublicBaseURL, nil))
+	if store != nil {
+		go syncPhotoVisibility(ctx, media.NewService(pool, store, nil, cfg.StoragePrivateBucket, cfg.StoragePublicBucket))
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,

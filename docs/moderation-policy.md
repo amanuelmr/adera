@@ -28,7 +28,12 @@ docs/research/security-and-legal-risks.md §7 and require professional review.
    and relationship disclosures. Public clients must label any value other
    than `none`; selecting `other` requires explanatory details. Disclosure is
    separate from verification and never makes a paid review "verified."
-7. **No one moderates their own case.** A moderator can't decide their own
+7. **Removed photos leave public storage.** When a review leaves public view
+   (removed by its author, or hidden, rejected or removed by a moderator),
+   its photos move from the public bucket to private storage within about
+   five minutes, so a saved link stops working; restoring the review moves
+   them back.
+8. **No one moderates their own case.** A moderator can't decide their own
    business claim, evidence for their own review, or their own review's
    status; another moderator must (403 otherwise).
 

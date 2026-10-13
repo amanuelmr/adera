@@ -315,7 +315,7 @@ func (r *Repo) attachMedia(ctx context.Context, page []ListedReview) error {
 	}
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, review_id, object_key, thumb_key FROM review_media
-		WHERE review_id = ANY($1) AND status = 'ready'
+		WHERE review_id = ANY($1) AND status = 'ready' AND NOT withheld
 		ORDER BY created_at`, ids)
 	if err != nil {
 		return fmt.Errorf("querying review media: %w", err)
