@@ -48,7 +48,7 @@ func TestRegisterDeviceValidation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := svc.RegisterDevice(ctx, user, tt.token, tt.platform, tt.appVersion)
+			_, err := svc.RegisterDevice(ctx, user, uuid.Nil, tt.token, tt.platform, tt.appVersion)
 			assert.Error(t, err)
 		})
 	}
@@ -61,7 +61,7 @@ func TestRegisterDevice(t *testing.T) {
 	user := seedUser(t, pool, "Device Owner")
 
 	t.Run("registers an install without echoing the token", func(t *testing.T) {
-		d, err := svc.RegisterDevice(ctx, user, deviceToken("one"), PlatformAndroid, "1.0.0")
+		d, err := svc.RegisterDevice(ctx, user, uuid.Nil, deviceToken("one"), PlatformAndroid, "1.0.0")
 
 		require.NoError(t, err)
 		assert.Equal(t, PlatformAndroid, d.Platform)
@@ -72,10 +72,10 @@ func TestRegisterDevice(t *testing.T) {
 	})
 
 	t.Run("re-registering the same token is idempotent", func(t *testing.T) {
-		first, err := svc.RegisterDevice(ctx, user, deviceToken("two"), PlatformAndroid, "1.0.0")
+		first, err := svc.RegisterDevice(ctx, user, uuid.Nil, deviceToken("two"), PlatformAndroid, "1.0.0")
 		require.NoError(t, err)
 
-		again, err := svc.RegisterDevice(ctx, user, deviceToken("two"), PlatformAndroid, "1.1.0")
+		again, err := svc.RegisterDevice(ctx, user, uuid.Nil, deviceToken("two"), PlatformAndroid, "1.1.0")
 
 		require.NoError(t, err)
 		assert.Equal(t, first.ID, again.ID, "the same device must not create a second row")
@@ -85,10 +85,10 @@ func TestRegisterDevice(t *testing.T) {
 	t.Run("a token moves to whoever signed in last", func(t *testing.T) {
 		shared := deviceToken("shared")
 		other := seedUser(t, pool, "Second Owner")
-		_, err := svc.RegisterDevice(ctx, user, shared, PlatformAndroid, "")
+		_, err := svc.RegisterDevice(ctx, user, uuid.Nil, shared, PlatformAndroid, "")
 		require.NoError(t, err)
 
-		_, err = svc.RegisterDevice(ctx, other, shared, PlatformAndroid, "")
+		_, err = svc.RegisterDevice(ctx, other, uuid.Nil, shared, PlatformAndroid, "")
 		require.NoError(t, err)
 
 		// The first account must stop receiving that handset's pushes.
@@ -108,9 +108,9 @@ func TestDeviceLifecycle(t *testing.T) {
 	ctx := context.Background()
 	user := seedUser(t, pool, "Lifecycle User")
 
-	_, err := svc.RegisterDevice(ctx, user, deviceToken("phone"), PlatformAndroid, "1.0.0")
+	_, err := svc.RegisterDevice(ctx, user, uuid.Nil, deviceToken("phone"), PlatformAndroid, "1.0.0")
 	require.NoError(t, err)
-	_, err = svc.RegisterDevice(ctx, user, deviceToken("tablet"), PlatformIOS, "1.0.0")
+	_, err = svc.RegisterDevice(ctx, user, uuid.Nil, deviceToken("tablet"), PlatformIOS, "1.0.0")
 	require.NoError(t, err)
 
 	t.Run("lists both installs", func(t *testing.T) {
@@ -131,7 +131,7 @@ func TestDeviceLifecycle(t *testing.T) {
 
 	t.Run("cannot unregister a token owned by someone else", func(t *testing.T) {
 		other := seedUser(t, pool, "Bystander")
-		_, err := svc.RegisterDevice(ctx, other, deviceToken("theirs"), PlatformAndroid, "")
+		_, err := svc.RegisterDevice(ctx, other, uuid.Nil, deviceToken("theirs"), PlatformAndroid, "")
 		require.NoError(t, err)
 
 		err = svc.UnregisterDevice(ctx, user, deviceToken("theirs"))
@@ -162,7 +162,7 @@ func TestRegisterDeviceCapsInstallsPerUser(t *testing.T) {
 	user := seedUser(t, pool, "Prolific User")
 
 	for i := 0; i < maxDevicesPerUser+5; i++ {
-		_, err := svc.RegisterDevice(ctx, user, deviceToken(fmt.Sprintf("dev%02d", i)), PlatformAndroid, "")
+		_, err := svc.RegisterDevice(ctx, user, uuid.Nil, deviceToken(fmt.Sprintf("dev%02d", i)), PlatformAndroid, "")
 		require.NoError(t, err)
 	}
 

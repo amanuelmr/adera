@@ -38,11 +38,12 @@ func ValidPlatform(p string) bool {
 	return p == PlatformAndroid || p == PlatformIOS || p == PlatformWeb
 }
 
-// RegisterDevice records or refreshes a push token for the user. Re-posting
-// the same token is the normal case — clients send it on every launch — so
-// the operation is an idempotent upsert that also reassigns ownership when
-// the token belonged to a different account.
-func (s *Service) RegisterDevice(ctx context.Context, userID uuid.UUID, token, platform, appVersion string) (DeviceToken, error) {
+// RegisterDevice records or refreshes a push token for the user, tied to the
+// sign-in (session family) it was sent under. Re-posting the same token is
+// the normal case — clients send it on every launch — so the operation is an
+// idempotent upsert that also reassigns ownership when the token belonged to
+// a different account.
+func (s *Service) RegisterDevice(ctx context.Context, userID, sessionID uuid.UUID, token, platform, appVersion string) (DeviceToken, error) {
 	if !ValidPlatform(platform) {
 		return DeviceToken{}, web.ErrValidation("invalid device").
 			WithDetail("platform", "must be android, ios, or web")
@@ -58,15 +59,17 @@ func (s *Service) RegisterDevice(ctx context.Context, userID uuid.UUID, token, p
 
 	var d DeviceToken
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO device_tokens (id, user_id, token, platform, app_version)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO device_tokens (id, user_id, token, platform, app_version, session_family_id)
+		VALUES ($1, $2, $3, $4, $5,
+			(SELECT family_id FROM auth_sessions WHERE id = $6 AND user_id = $2))
 		ON CONFLICT (token) DO UPDATE
 		   SET user_id = excluded.user_id,
 		       platform = excluded.platform,
 		       app_version = excluded.app_version,
+		       session_family_id = excluded.session_family_id,
 		       last_seen_at = now()
 		RETURNING id, platform, app_version, created_at, last_seen_at`,
-		uuid.New(), userID, token, platform, appVersion,
+		uuid.New(), userID, token, platform, appVersion, sessionID,
 	).Scan(&d.ID, &d.Platform, &d.AppVersion, &d.CreatedAt, &d.LastSeenAt)
 	if err != nil {
 		return DeviceToken{}, fmt.Errorf("registering device token: %w", err)
@@ -132,10 +135,18 @@ func (s *Service) ListDevices(ctx context.Context, userID uuid.UUID) ([]DeviceTo
 }
 
 // DeviceTokensFor returns the raw push tokens for a user, for a delivery
-// provider to send to.
+// provider to send to: only for an active account, and only tokens whose
+// sign-in is still live, so a phone signed out while offline (and so never
+// able to unregister) stops receiving.
 func (s *Service) DeviceTokensFor(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	rows, err := s.pool.Query(ctx,
-		`SELECT token FROM device_tokens WHERE user_id = $1 ORDER BY last_seen_at DESC`, userID)
+	rows, err := s.pool.Query(ctx, `
+		SELECT d.token FROM device_tokens d JOIN users u ON u.id = d.user_id
+		WHERE d.user_id = $1 AND u.status = 'active'
+		  AND (d.session_family_id IS NULL OR EXISTS (
+			SELECT 1 FROM auth_sessions s
+			WHERE s.family_id = d.session_family_id AND s.revoked_at IS NULL
+			  AND s.replaced_by_id IS NULL AND s.expires_at > now()))
+		ORDER BY d.last_seen_at DESC`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("loading device tokens: %w", err)
 	}

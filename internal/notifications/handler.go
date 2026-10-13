@@ -40,7 +40,7 @@ func (h *Handler) registerDevice(w http.ResponseWriter, r *http.Request) {
 		web.RespondError(w, r, err)
 		return
 	}
-	device, err := h.service.RegisterDevice(r.Context(), p.UserID, req.Token, req.Platform, req.AppVersion)
+	device, err := h.service.RegisterDevice(r.Context(), p.UserID, p.SessionID, req.Token, req.Platform, req.AppVersion)
 	if err != nil {
 		web.RespondError(w, r, err)
 		return

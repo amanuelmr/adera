@@ -374,15 +374,20 @@ func (s *Service) Logout(ctx context.Context, sessionID uuid.UUID) error {
 	return nil
 }
 
-// LogoutAll revokes every session of the user.
+// LogoutAll revokes every session of the user and drops their push tokens,
+// so no signed-out phone keeps receiving their notifications.
 func (s *Service) LogoutAll(ctx context.Context, userID uuid.UUID) error {
-	_, err := s.pool.Exec(ctx, `
-		UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'logout_all'
-		WHERE user_id = $1 AND revoked_at IS NULL`, userID)
-	if err != nil {
-		return fmt.Errorf("revoking all sessions: %w", err)
-	}
-	return nil
+	return database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'logout_all'
+			WHERE user_id = $1 AND revoked_at IS NULL`, userID); err != nil {
+			return fmt.Errorf("revoking all sessions: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM device_tokens WHERE user_id = $1`, userID); err != nil {
+			return fmt.Errorf("removing push tokens: %w", err)
+		}
+		return nil
+	})
 }
 
 // Session is one active session (family head) for display.
