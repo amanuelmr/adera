@@ -4701,7 +4701,7 @@ export interface components {
             data?: components["schemas"]["ErasureRequest"][];
         };
         PersonalDataExport: {
-            /** @example 1 */
+            /** @example 2 */
             schema_version: string;
             /** Format: date-time */
             generated_at: string;
@@ -4730,10 +4730,24 @@ export interface components {
             review_criterion_scores?: {
                 [key: string]: unknown;
             }[];
+            /** @description Each with url while the photo is in public view. */
             review_media_metadata?: {
                 [key: string]: unknown;
             }[];
+            /** @description Each with download_url, a private link to the file valid for an hour. */
             review_evidence_metadata?: {
+                [key: string]: unknown;
+            }[];
+            /** @description Registered installs (never the push token). */
+            devices?: {
+                [key: string]: unknown;
+            }[];
+            /** @description Which signals were recorded per review (network_recorded, device_recorded), and when. The hashes themselves aren't included: they mean nothing without the server key. */
+            fraud_signals?: {
+                [key: string]: unknown;
+            }[];
+            /** @description Decisions about the person's content, claims and account (action, subject, date). */
+            moderation_decisions?: {
                 [key: string]: unknown;
             }[];
             helpful_votes?: {

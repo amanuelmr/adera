@@ -55,7 +55,7 @@ func (s *Service) RunDueErasures(ctx context.Context, limit int) (int, error) {
 			if status != StatusScheduled {
 				return errSkip
 			}
-			if err := eraseAccount(ctx, tx, d.userID, s.privateBucket, s.publicBucket); err != nil {
+			if err := eraseAccount(ctx, tx, d.userID, s.files.PrivateBucket, s.files.PublicBucket); err != nil {
 				return err
 			}
 			if _, err := tx.Exec(ctx, `
@@ -153,7 +153,7 @@ func eraseAccount(ctx context.Context, tx pgx.Tx, userID uuid.UUID, privateBucke
 // PurgeQueuedObjects deletes up to limit queued files from storage and
 // returns how many it deleted. A failure leaves the row for the next run.
 func (s *Service) PurgeQueuedObjects(ctx context.Context, limit int) (int, error) {
-	if s.store == nil {
+	if s.files.Store == nil {
 		return 0, nil
 	}
 	rows, err := s.pool.Query(ctx, `
@@ -179,7 +179,7 @@ func (s *Service) PurgeQueuedObjects(ctx context.Context, limit int) (int, error
 
 	deleted := 0
 	for _, o := range objects {
-		if err := s.store.Remove(ctx, o.bucket, o.key); err != nil {
+		if err := s.files.Store.Remove(ctx, o.bucket, o.key); err != nil {
 			slog.ErrorContext(ctx, "deleting stored file", "bucket", o.bucket, "key", o.key, "error", err)
 			if _, err := s.pool.Exec(ctx, `
 				UPDATE pending_object_deletions SET attempts = attempts + 1

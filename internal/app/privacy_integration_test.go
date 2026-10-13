@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/adera-platform/backend/internal/media"
+	"github.com/adera-platform/backend/internal/platform/config"
 	"github.com/adera-platform/backend/internal/privacy"
 )
 
@@ -29,7 +30,7 @@ func TestPrivacyExport(t *testing.T) {
 	status, res := a.do("GET", "/api/v1/users/me/data-export", nil, user.Access)
 	require.Equal(t, http.StatusOK, status, "%v", res)
 	export := data(res)
-	assert.Equal(t, "1", export["schema_version"])
+	assert.Equal(t, "2", export["schema_version"])
 	profile := export["profile"].(map[string]any)
 	assert.Equal(t, user.ID, profile["id"])
 	assert.Equal(t, user.Email, profile["email"])
@@ -45,6 +46,63 @@ func TestPrivacyExport(t *testing.T) {
 	}
 }
 
+// The export covers what the platform records about someone, including the
+// things they didn't type: devices, fraud signals, moderation decisions about
+// their content, and their files.
+func TestPrivacyExportCoversRecordedData(t *testing.T) {
+	a := newTestAPIWith(t, func(c *config.Config) {
+		c.SignalHashKey = "export-test-signal-key-at-least-32-bytes"
+	})
+	ctx := context.Background()
+	mod := a.register("export-mod")
+	a.grantRoles(&mod, "moderator")
+	user := a.register("export-user")
+	target := a.createTarget(mod, "Export Coverage Cafe", catRestaurantID, "cafe")
+	review := a.reviewFrom(user, target, "196.188.4.5", "4b0c3c8e-56a8-4b77-9d0e-6a3c1f2b9e10")
+	photo, _ := a.uploadPhoto(user, review)
+	status, res := a.do("POST", "/api/v1/reviews/"+review+"/evidence",
+		map[string]any{"kind": "receipt", "content_type": "image/jpeg"}, user.Access)
+	require.Equal(t, http.StatusCreated, status, "%v", res)
+	evidenceID := data(res)["upload_id"].(string)
+	receipt := exifJPEG(t)
+	require.NoError(t, a.store.Put(ctx, a.cfg.StoragePrivateBucket, data(res)["upload"].(map[string]any)["key"].(string),
+		bytes.NewReader(receipt), int64(len(receipt)), "image/jpeg"))
+	status, _ = a.do("POST", "/api/v1/evidence/"+evidenceID+"/finalize", nil, user.Access)
+	require.Equal(t, http.StatusOK, status)
+	a.registerPush(user, pushToken("export"))
+	status, _ = a.do("POST", "/api/v1/moderation/reviews/"+review+"/decision",
+		map[string]any{"action": "under_review", "note": "internal: checking the receipt"}, mod.Access)
+	require.Equal(t, http.StatusOK, status)
+
+	status, res = a.do("GET", "/api/v1/users/me/data-export", nil, user.Access)
+	require.Equal(t, http.StatusOK, status, "%v", res)
+	export := data(res)
+	assert.Equal(t, "2", export["schema_version"])
+
+	devices := export["devices"].([]any)
+	require.Len(t, devices, 1)
+	assert.Equal(t, "android", devices[0].(map[string]any)["platform"])
+	assert.NotContains(t, devices[0], "token", "the push token is a send credential")
+
+	signals := export["fraud_signals"].([]any)
+	require.Len(t, signals, 1)
+	assert.Equal(t, true, signals[0].(map[string]any)["network_recorded"])
+	assert.Equal(t, true, signals[0].(map[string]any)["device_recorded"])
+
+	decisions := export["moderation_decisions"].([]any)
+	require.Len(t, decisions, 1)
+	assert.Equal(t, "review_under_review", decisions[0].(map[string]any)["action"])
+	assert.NotContains(t, decisions[0], "note", "moderators' notes stay internal")
+	assert.NotContains(t, decisions[0], "actor_id")
+
+	media := export["review_media_metadata"].([]any)
+	require.Len(t, media, 1)
+	assert.Equal(t, a.cfg.StoragePublicBaseURL+"/"+photo, media[0].(map[string]any)["url"])
+	evidence := export["review_evidence_metadata"].([]any)
+	require.Len(t, evidence, 1)
+	assert.Contains(t, evidence[0].(map[string]any)["download_url"], "signed=1")
+}
+
 func (a *testAPI) login(u *testUser) int {
 	a.t.Helper()
 	status, res := a.do("POST", "/api/v1/auth/login", map[string]any{"identifier": u.Email, "password": "password123"}, "")
@@ -58,7 +116,7 @@ func (a *testAPI) login(u *testUser) int {
 func TestAccountErasure(t *testing.T) {
 	a := newTestAPI(t)
 	ctx := context.Background()
-	svc := privacy.NewService(a.pool, nil, a.store, a.cfg.StoragePrivateBucket, a.cfg.StoragePublicBucket)
+	svc := privacy.NewService(a.pool, nil, privacy.Files{Store: a.store, PrivateBucket: a.cfg.StoragePrivateBucket, PublicBucket: a.cfg.StoragePublicBucket, PublicBaseURL: a.cfg.StoragePublicBaseURL})
 	admin := a.register("erasure-admin")
 	a.grantRoles(&admin, "admin")
 	user := a.register("erasure-user")
@@ -203,7 +261,7 @@ func TestAccountErasure(t *testing.T) {
 func TestErasureFindsWithheldPhotos(t *testing.T) {
 	a := newTestAPI(t)
 	ctx := context.Background()
-	svc := privacy.NewService(a.pool, nil, a.store, a.cfg.StoragePrivateBucket, a.cfg.StoragePublicBucket)
+	svc := privacy.NewService(a.pool, nil, privacy.Files{Store: a.store, PrivateBucket: a.cfg.StoragePrivateBucket, PublicBucket: a.cfg.StoragePublicBucket, PublicBaseURL: a.cfg.StoragePublicBaseURL})
 	mod := a.register("withheld-mod")
 	a.grantRoles(&mod, "moderator")
 	user := a.register("withheld-user")

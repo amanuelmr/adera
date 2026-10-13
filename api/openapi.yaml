@@ -2712,7 +2712,7 @@ components:
       type: object
       required: [schema_version, generated_at, profile]
       properties:
-        schema_version: {type: string, example: "1"}
+        schema_version: {type: string, example: "2"}
         generated_at: {type: string, format: date-time}
         profile: {type: object, additionalProperties: true}
         roles: {type: array, items: {type: object, additionalProperties: true}}
@@ -2723,8 +2723,11 @@ components:
         target_edit_suggestions: {type: array, items: {type: object, additionalProperties: true}}
         reviews: {type: array, items: {$ref: '#/components/schemas/Review'}}
         review_criterion_scores: {type: array, items: {type: object, additionalProperties: true}}
-        review_media_metadata: {type: array, items: {type: object, additionalProperties: true}}
-        review_evidence_metadata: {type: array, items: {type: object, additionalProperties: true}}
+        review_media_metadata: {type: array, items: {type: object, additionalProperties: true}, description: Each with url while the photo is in public view.}
+        review_evidence_metadata: {type: array, items: {type: object, additionalProperties: true}, description: "Each with download_url, a private link to the file valid for an hour."}
+        devices: {type: array, items: {type: object, additionalProperties: true}, description: Registered installs (never the push token).}
+        fraud_signals: {type: array, items: {type: object, additionalProperties: true}, description: "Which signals were recorded per review (network_recorded, device_recorded), and when. The hashes themselves aren't included: they mean nothing without the server key."}
+        moderation_decisions: {type: array, items: {type: object, additionalProperties: true}, description: "Decisions about the person's content, claims and account (action, subject, date)."}
         helpful_votes: {type: array, items: {type: object, additionalProperties: true}}
         reports: {type: array, items: {$ref: '#/components/schemas/Report'}}
         business_claims: {type: array, items: {type: object, additionalProperties: true}}

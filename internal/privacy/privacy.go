@@ -75,6 +75,9 @@ type DataExport struct {
 	CriterionScores       json.RawMessage `json:"review_criterion_scores"`
 	ReviewMedia           json.RawMessage `json:"review_media_metadata"`
 	ReviewEvidence        json.RawMessage `json:"review_evidence_metadata"`
+	Devices               json.RawMessage `json:"devices"`
+	FraudSignals          json.RawMessage `json:"fraud_signals"`
+	ModerationDecisions   json.RawMessage `json:"moderation_decisions"`
 	HelpfulVotes          json.RawMessage `json:"helpful_votes"`
 	Reports               json.RawMessage `json:"reports"`
 	BusinessClaims        json.RawMessage `json:"business_claims"`
@@ -87,17 +90,20 @@ type DataExport struct {
 type Service struct {
 	pool          *pgxpool.Pool
 	notifications *notifications.Service
-	store         storage.Store
-	privateBucket string
-	publicBucket  string
+	files         Files
 }
 
-// NewService builds the privacy service. store may be nil when object
-// storage is off; queued file deletions then wait until it is on.
-func NewService(pool *pgxpool.Pool, notificationService *notifications.Service,
-	store storage.Store, privateBucket, publicBucket string) *Service {
-	return &Service{pool: pool, notifications: notificationService,
-		store: store, privateBucket: privateBucket, publicBucket: publicBucket}
+// Files is where users' stored files live. Store is nil when object storage
+// is off; queued deletions then wait until it is on.
+type Files struct {
+	Store         storage.Store
+	PrivateBucket string
+	PublicBucket  string
+	PublicBaseURL string
+}
+
+func NewService(pool *pgxpool.Pool, notificationService *notifications.Service, files Files) *Service {
+	return &Service{pool: pool, notifications: notificationService, files: files}
 }
 
 const requestColumns = `id, user_id, status, reason, decision_note, reviewed_by,
@@ -316,9 +322,9 @@ func (s *Service) ListForAdmin(ctx context.Context, status string, cursor *web.C
 	return items, nil, nil
 }
 
-func jsonValue(ctx context.Context, tx pgx.Tx, query string, userID uuid.UUID) (json.RawMessage, error) {
+func jsonValue(ctx context.Context, tx pgx.Tx, query string, args ...any) (json.RawMessage, error) {
 	var raw []byte
-	if err := tx.QueryRow(ctx, query, userID).Scan(&raw); err != nil {
+	if err := tx.QueryRow(ctx, query, args...).Scan(&raw); err != nil {
 		return nil, err
 	}
 	return json.RawMessage(raw), nil
@@ -333,78 +339,155 @@ func (s *Service) Export(ctx context.Context, userID uuid.UUID) (DataExport, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	out := DataExport{SchemaVersion: "1", GeneratedAt: time.Now().UTC()}
+	// Version 2 added devices, fraud_signals, moderation_decisions and the
+	// file links on photos and evidence.
+	out := DataExport{SchemaVersion: "2", GeneratedAt: time.Now().UTC()}
 	sections := []struct {
 		name  string
 		dest  *json.RawMessage
 		query string
+		args  []any
 	}{
 		{"profile", &out.Profile, `SELECT jsonb_build_object(
 			'id', id, 'display_name', display_name, 'email', email, 'phone', phone,
 			'status', status, 'email_verified_at', email_verified_at,
 			'phone_verified_at', phone_verified_at, 'preferred_language', preferred_language,
-			'created_at', created_at, 'updated_at', updated_at) FROM users WHERE id = $1`},
+			'created_at', created_at, 'updated_at', updated_at) FROM users WHERE id = $1`, nil},
 		{"roles", &out.Roles, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.role), '[]'::jsonb)
-			FROM (SELECT role, granted_at FROM user_roles WHERE user_id = $1) x`},
+			FROM (SELECT role, granted_at FROM user_roles WHERE user_id = $1) x`, nil},
 		{"sessions", &out.Sessions, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
 			FROM (SELECT id, family_id, device_info, created_at, expires_at, last_used_at,
-				revoked_at, revoked_reason FROM auth_sessions WHERE user_id = $1) x`},
+				revoked_at, revoked_reason FROM auth_sessions WHERE user_id = $1) x`, nil},
 		{"businesses", &out.Businesses, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
 			FROM (SELECT id, name, slug, description, verification_status, status, created_at, updated_at
-				FROM businesses WHERE created_by = $1) x`},
+				FROM businesses WHERE created_by = $1) x`, nil},
 		{"business memberships", &out.BusinessMemberships, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.granted_at), '[]'::jsonb)
-			FROM (SELECT business_id, role, granted_at FROM business_members WHERE user_id = $1) x`},
+			FROM (SELECT business_id, role, granted_at FROM business_members WHERE user_id = $1) x`, nil},
 		{"targets", &out.Targets, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
 			FROM (SELECT id, target_type, category_id, business_id, name, slug, description, city_id,
 				area_id, address_text, latitude, longitude, online_only, phone, website, social_links,
 				metadata, verification_status, moderation_status, merged_into_id, created_at, updated_at
-				FROM review_targets WHERE created_by = $1) x`},
+				FROM review_targets WHERE created_by = $1) x`, nil},
 		{"target edit suggestions", &out.TargetEditSuggestions, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
 			FROM (SELECT id, target_id, changes, note, status, reviewed_at, created_at
-				FROM target_edit_suggestions WHERE user_id = $1) x`},
+				FROM target_edit_suggestions WHERE user_id = $1) x`, nil},
 		{"reviews", &out.Reviews, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
-			FROM (SELECT * FROM reviews WHERE user_id = $1) x`},
+			FROM (SELECT * FROM reviews WHERE user_id = $1) x`, nil},
 		{"criterion scores", &out.CriterionScores, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.review_id, x.code), '[]'::jsonb)
 			FROM (SELECT s.review_id, c.code, s.score FROM review_criterion_scores s
 				JOIN reviews r ON r.id = s.review_id JOIN category_criteria c ON c.id = s.criterion_id
-				WHERE r.user_id = $1) x`},
+				WHERE r.user_id = $1) x`, nil},
+		// A photo in public view gets its public link; one withheld with its
+		// review, or never finished, has none.
 		{"review media", &out.ReviewMedia, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
-			FROM (SELECT m.id, m.review_id, m.content_type, m.size_bytes, m.status, m.created_at
-				FROM review_media m JOIN reviews r ON r.id = m.review_id WHERE r.user_id = $1) x`},
-		{"review evidence", &out.ReviewEvidence, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
-			FROM (SELECT e.id, e.review_id, e.kind, e.content_type, e.size_bytes, e.status,
-				e.reviewed_at, e.note, e.created_at FROM review_evidence e
-				JOIN reviews r ON r.id = e.review_id WHERE r.user_id = $1) x`},
+			FROM (SELECT m.id, m.review_id, m.content_type, m.size_bytes, m.status, m.created_at,
+				CASE WHEN m.status = 'ready' AND NOT m.withheld AND $2 <> '' THEN $2 || '/' || m.object_key END AS url
+				FROM review_media m JOIN reviews r ON r.id = m.review_id WHERE r.user_id = $1) x`,
+			[]any{strings.TrimRight(s.files.PublicBaseURL, "/")}},
+		{"devices", &out.Devices, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
+			FROM (SELECT id, platform, app_version, created_at, last_seen_at
+				FROM device_tokens WHERE user_id = $1) x`, nil},
+		// The hashes themselves mean nothing without the server key; what
+		// was recorded, and when, is what the person can act on.
+		{"fraud signals", &out.FraudSignals, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
+			FROM (SELECT s.review_id, s.created_at,
+				s.network_hash IS NOT NULL AS network_recorded, s.install_hash IS NOT NULL AS device_recorded
+				FROM review_signals s JOIN reviews r ON r.id = s.review_id WHERE r.user_id = $1) x`, nil},
+		// Decisions about the person's own content and claims; who decided,
+		// and moderators' notes, are internal.
+		{"moderation decisions", &out.ModerationDecisions, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
+			FROM (SELECT a.subject_type, a.subject_id, a.action, a.created_at FROM moderation_actions a
+				WHERE a.action <> 'note' AND (
+					(a.subject_type = 'review' AND a.subject_id IN (SELECT id FROM reviews WHERE user_id = $1))
+					OR (a.subject_type = 'evidence' AND a.subject_id IN (
+						SELECT e.id FROM review_evidence e JOIN reviews r ON r.id = e.review_id WHERE r.user_id = $1))
+					OR (a.subject_type = 'claim' AND a.subject_id IN (SELECT id FROM business_claims WHERE user_id = $1))
+					OR (a.subject_type = 'user' AND a.subject_id = $1))) x`, nil},
 		{"helpful votes", &out.HelpfulVotes, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
-			FROM (SELECT review_id, created_at FROM helpful_votes WHERE user_id = $1) x`},
+			FROM (SELECT review_id, created_at FROM helpful_votes WHERE user_id = $1) x`, nil},
 		{"reports", &out.Reports, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
 			FROM (SELECT id, review_id, target_id, reason, details, status, resolved_at,
-				resolution_note, created_at FROM reports WHERE reporter_id = $1) x`},
+				resolution_note, created_at FROM reports WHERE reporter_id = $1) x`, nil},
 		{"business claims", &out.BusinessClaims, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
 			FROM (SELECT id, business_id, method, (evidence_object_key <> '') AS evidence_attached,
-				message, status, decided_at, decision_note, created_at FROM business_claims WHERE user_id = $1) x`},
+				message, status, decided_at, decision_note, created_at FROM business_claims WHERE user_id = $1) x`, nil},
 		{"business responses", &out.BusinessResponses, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
 			FROM (SELECT id, review_id, business_id, body, created_at, updated_at
-				FROM business_responses WHERE author_user_id = $1) x`},
+				FROM business_responses WHERE author_user_id = $1) x`, nil},
 		{"business response edits", &out.BusinessResponseEdits, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.edited_at), '[]'::jsonb)
 			FROM (SELECT id, response_id, previous_body, edited_at
-				FROM business_response_edits WHERE edited_by = $1) x`},
+				FROM business_response_edits WHERE edited_by = $1) x`, nil},
 		{"notifications", &out.Notifications, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
 			FROM (SELECT id, event_type, subject_type, subject_id, data, read_at, created_at
-				FROM notifications WHERE user_id = $1) x`},
+				FROM notifications WHERE user_id = $1) x`, nil},
 		{"erasure requests", &out.ErasureRequests, `SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.created_at), '[]'::jsonb)
 			FROM (SELECT id, status, reason, decision_note, reviewed_at, decided_at, created_at, updated_at
-				FROM data_erasure_requests WHERE user_id = $1) x`},
+				FROM data_erasure_requests WHERE user_id = $1) x`, nil},
 	}
 	for _, section := range sections {
-		value, err := jsonValue(ctx, tx, section.query, userID)
+		value, err := jsonValue(ctx, tx, section.query, append([]any{userID}, section.args...)...)
 		if err != nil {
 			return DataExport{}, fmt.Errorf("exporting %s: %w", section.name, err)
 		}
 		*section.dest = value
 	}
+	evidence, err := s.exportEvidence(ctx, tx, userID)
+	if err != nil {
+		return DataExport{}, fmt.Errorf("exporting review evidence: %w", err)
+	}
+	if out.ReviewEvidence, err = json.Marshal(evidence); err != nil {
+		return DataExport{}, fmt.Errorf("encoding review evidence: %w", err)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return DataExport{}, fmt.Errorf("committing data export snapshot: %w", err)
 	}
 	return out, nil
+}
+
+// ExportLinkTTL is how long the download links in an export work.
+const ExportLinkTTL = time.Hour
+
+type evidenceExport struct {
+	ID          uuid.UUID  `json:"id"`
+	ReviewID    uuid.UUID  `json:"review_id"`
+	Kind        string     `json:"kind"`
+	ContentType string     `json:"content_type"`
+	SizeBytes   int64      `json:"size_bytes"`
+	Status      string     `json:"status"`
+	ReviewedAt  *time.Time `json:"reviewed_at"`
+	Note        string     `json:"note"`
+	CreatedAt   time.Time  `json:"created_at"`
+	// DownloadURL is a private link to the person's own file, valid for
+	// ExportLinkTTL. Absent while storage is off or the upload unfinished.
+	DownloadURL string `json:"download_url,omitempty"`
+}
+
+func (s *Service) exportEvidence(ctx context.Context, tx pgx.Tx, userID uuid.UUID) ([]evidenceExport, error) {
+	rows, err := tx.Query(ctx, `
+		SELECT e.id, e.review_id, e.kind, e.content_type, e.size_bytes, e.status,
+			e.reviewed_at, e.note, e.created_at, e.object_key
+		FROM review_evidence e JOIN reviews r ON r.id = e.review_id
+		WHERE r.user_id = $1 ORDER BY e.created_at`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []evidenceExport{}
+	for rows.Next() {
+		var e evidenceExport
+		var key string
+		if err := rows.Scan(&e.ID, &e.ReviewID, &e.Kind, &e.ContentType, &e.SizeBytes, &e.Status,
+			&e.ReviewedAt, &e.Note, &e.CreatedAt, &key); err != nil {
+			return nil, err
+		}
+		if s.files.Store != nil && e.Status != "staged" {
+			url, err := s.files.Store.PresignGet(ctx, s.files.PrivateBucket, key, ExportLinkTTL)
+			if err != nil {
+				return nil, fmt.Errorf("signing evidence link: %w", err)
+			}
+			e.DownloadURL = url
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
 }

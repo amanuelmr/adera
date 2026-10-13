@@ -256,7 +256,7 @@ func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 		slog.Warn("SIGNAL_HASH_KEY not set; review fraud signals will not be recorded")
 	}
 	go purgeReviewSignals(ctx, reviews.NewRepo(pool, cfg.StoragePublicBaseURL, nil))
-	go runErasures(ctx, privacy.NewService(pool, notificationSvc, store, cfg.StoragePrivateBucket, cfg.StoragePublicBucket))
+	go runErasures(ctx, privacy.NewService(pool, notificationSvc, app.PrivacyFiles(cfg, store)))
 	if store != nil {
 		go syncPhotoVisibility(ctx, media.NewService(pool, store, nil, cfg.StoragePrivateBucket, cfg.StoragePublicBucket))
 	}
