@@ -75,7 +75,15 @@
 ## 7. Ethiopian Legal Risk Register — **ALL ITEMS NEED PROFESSIONAL LEGAL REVIEW**
 
 ### 7.1 Data protection — Proclamation No. 1321/2024 (in force)
-To scope with counsel: ECA registration and whether a DPO is required; lawful basis/consent for reviewer accounts; data-subject rights endpoints (access, correction, deletion — account deactivation/deletion is implemented, retention policy documented); DPIA for review/moderation processing; **72-hour breach notification**; cross-border transfer restrictions (matters if hosting outside Ethiopia); retention schedules; processor contracts (cloud, SMS gateway).
+To scope with counsel: ECA registration and whether a DPO is required; DPIA for review/moderation processing; cross-border transfer authorization (data is hosted in Frankfurt and push goes through Google Firebase); processor contracts (Render, Neon, email provider, Firebase); and whether the erasure scope below (reviews kept, anonymised) is acceptable.
+
+Implemented, for counsel to review rather than build:
+- **Privacy notice** at `/privacy` (English and Amharic), describing actual processing, providers and locations; consent to it is recorded per account with its version and time.
+- **Access**: `GET /users/me/data-export` and "Download my data" in the app, including devices, fraud-signal records, moderation decisions and file links.
+- **Correction**: profile editing and review editing or removal.
+- **Erasure**: self-service, seven-day grace period, then personal data and files deleted and reviews kept as by a former member (`docs/moderation-policy.md`, "Retention & erasure").
+- **Retention**: fraud signals 90 days; photos leave public storage when their review leaves public view.
+- **Breach response**: `docs/incident-response.md`, built around the 72-hour notification.
 
 ### 7.2 Defamation — Computer Crime Proclamation No. 958/2016
 Reviews are by nature negative statements about businesses. Art. 13 criminalizes digital defamation, and analyses note criminal liability for providers who fail to remove illegal third-party content after notice. Design consequence (implemented): notice-and-takedown workflow via reports, immutable audit trail of moderation decisions, "unsupported serious accusation" report reason, hide-without-delete moderation states. Do not assume any intermediary safe harbor exists.

@@ -92,6 +92,12 @@ In the service's **Environment** tab:
 
 Changing any of these triggers a redeploy.
 
+### Optional: privacy contact
+
+`PRIVACY_CONTACT_EMAIL` puts an address for data requests on `/privacy`.
+Without it, the page points people to the app's own Download my data and
+Delete account. If a breach happens, follow `docs/incident-response.md`.
+
 ### Optional: email, push, and the version gate
 
 These are declared in `render.yaml` but left empty; each feature stays off
