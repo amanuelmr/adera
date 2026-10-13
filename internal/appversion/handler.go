@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/adera-platform/backend/internal/platform/web"
+	"github.com/adera-platform/backend/internal/users"
 )
 
 // Handler serves the client version gate.
@@ -29,6 +30,9 @@ type Response struct {
 	StoreURL         string `json:"store_url,omitempty"`
 	UpdateRequired   *bool  `json:"update_required,omitempty"`
 	UpdateAvailable  *bool  `json:"update_available,omitempty"`
+	// PrivacyNoticeVersion is the current privacy notice, which registration
+	// must accept. Here because the app fetches this before anyone signs in.
+	PrivacyNoticeVersion string `json:"privacy_notice_version"`
 }
 
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +53,8 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 		MinimumSupported: gate.MinimumSupported,
 		Latest:           gate.Latest,
 		StoreURL:         gate.StoreURL,
+
+		PrivacyNoticeVersion: users.PrivacyNoticeVersion,
 	}
 
 	if current := q.Get("version"); current != "" {

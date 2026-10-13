@@ -16,6 +16,8 @@ export type RegisterInput = {
   phone?: string;
   password: string;
   preferredLanguage?: components['schemas']['Language'];
+  // The privacy notice version the person was shown and accepted.
+  privacyNoticeVersion: string;
 };
 
 type AuthStatus = 'loading' | 'signedIn' | 'signedOut';
@@ -81,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phone: input.phone,
         password: input.password,
         preferred_language: input.preferredLanguage,
+        privacy_notice_version: input.privacyNoticeVersion,
       },
     });
     const { data } = unwrap(result);

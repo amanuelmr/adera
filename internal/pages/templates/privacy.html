@@ -1,0 +1,14 @@
+{{define "content"}}
+<h1>{{.T "privacy.title"}}</h1>
+<p class="lead">{{.T "privacy.intro"}}</p>
+<p>{{.T "privacy.updated" "date" .Updated}}</p>
+{{range .Sections}}
+<section>
+  <h2>{{.Title}}</h2>
+  {{range .Paragraphs}}<p>{{.}}</p>{{end}}
+</section>
+{{end}}
+<section>
+  {{if .Contact}}<p>{{.T "privacy.contact" "email" .Contact}}</p>{{else}}<p>{{.T "privacy.contactInApp"}}</p>{{end}}
+</section>
+{{end}}

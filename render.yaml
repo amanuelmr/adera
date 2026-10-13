@@ -46,6 +46,9 @@ services:
       # Bearer token for scraping /metrics; without it /metrics isn't served.
       - key: METRICS_TOKEN
         generateValue: true
+      # Shown on /privacy for data requests; optional.
+      - key: PRIVACY_CONTACT_EMAIL
+        sync: false
       # Render sits behind a proxy, so the TCP peer is the proxy and every
       # caller would share one rate-limit bucket. Set this once it has been
       # checked against GET /api/v1/admin/request-info (DEPLOY.md step 7).

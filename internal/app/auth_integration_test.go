@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/adera-platform/backend/internal/users"
 )
 
 func TestAuthLifecycle(t *testing.T) {
@@ -173,6 +175,8 @@ func TestRegistrationValidation(t *testing.T) {
 		{"short password", map[string]any{"display_name": "X Y", "email": "x@example.com", "password": "short"}, http.StatusUnprocessableEntity},
 		{"bad email", map[string]any{"display_name": "X Y", "email": "nope", "password": "password123"}, http.StatusUnprocessableEntity},
 		{"bad phone", map[string]any{"display_name": "X Y", "phone": "12", "password": "password123"}, http.StatusUnprocessableEntity},
+		{"privacy notice not accepted", map[string]any{"display_name": "X Y", "email": "x3@example.com", "password": "password123"}, http.StatusUnprocessableEntity},
+		{"outdated privacy notice", map[string]any{"display_name": "X Y", "email": "x4@example.com", "password": "password123", "privacy_notice_version": "2020-01-01"}, http.StatusUnprocessableEntity},
 		{"unknown field rejected", map[string]any{"display_name": "X Y", "email": "x2@example.com", "password": "password123", "role": "admin"}, http.StatusBadRequest},
 	}
 	for _, tc := range cases {
@@ -183,6 +187,7 @@ func TestRegistrationValidation(t *testing.T) {
 	// Ethiopian phone registration normalizes to E.164.
 	status, res := a.do("POST", "/api/v1/auth/register", map[string]any{
 		"display_name": "Phone User", "phone": "0911 22 33 44", "password": "password123",
+		"privacy_notice_version": users.PrivacyNoticeVersion,
 	}, "")
 	require.Equal(t, http.StatusCreated, status, "%v", res)
 	access := data(res)["tokens"].(map[string]any)["access_token"].(string)
@@ -194,6 +199,7 @@ func TestRegistrationValidation(t *testing.T) {
 	u := a.register("dup")
 	status, res = a.do("POST", "/api/v1/auth/register", map[string]any{
 		"display_name": "Dup", "email": u.Email, "password": "password123",
+		"privacy_notice_version": users.PrivacyNoticeVersion,
 	}, "")
 	assert.Equal(t, http.StatusConflict, status)
 	assert.NotContains(t, res["error"].(map[string]any)["message"], "email exists")

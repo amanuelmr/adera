@@ -241,7 +241,7 @@ type urlSet struct {
 func (h *Handler) sitemap(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	set := urlSet{XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9"}
-	set.URLs = append(set.URLs, sitemapURL{Loc: h.absURL("/")}, sitemapURL{Loc: h.absURL("/trust")})
+	set.URLs = append(set.URLs, sitemapURL{Loc: h.absURL("/")}, sitemapURL{Loc: h.absURL("/trust")}, sitemapURL{Loc: h.absURL("/privacy")})
 
 	cats, err := h.deps.Categories.List(ctx, false)
 	if err != nil {
@@ -278,7 +278,7 @@ func (h *Handler) sitemap(w http.ResponseWriter, r *http.Request) {
 // banner-dismiss redirect aren't pages.
 func (h *Handler) robots(w http.ResponseWriter, _ *http.Request) {
 	var b strings.Builder
-	b.WriteString("User-agent: *\nAllow: /$\nAllow: /c/\nAllow: /t/\nAllow: /r/\nAllow: /trust\n" +
+	b.WriteString("User-agent: *\nAllow: /$\nAllow: /c/\nAllow: /t/\nAllow: /r/\nAllow: /trust\nAllow: /privacy\n" +
 		"Disallow: /api/\nDisallow: /banner/\nDisallow: /docs\n")
 	if h.cfg.BaseURL != "" {
 		b.WriteString("\nSitemap: " + h.absURL("/sitemap.xml") + "\n")

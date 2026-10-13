@@ -97,6 +97,9 @@ type RegisterInput struct {
 	Phone       string // any accepted format; normalized here
 	Password    string
 	Language    string
+	// PrivacyNoticeVersion is the privacy notice the person accepted; it
+	// must be the current one.
+	PrivacyNoticeVersion string
 }
 
 // Register creates the account, sends a verification code when a provider is
@@ -129,11 +132,16 @@ func (s *Service) Register(ctx context.Context, in RegisterInput, deviceInfo str
 	if !users.ValidLanguage(in.Language) {
 		return users.User{}, TokenPair{}, web.ErrValidation("invalid registration").WithDetail("preferred_language", "unsupported language")
 	}
+	if in.PrivacyNoticeVersion != users.PrivacyNoticeVersion {
+		return users.User{}, TokenPair{}, web.ErrValidation("invalid registration").
+			WithDetail("privacy_notice_version", "accept the current privacy notice ("+users.PrivacyNoticeVersion+")")
+	}
 
 	hash, err := s.hasher.Hash(in.Password)
 	if err != nil {
 		return users.User{}, TokenPair{}, fmt.Errorf("hashing password: %w", err)
 	}
+	accepted := time.Now().UTC()
 	u := users.User{
 		ID:                uuid.New(),
 		DisplayName:       in.DisplayName,
@@ -142,6 +150,9 @@ func (s *Service) Register(ctx context.Context, in RegisterInput, deviceInfo str
 		PasswordHash:      hash,
 		Status:            users.StatusActive,
 		PreferredLanguage: in.Language,
+
+		PrivacyNoticeVersion: in.PrivacyNoticeVersion,
+		PrivacyAcceptedAt:    &accepted,
 	}
 	if err := s.usersRepo.Create(ctx, u); err != nil {
 		if errors.Is(err, users.ErrDuplicate) {

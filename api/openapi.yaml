@@ -78,13 +78,17 @@ paths:
           application/json:
             schema:
               type: object
-              required: [display_name, password]
+              required: [display_name, password, privacy_notice_version]
               properties:
                 display_name: {type: string, minLength: 2, maxLength: 80, example: "Abebe Kebede"}
                 email: {type: string, format: email, nullable: true}
                 phone: {type: string, nullable: true, example: "0911234567"}
                 password: {type: string, minLength: 8, maxLength: 128}
                 preferred_language: {$ref: '#/components/schemas/Language'}
+                privacy_notice_version:
+                  type: string
+                  example: "2026-10-13"
+                  description: The privacy notice (/privacy) the person was shown and accepted. Must be the current version, or 422.
       responses:
         '201':
           description: Account created and logged in.
@@ -287,6 +291,34 @@ paths:
         '200': {$ref: '#/components/responses/StatusOK'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '429': {$ref: '#/components/responses/RateLimited'}
+
+  /api/v1/users/me/privacy-consent:
+    post:
+      tags: [users, privacy]
+      summary: Accept the current privacy notice
+      description: For accounts that accepted an older notice, or none. The version must be the current one.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version: {type: string, example: "2026-10-13"}
+      responses:
+        '200':
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/DataEnvelope'
+                  - properties:
+                      data: {$ref: '#/components/schemas/Profile'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
 
   /api/v1/users/me:
     get:
@@ -2130,13 +2162,21 @@ components:
         display_name: {type: string}
         email: {type: string}
         phone: {type: string, description: E.164.}
-        status: {type: string, enum: [active, suspended, deactivated]}
+        status: {type: string, enum: [active, suspended, deactivated, erased]}
         email_verified: {type: boolean}
         phone_verified: {type: boolean}
         preferred_language: {$ref: '#/components/schemas/Language'}
         roles: {type: array, items: {type: string}}
         review_count: {type: integer}
         created_at: {type: string, format: date-time}
+        privacy_notice:
+          type: object
+          required: [current_version]
+          description: Ask the user to accept the notice again when accepted_version differs from current_version.
+          properties:
+            accepted_version: {type: string}
+            accepted_at: {type: string, format: date-time}
+            current_version: {type: string}
 
     Category:
       type: object
@@ -2357,6 +2397,8 @@ components:
         store_url: {type: string}
         update_required: {type: boolean, description: "Present only when the caller supplied its own version."}
         update_available: {type: boolean, description: "Present only when the caller supplied its own version."}
+        privacy_notice_version: {type: string, description: "The current privacy notice (/privacy), which registration must accept."}
+      required: [platform, privacy_notice_version]
     VersionGatePage:
       allOf:
         - $ref: '#/components/schemas/DataEnvelope'

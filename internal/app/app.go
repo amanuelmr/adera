@@ -132,6 +132,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 			AndroidStoreURL:      cfg.AndroidStoreURL,
 			AndroidPackage:       cfg.AndroidPackage,
 			AndroidCertSHA256s:   cfg.AndroidCertSHA256s,
+			PrivacyContact:       cfg.PrivacyContactEmail,
 		})
 	if err != nil {
 		panic(err)

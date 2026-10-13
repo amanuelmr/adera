@@ -9,7 +9,8 @@
   },
   "footer": {
     "trust": "How Adera works",
-    "openApp": "Open in the app"
+    "openApp": "Open in the app",
+    "privacy": "Privacy"
   },
   "target": {
     "reviews_one": "{{count}} review",
@@ -139,5 +140,76 @@
     "empty": "No places in this category yet.",
     "more": "More places",
     "backHome": "All categories"
+  },
+  "privacy": {
+    "title": "Privacy notice",
+    "intro": "What Adera collects about you, why, who else sees it, how long it is kept, and how to get a copy or have it erased. It describes what the service actually does today.",
+    "updated": "Last updated {{date}}.",
+    "contact": "Questions or requests about your data: {{email}}.",
+    "contactInApp": "To see or erase your data, use Account in the app: “Download my data” and “Delete account”.",
+    "sections": [
+      {
+        "title": "What we collect",
+        "paragraphs": [
+          "Your account: the display name you choose, your email address or phone number, and your password, which is stored only as a one-way hash.",
+          "What you write: reviews, ratings, the optional details you add (such as the date of your visit, the price you paid, or a link to your post about it), the places you add, reports, and votes.",
+          "Photos you attach to a review. Before a photo is published we re-encode it, which removes its hidden metadata, including the location it was taken.",
+          "Receipts and other proof you submit to verify a review. These are private: only you and our moderators can open them, through links that expire after minutes.",
+          "To keep reviews honest: for each review, a scrambled code made from the network you were on (the first part of your internet address, never the full address) and a random identifier for your copy of the app. They are kept 90 days and seen only by moderators, to spot many reviews coming from one place.",
+          "For signing in and notifications: which device and app version each sign-in came from, and your device's notification token if you allow notifications.",
+          "If you use “Near me”, your approximate location is sent to find nearby places. It is used for that search only and is not stored."
+        ]
+      },
+      {
+        "title": "Why we use it",
+        "paragraphs": [
+          "To run your account and show your reviews; to keep the platform free of fake and abusive reviews; to send you the notifications you asked for, such as a business replying to your review; and to keep the service secure.",
+          "We do not sell your data, show advertising, or use analytics or tracking services."
+        ]
+      },
+      {
+        "title": "What is public",
+        "paragraphs": [
+          "Your display name, your reviews and their details, your photos, and how many reviews you have written are public, on the web and in the app.",
+          "Your email, phone number, account ID, receipts, and the codes kept to prevent fraud are never public."
+        ]
+      },
+      {
+        "title": "Who else handles it",
+        "paragraphs": [
+          "We use a small number of service providers to run Adera: our hosting and database providers (Render and Neon, with servers in Frankfurt, Germany), an email service to send sign-in and verification codes, and Google Firebase to deliver notifications to Android phones. They process data only to provide those services to us.",
+          "This means your data is stored and processed outside Ethiopia, in the European Union."
+        ]
+      },
+      {
+        "title": "How long we keep it",
+        "paragraphs": [
+          "Your account data is kept while you have an account. Fraud-prevention codes are deleted after 90 days.",
+          "Deactivating your account hides nothing and deletes nothing; signing in again reactivates it.",
+          "Deleting your account (erasure) is described below."
+        ]
+      },
+      {
+        "title": "Your rights",
+        "paragraphs": [
+          "See your data: “Download my data” in the app gives you everything we hold about you in a file, including links to your photos and receipts.",
+          "Correct it: you can change your name and edit or remove your reviews at any time.",
+          "Erase it: “Delete account” in the app signs you out everywhere at once and erases your account seven days later. Signing in during those seven days cancels it. Erasure deletes your name, email, phone, password, photos, receipts, notifications and fraud-prevention codes. Your reviews and ratings stay, shown as by a “Former member”, because they describe real experiences other people rely on, and deleting them on request would let a business pressure reviewers into removing criticism. If you want a review gone too, remove it before deleting your account.",
+          "You can also object to how we use your data, or complain to Ethiopia's data protection authority."
+        ]
+      },
+      {
+        "title": "Security",
+        "paragraphs": [
+          "Connections to Adera are encrypted, passwords and codes are stored only as hashes, and receipts are kept in private storage. If a breach puts your data at risk, we will tell you and the authority as the law requires."
+        ]
+      },
+      {
+        "title": "Changes",
+        "paragraphs": [
+          "If we change this notice, we will update the date above, and tell you in the app if the change matters to how your data is used."
+        ]
+      }
+    ]
   }
 }

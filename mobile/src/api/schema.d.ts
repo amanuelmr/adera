@@ -39,6 +39,11 @@ export interface paths {
                         phone?: string | null;
                         password: string;
                         preferred_language?: components["schemas"]["Language"];
+                        /**
+                         * @description The privacy notice (/privacy) the person was shown and accepted. Must be the current version, or 422.
+                         * @example 2026-10-13
+                         */
+                        privacy_notice_version: string;
                     };
                 };
             };
@@ -454,6 +459,56 @@ export interface paths {
                 200: components["responses"]["StatusOK"];
                 422: components["responses"]["ValidationError"];
                 429: components["responses"]["RateLimited"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/privacy-consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept the current privacy notice
+         * @description For accounts that accepted an older notice, or none. The version must be the current one.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @example 2026-10-13 */
+                        version: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Updated profile. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DataEnvelope"] & {
+                            data?: components["schemas"]["Profile"];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                422: components["responses"]["ValidationError"];
             };
         };
         delete?: never;
@@ -4109,7 +4164,7 @@ export interface components {
             /** @description E.164. */
             phone?: string;
             /** @enum {string} */
-            status?: "active" | "suspended" | "deactivated";
+            status?: "active" | "suspended" | "deactivated" | "erased";
             email_verified?: boolean;
             phone_verified?: boolean;
             preferred_language?: components["schemas"]["Language"];
@@ -4117,6 +4172,13 @@ export interface components {
             review_count?: number;
             /** Format: date-time */
             created_at?: string;
+            /** @description Ask the user to accept the notice again when accepted_version differs from current_version. */
+            privacy_notice?: {
+                accepted_version?: string;
+                /** Format: date-time */
+                accepted_at?: string;
+                current_version: string;
+            };
         };
         Category: {
             /** Format: uuid */
@@ -4351,7 +4413,7 @@ export interface components {
         };
         VersionGate: {
             /** @enum {string} */
-            platform?: "android" | "ios";
+            platform: "android" | "ios";
             minimum_supported?: string;
             latest?: string;
             store_url?: string;
@@ -4359,6 +4421,8 @@ export interface components {
             update_required?: boolean;
             /** @description Present only when the caller supplied its own version. */
             update_available?: boolean;
+            /** @description The current privacy notice (/privacy), which registration must accept. */
+            privacy_notice_version: string;
         };
         VersionGatePage: components["schemas"]["DataEnvelope"] & {
             data?: components["schemas"]["VersionGate"];

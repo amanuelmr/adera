@@ -112,6 +112,11 @@ type Config struct {
 	// stops new reviews matching older signals, so set it once per environment.
 	SignalHashKey string
 
+	// Address for privacy and data requests, shown on /privacy
+	// (PRIVACY_CONTACT_EMAIL). Optional: without it the page points to the
+	// app's own export and delete controls.
+	PrivacyContactEmail string
+
 	// Bearer token for scraping /metrics (METRICS_TOKEN). In production the
 	// endpoint isn't served without one; elsewhere it is open.
 	MetricsToken string
@@ -182,9 +187,10 @@ func Load() (Config, error) {
 		AndroidPackage:     getEnv("ANDROID_PACKAGE", "work.amanuel.adera"),
 		AndroidCertSHA256s: splitAndTrim(os.Getenv("ANDROID_CERT_SHA256")),
 
-		CORSAllowedOrigins: splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", defaultCORSOrigins())),
-		SignalHashKey:      os.Getenv("SIGNAL_HASH_KEY"),
-		MetricsToken:       os.Getenv("METRICS_TOKEN"),
+		CORSAllowedOrigins:  splitAndTrim(getEnv("CORS_ALLOWED_ORIGINS", defaultCORSOrigins())),
+		SignalHashKey:       os.Getenv("SIGNAL_HASH_KEY"),
+		MetricsToken:        os.Getenv("METRICS_TOKEN"),
+		PrivacyContactEmail: os.Getenv("PRIVACY_CONTACT_EMAIL"),
 
 		RateLimitEnabled: r.bool("RATE_LIMIT_ENABLED", true),
 
@@ -231,6 +237,11 @@ func (c Config) Validate() error {
 	}
 	if c.SignalHashKey != "" && len(c.SignalHashKey) < 32 {
 		errs = append(errs, errors.New("SIGNAL_HASH_KEY must be at least 32 bytes"))
+	}
+	if c.PrivacyContactEmail != "" {
+		if _, err := mail.ParseAddress(c.PrivacyContactEmail); err != nil {
+			errs = append(errs, errors.New("PRIVACY_CONTACT_EMAIL must be a valid email address"))
+		}
 	}
 	if c.MetricsToken != "" && len(c.MetricsToken) < 32 {
 		errs = append(errs, errors.New("METRICS_TOKEN must be at least 32 bytes"))

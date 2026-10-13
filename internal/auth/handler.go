@@ -71,6 +71,8 @@ type registerRequest struct {
 	Phone             string `json:"phone"`
 	Password          string `json:"password"`
 	PreferredLanguage string `json:"preferred_language"`
+	// The privacy notice version shown to the person, which they accepted.
+	PrivacyNoticeVersion string `json:"privacy_notice_version"`
 }
 
 type authResponse struct {
@@ -94,6 +96,8 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 		Phone:       req.Phone,
 		Password:    req.Password,
 		Language:    req.PreferredLanguage,
+
+		PrivacyNoticeVersion: req.PrivacyNoticeVersion,
 	}, r.UserAgent())
 	if err != nil {
 		web.RespondError(w, r, err)

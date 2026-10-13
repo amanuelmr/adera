@@ -19,6 +19,7 @@ import (
 	"github.com/adera-platform/backend/internal/platform/config"
 	"github.com/adera-platform/backend/internal/platform/storage"
 	"github.com/adera-platform/backend/internal/platform/testdb"
+	"github.com/adera-platform/backend/internal/users"
 )
 
 // captureProvider records OTP codes so tests can complete verification flows.
@@ -147,9 +148,10 @@ func (a *testAPI) register(name string) testUser {
 	userSeqMu.Unlock()
 	email := fmt.Sprintf("%s-%d-%s@example.com", name, n, uuid.New().String()[:8])
 	status, res := a.do("POST", "/api/v1/auth/register", map[string]any{
-		"display_name": "Test " + name,
-		"email":        email,
-		"password":     "password123",
+		"display_name":           "Test " + name,
+		"email":                  email,
+		"password":               "password123",
+		"privacy_notice_version": users.PrivacyNoticeVersion,
 	}, "")
 	require.Equal(a.t, http.StatusCreated, status, "register: %v", res)
 	d := data(res)
