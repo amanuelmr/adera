@@ -24,3 +24,15 @@ export function useUpdateProfile() {
     },
   });
 }
+
+/** Accepts the privacy notice the server currently serves. */
+export function useAcceptPrivacyNotice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (version: string) =>
+      unwrap(await apiClient.POST('/api/v1/users/me/privacy-consent', { body: { version } })).data,
+    onSuccess: (profile) => {
+      queryClient.setQueryData(['users', 'me'], profile);
+    },
+  });
+}

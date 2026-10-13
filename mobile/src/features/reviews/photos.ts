@@ -49,6 +49,9 @@ export async function recoverPendingPhoto(): Promise<string | undefined> {
   return compressAndPersist(pending.assets[0]);
 }
 
+/** Names every photo this module persists, so sign-out can find them all. */
+export const PERSISTED_PHOTO_PREFIX = 'review-photo-';
+
 async function compressAndPersist(asset: ImagePicker.ImagePickerAsset): Promise<string> {
   const context = ImageManipulator.manipulate(asset.uri);
   const resize = downscaleFor(asset.width, asset.height);
@@ -59,7 +62,10 @@ async function compressAndPersist(asset: ImagePicker.ImagePickerAsset): Promise<
   // Moved out of cache into persistent storage: a queued review submission
   // or a saved draft can sit for hours, and expo-image-manipulator's output
   // lives in a cache dir the OS is free to clear at any time.
-  const persisted = new File(Paths.document, `review-photo-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`);
+  const persisted = new File(
+    Paths.document,
+    `${PERSISTED_PHOTO_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+  );
   await new File(result.uri).copy(persisted);
   return persisted.uri;
 }

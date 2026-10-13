@@ -34,7 +34,8 @@
     "yourBusinesses": "Your businesses",
     "locations": "Locations",
     "reportReview": "Report review",
-    "addPlace": "Add a place"
+    "addPlace": "Add a place",
+    "yourData": "Your data and privacy"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -296,7 +297,9 @@
     "joined": "Joined {{date}}",
     "emailVerified": "✓ Email verified",
     "yourReviews": "Your reviews",
-    "noReviews": "You haven't written any reviews yet."
+    "noReviews": "You haven't written any reviews yet.",
+    "privacyPrompt": "Please read Adera's privacy notice, which describes what it does with your data, and accept it.",
+    "privacyAccept": "I accept"
   },
   "sessions": {
     "thisDevice": "This device",
@@ -460,5 +463,22 @@
     "offline": "You're offline — showing what was saved {{when}}.",
     "refreshFailed": "Couldn't refresh — showing what was saved {{when}}.",
     "savedAt": "Saved on {{when}}"
+  },
+  "data": {
+    "noticeTitle": "Privacy notice",
+    "noticeBody": "What Adera collects about you, why, who else handles it, and how long it is kept.",
+    "readNotice": "Read the privacy notice",
+    "exportHeading": "Download my data",
+    "exportBody": "Everything Adera holds about you, in one file you can save or send. Links to your photos and receipts in it work for an hour.",
+    "export": "Download my data",
+    "exportTitle": "Your Adera data",
+    "deleteHeading": "Delete account",
+    "deleteBody": "You will be signed out on every device straight away, and your account is erased 7 days later. Signing in before then cancels it. Your name, email, password, photos and receipts are deleted. Your reviews stay, shown as by a former member; remove any you want gone first.",
+    "delete": "Delete account",
+    "deleteConfirmTitle": "Delete your account?",
+    "deleteConfirmBody": "You will be signed out everywhere now, and the account is erased in 7 days unless you sign in again.",
+    "deleteConfirm": "Delete",
+    "deletedTitle": "Account scheduled for deletion",
+    "deletedBody": "It will be erased on {{date}}. To keep it, sign in again before then."
   }
 }

@@ -46,6 +46,7 @@ export default function AppLayout() {
           <Stack.Screen name="businesses/[id]/targets/[targetId]" options={{ title: '' }} />
           <Stack.Screen name="verify" options={{ title: t('nav.verifyEmail') }} />
           <Stack.Screen name="sessions" options={{ title: t('nav.yourDevices') }} />
+          <Stack.Screen name="your-data" options={{ title: t('nav.yourData') }} />
         </Stack.Protected>
       </Stack>
     </>

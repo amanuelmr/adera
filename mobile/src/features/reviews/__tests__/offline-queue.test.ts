@@ -145,3 +145,18 @@ it("doesn't run, or spend attempts, while offline", async () => {
   expect(mockedCreateReview).not.toHaveBeenCalled();
   expect(queue.getQueueSnapshot()[0].failure).toBeUndefined();
 });
+
+it('clearing the queue drops every job and the photos it held', async () => {
+  const queue = loadQueue();
+  const withPhotos = { photos: [{ uri: 'file:///doc/review-photo-1.jpg' }, { uri: 'file:///doc/review-photo-2.jpg' }] } as never;
+  await queue.enqueueReviewSubmission({ targetId: 't1', idempotencyKey: 'k1', form: withPhotos });
+  await queue.enqueueHelpfulVote('r1', true);
+
+  await queue.clearQueue();
+
+  expect(queue.getQueueSnapshot()).toHaveLength(0);
+  expect(JSON.parse((await AsyncStorage.getItem('adera.offline-queue.v1')) ?? 'null')).toEqual([]);
+  const { deletePersistedPhoto } = require('../photos');
+  expect(deletePersistedPhoto).toHaveBeenCalledWith('file:///doc/review-photo-1.jpg');
+  expect(deletePersistedPhoto).toHaveBeenCalledWith('file:///doc/review-photo-2.jpg');
+});

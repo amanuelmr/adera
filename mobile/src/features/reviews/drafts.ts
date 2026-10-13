@@ -11,8 +11,10 @@ export type ReviewDraft = { form: ReviewFormState; step: number; savedAt: number
 // Old drafts are dropped rather than resurrected weeks later.
 export const DRAFT_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
+export const DRAFT_KEY_PREFIX = 'adera.review-draft.v1:';
+
 function key(userId: string, targetId: string): string {
-  return `adera.review-draft.v1:${userId}:${targetId}`;
+  return `${DRAFT_KEY_PREFIX}${userId}:${targetId}`;
 }
 
 /** Worth keeping: anything the user actually entered. */
