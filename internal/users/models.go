@@ -19,6 +19,9 @@ const (
 	StatusActive      = "active"
 	StatusSuspended   = "suspended"
 	StatusDeactivated = "deactivated"
+	// StatusErased marks a tombstone: the account's personal data is gone
+	// and its reviews show as by a former member.
+	StatusErased = "erased"
 )
 
 // SupportedLanguages are the UI/content language codes the platform accepts.

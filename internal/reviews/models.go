@@ -124,7 +124,10 @@ type Review struct {
 // ListedReview is a review as shown in listings, with social context.
 type ListedReview struct {
 	Review
-	ReviewerName        string     `json:"reviewer_name"`
+	ReviewerName string `json:"reviewer_name"`
+	// ReviewerErased is set when the author erased their account; clients
+	// show "former member" in the reader's language instead of the name.
+	ReviewerErased      bool       `json:"reviewer_erased,omitempty"`
 	ReviewerReviewCount int        `json:"reviewer_review_count"`
 	HelpfulCount        int        `json:"helpful_count"`
 	ViewerVoted         bool       `json:"viewer_voted"`

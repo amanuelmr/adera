@@ -80,7 +80,6 @@ func TestAuthorizationMatrix(t *testing.T) {
 		{"PATCH", "/api/v1/admin/categories/" + someID},
 		{"POST", "/api/v1/admin/targets/" + someID + "/merge"},
 		{"GET", "/api/v1/admin/privacy/erasure-requests"},
-		{"POST", "/api/v1/admin/privacy/erasure-requests/" + someID + "/decision"},
 	}
 	for _, ep := range roleGated {
 		status, _ := a.do(ep.method, ep.path, map[string]any{}, customer.Access)

@@ -234,6 +234,7 @@
     "loadReviewFailed": "ይህን ግምገማ መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
     "loadTargetFailed": "ይህን ቦታ መጫን አልተቻለም። ግንኙነትዎን ያረጋግጡ እና እንደገና ይሞክሩ።",
     "anonymous": "ስም-አልባ",
+    "formerMember": "የቀድሞ አባል",
     "showLess": "ያነሰ አሳይ",
     "readMore": "ተጨማሪ ያንብቡ",
     "ownerResponse": "የባለቤቱ ምላሽ",

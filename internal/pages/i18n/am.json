@@ -33,7 +33,8 @@
     "ratedOutOf5": "ከ5 {{rating}} ተሰጥቷል",
     "reviewOf": "የ{{name}} ግምገማ",
     "seeAll": "የ{{name}} ሁሉንም ግምገማዎች ይመልከቱ",
-    "edited": "ተስተካክሏል"
+    "edited": "ተስተካክሏል",
+    "formerMember": "የቀድሞ አባል"
   },
   "disclosure": {
     "incentive": "ለዚህ ግምገማ {{value}} ተቀብሏል",

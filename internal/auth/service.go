@@ -15,6 +15,7 @@ import (
 	"github.com/adera-platform/backend/internal/platform/database"
 	"github.com/adera-platform/backend/internal/platform/security"
 	"github.com/adera-platform/backend/internal/platform/web"
+	"github.com/adera-platform/backend/internal/privacy"
 	"github.com/adera-platform/backend/internal/users"
 )
 
@@ -197,7 +198,14 @@ func (s *Service) Login(ctx context.Context, identifier, password, deviceInfo st
 			Status: http.StatusForbidden, Code: web.CodeAccountSuspended, Message: "this account is suspended",
 		}
 	case users.StatusDeactivated:
-		if err := s.usersRepo.SetStatus(ctx, u.ID, users.StatusActive); err != nil {
+		// Signing in reactivates the account and cancels a scheduled
+		// erasure: the grace period exists for exactly this.
+		if err := database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, `UPDATE users SET status = 'active' WHERE id = $1`, u.ID); err != nil {
+				return fmt.Errorf("reactivating account: %w", err)
+			}
+			return privacy.CancelOnSignIn(ctx, tx, u.ID)
+		}); err != nil {
 			return users.User{}, TokenPair{}, err
 		}
 		u.Status = users.StatusActive

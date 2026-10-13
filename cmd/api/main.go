@@ -28,6 +28,7 @@ import (
 	"github.com/adera-platform/backend/internal/platform/database"
 	"github.com/adera-platform/backend/internal/platform/logging"
 	"github.com/adera-platform/backend/internal/platform/storage"
+	"github.com/adera-platform/backend/internal/privacy"
 	"github.com/adera-platform/backend/internal/reviews"
 	"github.com/adera-platform/backend/migrations"
 )
@@ -189,6 +190,37 @@ func syncPhotoVisibility(ctx context.Context, svc *media.Service) {
 	}
 }
 
+// runErasures carries out account erasures whose grace period is over, then
+// deletes the files they (and anything else) queued for deletion. Every 15
+// minutes; files wait while storage is off.
+func runErasures(ctx context.Context, svc *privacy.Service) {
+	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
+	for {
+		if n, err := svc.RunDueErasures(ctx, 50); err != nil {
+			slog.Error("running account erasures", "error", err)
+		} else if n > 0 {
+			slog.Info("erased accounts", "count", n)
+		}
+		for {
+			n, err := svc.PurgeQueuedObjects(ctx, 200)
+			if err != nil {
+				slog.Error("deleting queued files", "error", err)
+			} else if n > 0 {
+				slog.Info("deleted queued files", "count", n)
+			}
+			if err != nil || n < 200 {
+				break
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
 func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 	var store storage.Store
 	if cfg.StorageEnabled {
@@ -224,6 +256,7 @@ func serve(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 		slog.Warn("SIGNAL_HASH_KEY not set; review fraud signals will not be recorded")
 	}
 	go purgeReviewSignals(ctx, reviews.NewRepo(pool, cfg.StoragePublicBaseURL, nil))
+	go runErasures(ctx, privacy.NewService(pool, notificationSvc, store, cfg.StoragePrivateBucket, cfg.StoragePublicBucket))
 	if store != nil {
 		go syncPhotoVisibility(ctx, media.NewService(pool, store, nil, cfg.StoragePrivateBucket, cfg.StoragePublicBucket))
 	}

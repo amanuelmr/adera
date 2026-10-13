@@ -33,7 +33,8 @@
     "ratedOutOf5": "Rated {{rating}} out of 5",
     "reviewOf": "Review of {{name}}",
     "seeAll": "See all reviews of {{name}}",
-    "edited": "edited"
+    "edited": "edited",
+    "formerMember": "Former member"
   },
   "disclosure": {
     "incentive": "Received {{value}} for this review",

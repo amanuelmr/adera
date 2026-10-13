@@ -65,7 +65,7 @@ export function OwnerReviewCard({ review, targetId }: { review: ListedReview; ta
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
       <View style={styles.header}>
-        <ThemedText type="smallBold">{review.reviewer_name ?? t('review.anonymous')}</ThemedText>
+        <ThemedText type="smallBold">{review.reviewer_erased ? t('review.formerMember') : (review.reviewer_name ?? t('review.anonymous'))}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary" accessibilityLabel={t('rating.outOfFive', { rating })}>
           {'★'.repeat(rating)}
           {'☆'.repeat(Math.max(0, 5 - rating))}

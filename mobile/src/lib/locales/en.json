@@ -234,6 +234,7 @@
     "loadReviewFailed": "Couldn't load this review. Check your connection and try again.",
     "loadTargetFailed": "Couldn't load this place. Check your connection and try again.",
     "anonymous": "Anonymous",
+    "formerMember": "Former member",
     "showLess": "Show less",
     "readMore": "Read more",
     "ownerResponse": "Owner response",

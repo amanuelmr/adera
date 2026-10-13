@@ -1,5 +1,10 @@
-// Package privacy implements personal-data export and reviewed data-erasure
-// requests. It intentionally does not automate destructive retention choices.
+// Package privacy implements personal-data export and account erasure.
+//
+// Erasure is self-service: a request locks the account at once (signed out
+// everywhere, no notifications) and is carried out ErasureGracePeriod later
+// unless the person signs in again, which cancels it. Carrying it out
+// removes everything that identifies them; their reviews stay, by a former
+// member (docs/moderation-policy.md, "Retention & erasure").
 package privacy
 
 import (
@@ -17,25 +22,28 @@ import (
 
 	"github.com/adera-platform/backend/internal/notifications"
 	"github.com/adera-platform/backend/internal/platform/database"
+	"github.com/adera-platform/backend/internal/platform/storage"
 	"github.com/adera-platform/backend/internal/platform/web"
 )
 
+// Request statuses. New requests are scheduled and end completed or
+// cancelled; pending, in_review, approved and rejected belong to the earlier
+// admin-reviewed workflow and appear only on old requests.
 const (
 	StatusPending   = "pending"
 	StatusInReview  = "in_review"
 	StatusApproved  = "approved"
 	StatusRejected  = "rejected"
 	StatusCancelled = "cancelled"
+	StatusScheduled = "scheduled"
+	StatusCompleted = "completed"
 )
 
-var decisionStatuses = map[string]bool{
-	StatusInReview: true,
-	StatusApproved: true,
-	StatusRejected: true,
-}
+// ErasureGracePeriod is how long a request waits before it is carried out.
+// Signing in during it cancels the request.
+const ErasureGracePeriod = 7 * 24 * time.Hour
 
-// ErasureRequest tracks a data subject's request without claiming that
-// approval has automatically erased retained review or audit data.
+// ErasureRequest is a data subject's request to erase their account.
 type ErasureRequest struct {
 	ID           uuid.UUID  `json:"id"`
 	UserID       uuid.UUID  `json:"user_id"`
@@ -45,6 +53,8 @@ type ErasureRequest struct {
 	ReviewedBy   *uuid.UUID `json:"reviewed_by,omitempty"`
 	ReviewedAt   *time.Time `json:"reviewed_at,omitempty"`
 	DecidedAt    *time.Time `json:"decided_at,omitempty"`
+	ScheduledFor *time.Time `json:"scheduled_for,omitempty"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 }
@@ -77,19 +87,27 @@ type DataExport struct {
 type Service struct {
 	pool          *pgxpool.Pool
 	notifications *notifications.Service
+	store         storage.Store
+	privateBucket string
+	publicBucket  string
 }
 
-func NewService(pool *pgxpool.Pool, notificationService *notifications.Service) *Service {
-	return &Service{pool: pool, notifications: notificationService}
+// NewService builds the privacy service. store may be nil when object
+// storage is off; queued file deletions then wait until it is on.
+func NewService(pool *pgxpool.Pool, notificationService *notifications.Service,
+	store storage.Store, privateBucket, publicBucket string) *Service {
+	return &Service{pool: pool, notifications: notificationService,
+		store: store, privateBucket: privateBucket, publicBucket: publicBucket}
 }
 
 const requestColumns = `id, user_id, status, reason, decision_note, reviewed_by,
-	reviewed_at, decided_at, created_at, updated_at`
+	reviewed_at, decided_at, scheduled_for, completed_at, created_at, updated_at`
 
 func scanRequest(row pgx.Row) (ErasureRequest, error) {
 	var item ErasureRequest
 	if err := row.Scan(&item.ID, &item.UserID, &item.Status, &item.Reason, &item.DecisionNote,
-		&item.ReviewedBy, &item.ReviewedAt, &item.DecidedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		&item.ReviewedBy, &item.ReviewedAt, &item.DecidedAt, &item.ScheduledFor, &item.CompletedAt,
+		&item.CreatedAt, &item.UpdatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErasureRequest{}, web.ErrNotFound("erasure request")
 		}
@@ -98,11 +116,17 @@ func scanRequest(row pgx.Row) (ErasureRequest, error) {
 	return item, nil
 }
 
+// insertEvent records a step in a request's history. A nil actorID records
+// the system (the scheduled erasure job) as the actor.
 func insertEvent(ctx context.Context, tx pgx.Tx, requestID, actorID uuid.UUID, action, note string) (uuid.UUID, error) {
 	id := uuid.New()
+	var actor *uuid.UUID
+	if actorID != uuid.Nil {
+		actor = &actorID
+	}
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO data_erasure_request_events (id, request_id, actor_id, action, note)
-		VALUES ($1, $2, $3, $4, $5)`, id, requestID, actorID, action, strings.TrimSpace(note)); err != nil {
+		VALUES ($1, $2, $3, $4, $5)`, id, requestID, actor, action, strings.TrimSpace(note)); err != nil {
 		return uuid.Nil, fmt.Errorf("recording erasure request event: %w", err)
 	}
 	return id, nil
@@ -122,6 +146,10 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
+// CreateRequest schedules the caller's account for erasure and locks it
+// straight away: the account is deactivated, every session is revoked and
+// push tokens are dropped. Signing in again within ErasureGracePeriod
+// cancels the request (auth.Service.Login).
 func (s *Service) CreateRequest(ctx context.Context, userID uuid.UUID, reason string) (ErasureRequest, error) {
 	reason, err := validateText("reason", reason, 1000)
 	if err != nil {
@@ -130,13 +158,28 @@ func (s *Service) CreateRequest(ctx context.Context, userID uuid.UUID, reason st
 	var item ErasureRequest
 	err = database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
 		item, err = scanRequest(tx.QueryRow(ctx, `
-			INSERT INTO data_erasure_requests (id, user_id, reason)
-			VALUES ($1, $2, $3) RETURNING `+requestColumns, uuid.New(), userID, reason))
+			INSERT INTO data_erasure_requests (id, user_id, reason, status, scheduled_for)
+			VALUES ($1, $2, $3, 'scheduled', now() + make_interval(secs => $4))
+			RETURNING `+requestColumns, uuid.New(), userID, reason, ErasureGracePeriod.Seconds()))
 		if err != nil {
 			return err
 		}
-		_, err = insertEvent(ctx, tx, item.ID, userID, "requested", reason)
-		return err
+		if _, err := insertEvent(ctx, tx, item.ID, userID, "requested", reason); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE users SET status = 'deactivated' WHERE id = $1 AND status = 'active'`, userID); err != nil {
+			return fmt.Errorf("locking account: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE auth_sessions SET revoked_at = now(), revoked_reason = 'erasure_requested'
+			WHERE user_id = $1 AND revoked_at IS NULL`, userID); err != nil {
+			return fmt.Errorf("revoking sessions: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM device_tokens WHERE user_id = $1`, userID); err != nil {
+			return fmt.Errorf("removing push tokens: %w", err)
+		}
+		return nil
 	})
 	if isUniqueViolation(err) {
 		return ErasureRequest{}, web.ErrConflict("an active erasure request already exists")
@@ -195,7 +238,7 @@ func (s *Service) CancelRequest(ctx context.Context, userID, requestID uuid.UUID
 		if err != nil {
 			return err
 		}
-		if item.Status != StatusPending && item.Status != StatusInReview {
+		if item.Status != StatusPending && item.Status != StatusInReview && item.Status != StatusScheduled {
 			return web.ErrConflict("this erasure request can no longer be cancelled")
 		}
 		item, err = scanRequest(tx.QueryRow(ctx, `UPDATE data_erasure_requests
@@ -209,12 +252,30 @@ func (s *Service) CancelRequest(ctx context.Context, userID, requestID uuid.UUID
 	return item, err
 }
 
+// CancelOnSignIn cancels the user's scheduled erasure, if any, because they
+// signed in during the grace period. It runs in the sign-in's transaction.
+func CancelOnSignIn(ctx context.Context, tx pgx.Tx, userID uuid.UUID) error {
+	var requestID uuid.UUID
+	err := tx.QueryRow(ctx, `
+		UPDATE data_erasure_requests SET status = 'cancelled'
+		WHERE user_id = $1 AND status = 'scheduled' RETURNING id`, userID).Scan(&requestID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("cancelling scheduled erasure: %w", err)
+	}
+	_, err = insertEvent(ctx, tx, requestID, userID, "cancelled", "signed in during the grace period")
+	return err
+}
+
 func (s *Service) ListForAdmin(ctx context.Context, status string, cursor *web.Cursor, limit int) ([]ErasureRequest, *web.Cursor, error) {
 	args := []any{}
 	conds := []string{"true"}
 	if status != "" {
 		switch status {
-		case StatusPending, StatusInReview, StatusApproved, StatusRejected, StatusCancelled:
+		case StatusPending, StatusInReview, StatusApproved, StatusRejected, StatusCancelled,
+			StatusScheduled, StatusCompleted:
 		default:
 			return nil, nil, web.ErrValidation("invalid filter").WithDetail("status", "unsupported status")
 		}
@@ -253,56 +314,6 @@ func (s *Service) ListForAdmin(ctx context.Context, status string, cursor *web.C
 		return items, &value, nil
 	}
 	return items, nil, nil
-}
-
-func (s *Service) DecideRequest(ctx context.Context, requestID, actorID uuid.UUID, status, note string) (ErasureRequest, error) {
-	if !decisionStatuses[status] {
-		return ErasureRequest{}, web.ErrValidation("invalid decision").WithDetail("status", "must be in_review, approved, or rejected")
-	}
-	note, err := validateText("note", note, 2000)
-	if err != nil {
-		return ErasureRequest{}, err
-	}
-	if status == StatusRejected && note == "" {
-		return ErasureRequest{}, web.ErrValidation("invalid decision").WithDetail("note", "required when rejecting a request")
-	}
-	var item ErasureRequest
-	err = database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
-		item, err = scanRequest(tx.QueryRow(ctx, `SELECT `+requestColumns+`
-			FROM data_erasure_requests WHERE id = $1 FOR UPDATE`, requestID))
-		if err != nil {
-			return err
-		}
-		if item.Status == status {
-			return nil
-		}
-		if item.Status != StatusPending && item.Status != StatusInReview {
-			return web.ErrConflict("this erasure request is already closed")
-		}
-		if item.Status == StatusPending && status == StatusApproved {
-			return web.ErrConflict("start review before approving the request")
-		}
-		action := map[string]string{
-			StatusInReview: "review_started", StatusApproved: "approved", StatusRejected: "rejected",
-		}[status]
-		item, err = scanRequest(tx.QueryRow(ctx, `
-			UPDATE data_erasure_requests SET status = $2, decision_note = $3,
-				reviewed_by = $4, reviewed_at = coalesce(reviewed_at, now()),
-				decided_at = CASE WHEN $2 IN ('approved', 'rejected') THEN now() END
-			WHERE id = $1 RETURNING `+requestColumns, requestID, status, note, actorID))
-		if err != nil {
-			return err
-		}
-		eventID, err := insertEvent(ctx, tx, item.ID, actorID, action, note)
-		if err != nil {
-			return err
-		}
-		return s.notifications.EnqueueTx(ctx, tx, item.UserID, "privacy.erasure_"+status,
-			"account", item.ID, map[string]string{
-				"request_id": item.ID.String(), "status": status,
-			}, "privacy:"+eventID.String())
-	})
-	return item, err
 }
 
 func jsonValue(ctx context.Context, tx pgx.Tx, query string, userID uuid.UUID) (json.RawMessage, error) {

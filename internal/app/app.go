@@ -64,7 +64,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 
 	usersRepo := users.NewRepo(pool)
 	notificationSvc := notifications.NewService(pool)
-	privacySvc := privacy.NewService(pool, notificationSvc)
+	privacySvc := privacy.NewService(pool, notificationSvc, store, cfg.StoragePrivateBucket, cfg.StoragePublicBucket)
 	authSvc := auth.NewService(pool, usersRepo, hasher, tokens, security.NewCodeHasher(cfg.JWTSecret), provider, cfg.RefreshTokenTTL, cfg.SessionMaxLifetime)
 	categoriesRepo := categories.NewRepo(pool)
 	locationsRepo := locations.NewRepo(pool)

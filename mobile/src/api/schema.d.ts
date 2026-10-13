@@ -1068,8 +1068,14 @@ export interface paths {
         };
         put?: never;
         /**
-         * Request review of personal-data erasure
-         * @description Only one pending, in-review, or approved request may exist per user.
+         * Erase my account
+         * @description Locks the account at once (deactivated, signed out everywhere, push
+         *     tokens removed) and schedules erasure for seven days later
+         *     (`scheduled_for`). Signing in before then cancels it. Erasure removes
+         *     the profile (name, email, phone, password), sessions, roles,
+         *     notifications, push tokens, business claims and memberships, review
+         *     photos, evidence and fraud signals; reviews remain, shown as by a
+         *     former member (`reviewer_erased`). Only one active request per user.
          */
         post: {
             parameters: {
@@ -1086,7 +1092,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Request recorded with append-only history. */
+                /** @description Erasure scheduled; the caller's session is already revoked. */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -1118,7 +1124,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Cancel an owned pending or in-review erasure request */
+        /** Cancel an owned scheduled (or older pending/in-review) erasure request */
         delete: {
             parameters: {
                 query?: never;
@@ -3816,8 +3822,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the data-erasure review queue
-         * @description Requires the admin role.
+         * List erasure requests
+         * @description Requires the admin role. Erasure runs by itself; this is for oversight.
          */
         get: {
             parameters: {
@@ -3848,64 +3854,6 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/privacy/erasure-requests/{id}/decision": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start review, approve, or reject an erasure request
-         * @description Requires the admin role. Approval requires a prior `in_review`
-         *     transition and records acceptance for separately governed fulfillment;
-         *     it does not automatically delete retained review or audit data.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: components["parameters"]["PathID"];
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        status: "in_review" | "approved" | "rejected";
-                        /** @description Required when rejecting. */
-                        note?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Updated request; the user also receives an activity item. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["DataEnvelope"] & {
-                            data?: components["schemas"]["ErasureRequest"];
-                        };
-                    };
-                };
-                403: components["responses"]["Forbidden"];
-                404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
-                422: components["responses"]["ValidationError"];
-            };
-        };
         delete?: never;
         options?: never;
         head?: never;
@@ -4512,6 +4460,8 @@ export interface components {
         };
         ListedReview: components["schemas"]["Review"] & {
             reviewer_name?: string;
+            /** @description The author erased their account; show 'former member' in the reader's language instead of reviewer_name. */
+            reviewer_erased?: boolean;
             reviewer_review_count?: number;
             helpful_count?: number;
             viewer_voted?: boolean;
@@ -4720,7 +4670,7 @@ export interface components {
             data?: components["schemas"]["Notification"][];
         };
         /** @enum {string} */
-        ErasureRequestStatus: "pending" | "in_review" | "approved" | "rejected" | "cancelled";
+        ErasureRequestStatus: "scheduled" | "completed" | "cancelled" | "pending" | "in_review" | "approved" | "rejected";
         ErasureRequest: {
             /** Format: uuid */
             id: string;
@@ -4735,6 +4685,13 @@ export interface components {
             reviewed_at?: string | null;
             /** Format: date-time */
             decided_at?: string | null;
+            /**
+             * Format: date-time
+             * @description When a scheduled erasure runs.
+             */
+            scheduled_for?: string | null;
+            /** Format: date-time */
+            completed_at?: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */

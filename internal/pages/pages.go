@@ -397,6 +397,9 @@ func (h *Handler) reviewView(b base, rv reviews.ListedReview) reviewView {
 		Media:             rv.Media,
 		Permalink:         b.Link("/r/"+rv.ID.String(), nil),
 	}
+	if rv.ReviewerErased {
+		v.Reviewer = b.T("review.formerMember")
+	}
 	switch rv.VerificationLevel {
 	case "receipt_submitted", "location_verified", "partner_verified":
 		v.Verified = true
