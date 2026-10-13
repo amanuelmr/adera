@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"reflect"
-	"strings"
 )
 
 // envelope is the uniform success response body.
@@ -114,23 +113,6 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 		return ErrInvalidJSON(errors.New("body must contain a single JSON value"))
 	}
 	return nil
-}
-
-// ClientIP extracts the caller IP. X-Forwarded-For is only honored when
-// trustProxy is set (i.e., we run behind our own reverse proxy) and then only
-// the rightmost hop is used.
-func ClientIP(r *http.Request, trustProxy bool) string {
-	if trustProxy {
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			parts := strings.Split(xff, ",")
-			return strings.TrimSpace(parts[len(parts)-1])
-		}
-	}
-	host := r.RemoteAddr
-	if i := strings.LastIndex(host, ":"); i > 0 {
-		host = host[:i]
-	}
-	return host
 }
 
 type ctxKey int

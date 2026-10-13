@@ -71,6 +71,18 @@ func NormalizePhone(raw string) string {
 	return p
 }
 
+// NormalizeIdentifier puts a sign-in identifier in the form accounts are
+// stored and looked up in: E.164 for a phone number, lower case for anything
+// else. Rate limits key on it too, so "+251 911…" and "0911…" are one
+// account, not two buckets.
+func NormalizeIdentifier(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if p := NormalizePhone(raw); p != "" {
+		return p
+	}
+	return strings.ToLower(raw)
+}
+
 // ValidEmail reports whether s is a plausible email address.
 func ValidEmail(s string) bool {
 	if len(s) > 254 {

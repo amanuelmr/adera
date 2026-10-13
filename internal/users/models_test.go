@@ -30,6 +30,19 @@ func TestNormalizePhone(t *testing.T) {
 	}
 }
 
+func TestNormalizeIdentifier(t *testing.T) {
+	for in, want := range map[string]string{
+		"0911234567":           "+251911234567",
+		" +251 911-23-45-67 ":  "+251911234567",
+		"(091) 123 4567":       "+251911234567",
+		"Abebe@Example.COM":    "abebe@example.com",
+		"  abebe@example.com ": "abebe@example.com",
+		"":                     "",
+	} {
+		assert.Equal(t, want, NormalizeIdentifier(in), "input %q", in)
+	}
+}
+
 func TestValidEmail(t *testing.T) {
 	assert.True(t, ValidEmail("user@example.com"))
 	assert.True(t, ValidEmail("a.b+tag@sub.example.et"))

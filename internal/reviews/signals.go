@@ -42,12 +42,12 @@ func (s Signals) empty() bool { return s.NetworkHash == nil && s.InstallHash == 
 // stored values can be compared with each other but not reversed, or matched
 // against a known address, without the key.
 type SignalHasher struct {
-	key        []byte
-	trustProxy bool
+	key      []byte
+	ipSource web.IPSource
 }
 
-func NewSignalHasher(key string, trustProxy bool) *SignalHasher {
-	return &SignalHasher{key: []byte(key), trustProxy: trustProxy}
+func NewSignalHasher(key string, ipSource web.IPSource) *SignalHasher {
+	return &SignalHasher{key: []byte(key), ipSource: ipSource}
 }
 
 // Capture derives the signals for a request. A nil hasher captures nothing.
@@ -56,7 +56,7 @@ func (h *SignalHasher) Capture(r *http.Request) Signals {
 		return Signals{}
 	}
 	var s Signals
-	if prefix, ok := NetworkPrefix(web.ClientIP(r, h.trustProxy)); ok {
+	if prefix, ok := NetworkPrefix(h.ipSource.ClientIP(r)); ok {
 		s.NetworkHash = h.sum("network", prefix)
 	}
 	if id, err := uuid.Parse(r.Header.Get(InstallIDHeader)); err == nil && id != uuid.Nil {

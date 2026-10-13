@@ -130,7 +130,10 @@ paths:
       description: |
         Single-use rotation with theft detection: presenting an
         already-rotated or revoked refresh token revokes the **entire session
-        family** and returns 401.
+        family** and returns 401. A session also ends SESSION_MAX_LIFETIME
+        (default 180 days) after sign-in, however often it is refreshed;
+        after that, refresh returns 401 and the user signs in again. Rate
+        limited per refresh token, not per address.
       requestBody:
         required: true
         content:
@@ -250,7 +253,7 @@ paths:
     post:
       tags: [auth]
       summary: Request a password reset code
-      description: Always 200, whether or not the account exists (no enumeration).
+      description: Always 200, whether or not the account exists (no enumeration). At most five codes per account per day; requests past that get the same 200 and send nothing.
       requestBody:
         required: true
         content:
@@ -1528,7 +1531,7 @@ paths:
     post:
       tags: [moderation]
       summary: Decide a review (approve/restore/under_review/hide/reject/remove)
-      description: Status change + aggregate adjustment happen in one transaction; every decision is audited.
+      description: Status change + aggregate adjustment happen in one transaction; every decision is audited. 403 for the review's own author, since another moderator must decide it.
       security: [{bearerAuth: []}]
       parameters: [{$ref: '#/components/parameters/PathID'}]
       requestBody:
@@ -1596,7 +1599,7 @@ paths:
     post:
       tags: [moderation]
       summary: Accept or reject submitted evidence
-      description: Acceptance upgrades the review's verification level (receipt kinds → receipt_submitted, location_qr → location_verified) and adjusts verified aggregates transactionally.
+      description: Acceptance upgrades the review's verification level (receipt kinds → receipt_submitted, location_qr → location_verified) and adjusts verified aggregates transactionally. 403 for the review's own author.
       security: [{bearerAuth: []}]
       parameters: [{$ref: '#/components/parameters/PathID'}]
       requestBody:
@@ -1618,7 +1621,7 @@ paths:
     post:
       tags: [moderation]
       summary: Approve or reject a business claim
-      description: Approval atomically grants membership + business_owner role and marks the business claimed. Claiming never grants moderation permissions.
+      description: Approval atomically grants membership + business_owner role and marks the business claimed. Claiming never grants moderation permissions. 403 for the claimant, since another moderator must decide it.
       security: [{bearerAuth: []}]
       parameters: [{$ref: '#/components/parameters/PathID'}]
       requestBody:
@@ -1816,6 +1819,25 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '409': {$ref: '#/components/responses/Conflict'}
 
+  /api/v1/admin/request-info:
+    get:
+      tags: [admin]
+      summary: Show how the server sees this request's address
+      description: For checking CLIENT_IP_SOURCE once per deployment — compare client_ip with your own public address. Reflects only the caller's own request. Requires the admin role.
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: The request as received
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/RequestInfo'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
   /api/v1/admin/privacy/erasure-requests:
     get:
       tags: [privacy, admin]
@@ -1922,9 +1944,12 @@ paths:
   /metrics:
     get:
       tags: [ops]
-      summary: Prometheus metrics (restrict at the network layer in production)
+      summary: Prometheus metrics
+      description: Open in development. In production it requires METRICS_TOKEN as a bearer token (not a user token), and answers 404 when none is configured.
       responses:
         '200': {description: Prometheus exposition format., content: {text/plain: {schema: {type: string}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
 
 components:
   securitySchemes:
@@ -2614,6 +2639,19 @@ components:
             data:
               type: array
               items: {$ref: '#/components/schemas/ReviewSignalGroup'}
+
+    RequestInfo:
+      type: object
+      required: [remote_addr, x_forwarded_for, proxy_headers, client_ip_source, client_ip]
+      properties:
+        remote_addr: {type: string, description: The TCP peer, usually the nearest proxy}
+        x_forwarded_for: {type: array, items: {type: string}}
+        proxy_headers:
+          type: object
+          description: Common proxy address headers present on the request (CF-Connecting-IP, True-Client-IP, X-Real-IP, Fly-Client-IP)
+          additionalProperties: {type: string}
+        client_ip_source: {type: string, example: 'header:Cf-Connecting-Ip'}
+        client_ip: {type: string, description: The address rate limits and fraud signals use}
 
     ReportCreate:
       type: object

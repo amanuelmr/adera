@@ -44,8 +44,12 @@ const (
 	FinalizeWindow       = 2 * PresignTTL
 	MaxMediaPerReview    = 5
 	MaxEvidencePerReview = 5
-	// Decompression-bomb guard.
-	maxPixels = 40_000_000 // ~40 MP
+	// Decompression-bomb guard. A decoded image costs up to 4 bytes a pixel,
+	// so 24 MP is about 96 MB; the app uploads 1600 px, far below it.
+	maxPixels = 24_000_000
+	// Images decoded at once. Each can take ~100 MB at maxPixels, and the
+	// instance has 512 MB: more callers wait their turn instead.
+	decodeConcurrency = 2
 
 	// Re-encode qualities. Thumbnails go lower: they are shown small, and
 	// bytes are a household cost on the target networks.
@@ -79,11 +83,30 @@ type Service struct {
 	reviewsRepo   *reviews.Repo
 	privateBucket string
 	publicBucket  string
+	decodeSlots   chan struct{}
 }
 
 func NewService(pool *pgxpool.Pool, store storage.Store, reviewsRepo *reviews.Repo, privateBucket, publicBucket string) *Service {
 	return &Service{pool: pool, store: store, reviewsRepo: reviewsRepo,
-		privateBucket: privateBucket, publicBucket: publicBucket}
+		privateBucket: privateBucket, publicBucket: publicBucket,
+		decodeSlots: make(chan struct{}, decodeConcurrency)}
+}
+
+// acquireDecode waits for a decode slot, or gives up when the request does.
+// The returned func releases the slot.
+func (s *Service) acquireDecode(ctx context.Context) (func(), error) {
+	select {
+	case s.decodeSlots <- struct{}{}:
+		return func() { <-s.decodeSlots }, nil
+	case <-ctx.Done():
+		return nil, &web.Error{Status: 503, Code: "server_busy",
+			Message: "too many photos are being processed; try again shortly", Internal: ctx.Err()}
+	}
+}
+
+// dimensionsOK bounds an image before it is decoded.
+func dimensionsOK(cfg image.Config) bool {
+	return cfg.Width > 0 && cfg.Height > 0 && int64(cfg.Width)*int64(cfg.Height) <= maxPixels
 }
 
 var errStorageDisabled = &web.Error{Status: 503, Code: "storage_unavailable",
@@ -407,9 +430,14 @@ func (s *Service) sanitizeImage(ctx context.Context, key, declaredType string) (
 	if err != nil {
 		return nil, nil, "", uploadInvalid("file is not a decodable image")
 	}
-	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width*cfg.Height > maxPixels {
+	if !dimensionsOK(cfg) {
 		return nil, nil, "", uploadInvalid("image dimensions out of bounds")
 	}
+	release, err := s.acquireDecode(ctx)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	defer release()
 	img, format, err := image.Decode(bytes.NewReader(raw))
 	if err != nil {
 		return nil, nil, "", uploadInvalid("file is not a decodable image")

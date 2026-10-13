@@ -28,6 +28,9 @@ docs/research/security-and-legal-risks.md §7 and require professional review.
    and relationship disclosures. Public clients must label any value other
    than `none`; selecting `other` requires explanatory details. Disclosure is
    separate from verification and never makes a paid review "verified."
+7. **No one moderates their own case.** A moderator can't decide their own
+   business claim, evidence for their own review, or their own review's
+   status; another moderator must (403 otherwise).
 
 ## Review states
 
@@ -58,8 +61,12 @@ resolved | dismissed`).
 
 - One review per user per target per **30 days** (update instead), max
   **5 reviews per user per 24h**, enforced in the create transaction.
-- Rate limits: login/OTP 5/min per IP+identifier; review writes 10/min per
-  account; reports 10/min; presigns 20/h; search 2 rps per IP.
+- Rate limits: sign-in, registration and password reset 5/min per account
+  (the normalized email or phone) and 30/min per address (looser, since
+  carrier NAT puts many phones behind one); token refresh 5/min per token;
+  at most 5 password-reset codes per account per day; review writes 10/min
+  per account; reports 10/min; presigns 20/h; search 2 rps per address. The
+  address comes from `CLIENT_IP_SOURCE` (DEPLOY.md step 7).
 - Idempotency keys prevent duplicate submissions from flaky connections.
 - No self-votes; one helpful vote per user per review (primary key).
 - Review-fraud gig economies exist locally (see market research §7). The

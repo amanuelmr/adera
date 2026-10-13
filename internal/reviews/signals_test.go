@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/adera-platform/backend/internal/platform/web"
 )
 
 func TestNetworkPrefix(t *testing.T) {
@@ -32,7 +34,7 @@ func TestNetworkPrefix(t *testing.T) {
 }
 
 func TestSignalHasherCapture(t *testing.T) {
-	h := NewSignalHasher("unit-test-signal-key-at-least-32-bytes", false)
+	h := NewSignalHasher("unit-test-signal-key-at-least-32-bytes", web.IPSource{})
 	request := func(remote, install string) Signals {
 		r := httptest.NewRequest("POST", "/api/v1/reviews", nil)
 		r.RemoteAddr = remote
@@ -60,7 +62,7 @@ func TestSignalHasherCapture(t *testing.T) {
 	assert.Nil(t, request("10.0.0.1:1", "00000000-0000-0000-0000-000000000000").InstallHash)
 	assert.Nil(t, request("10.0.0.1:1", "my-phone").InstallHash)
 
-	other := NewSignalHasher("another-signal-key-at-least-32-bytes!", false)
+	other := NewSignalHasher("another-signal-key-at-least-32-bytes!", web.IPSource{})
 	r := httptest.NewRequest("POST", "/", nil)
 	r.RemoteAddr = "196.188.12.34:5000"
 	assert.NotEqual(t, a.NetworkHash, other.Capture(r).NetworkHash, "keyed: a different key gives different hashes")

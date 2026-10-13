@@ -128,7 +128,10 @@ export interface paths {
          * Rotate the refresh token and get a new access token
          * @description Single-use rotation with theft detection: presenting an
          *     already-rotated or revoked refresh token revokes the **entire session
-         *     family** and returns 401.
+         *     family** and returns 401. A session also ends SESSION_MAX_LIFETIME
+         *     (default 180 days) after sign-in, however often it is refreshed;
+         *     after that, refresh returns 401 and the user signs in again. Rate
+         *     limited per refresh token, not per address.
          */
         post: {
             parameters: {
@@ -391,7 +394,7 @@ export interface paths {
         put?: never;
         /**
          * Request a password reset code
-         * @description Always 200, whether or not the account exists (no enumeration).
+         * @description Always 200, whether or not the account exists (no enumeration). At most five codes per account per day; requests past that get the same 200 and send nothing.
          */
         post: {
             parameters: {
@@ -3072,7 +3075,7 @@ export interface paths {
         put?: never;
         /**
          * Decide a review (approve/restore/under_review/hide/reject/remove)
-         * @description Status change + aggregate adjustment happen in one transaction; every decision is audited.
+         * @description Status change + aggregate adjustment happen in one transaction; every decision is audited. 403 for the review's own author, since another moderator must decide it.
          */
         post: {
             parameters: {
@@ -3255,7 +3258,7 @@ export interface paths {
         put?: never;
         /**
          * Accept or reject submitted evidence
-         * @description Acceptance upgrades the review's verification level (receipt kinds → receipt_submitted, location_qr → location_verified) and adjusts verified aggregates transactionally.
+         * @description Acceptance upgrades the review's verification level (receipt kinds → receipt_submitted, location_qr → location_verified) and adjusts verified aggregates transactionally. 403 for the review's own author.
          */
         post: {
             parameters: {
@@ -3298,7 +3301,7 @@ export interface paths {
         put?: never;
         /**
          * Approve or reject a business claim
-         * @description Approval atomically grants membership + business_owner role and marks the business claimed. Claiming never grants moderation permissions.
+         * @description Approval atomically grants membership + business_owner role and marks the business claimed. Claiming never grants moderation permissions. 403 for the claimant, since another moderator must decide it.
          */
         post: {
             parameters: {
@@ -3762,6 +3765,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/request-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show how the server sees this request's address
+         * @description For checking CLIENT_IP_SOURCE once per deployment — compare client_ip with your own public address. Reflects only the caller's own request. Requires the admin role.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The request as received */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["RequestInfo"];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/privacy/erasure-requests": {
         parameters: {
             query?: never;
@@ -3990,7 +4036,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Prometheus metrics (restrict at the network layer in production) */
+        /**
+         * Prometheus metrics
+         * @description Open in development. In production it requires METRICS_TOKEN as a bearer token (not a user token), and answers 404 when none is configured.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -4009,6 +4058,8 @@ export interface paths {
                         "text/plain": string;
                     };
                 };
+                401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
             };
         };
         put?: never;
@@ -4601,6 +4652,19 @@ export interface components {
         };
         ReviewSignalGroupList: components["schemas"]["DataEnvelope"] & {
             data?: components["schemas"]["ReviewSignalGroup"][];
+        };
+        RequestInfo: {
+            /** @description The TCP peer */
+            remote_addr: string;
+            x_forwarded_for: string[];
+            /** @description Common proxy address headers present on the request (CF-Connecting-IP, True-Client-IP, X-Real-IP, Fly-Client-IP) */
+            proxy_headers: {
+                [key: string]: string;
+            };
+            /** @example header:Cf-Connecting-Ip */
+            client_ip_source: string;
+            /** @description The address rate limits and fraud signals use */
+            client_ip: string;
         };
         ReportCreate: {
             /** @enum {string} */

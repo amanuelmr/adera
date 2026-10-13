@@ -34,6 +34,10 @@ project. Copy the **pooled** connection string; it looks like:
 postgresql://USER:PASSWORD@ep-xxx-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
 ```
 
+Keep the `sslmode=require`: in production the API refuses to start without
+it (or `verify-ca` / `verify-full`), since an unset mode quietly falls back to
+plaintext.
+
 Use the pooled URL, not the direct one — Render's free instance opens and drops
 connections as it sleeps and wakes, and the pooler absorbs that.
 
@@ -83,6 +87,8 @@ In the service's **Environment** tab:
   fix). It keys the hashes of review fraud signals; set it once and leave it,
   since a new key stops new reviews matching older signals. Clearing it turns
   signal recording off.
+- `METRICS_TOKEN` — generated too, at least 32 bytes. A Prometheus scrape
+  sends it as a bearer token; without it, `/metrics` isn't served.
 
 Changing any of these triggers a redeploy.
 
@@ -152,16 +158,62 @@ One gotcha: GitHub disables scheduled workflows after **60 days without repo
 activity**. If the API starts sleeping again, re-enable it under the Actions
 tab.
 
+## 7. Set the client address source
+
+Requests reach the API through Render's proxy, so without this every caller
+shares one rate-limit bucket: a handful of failed logins anywhere locks
+everyone out, and every review gets the same fraud-signal network hash.
+
+Sign in as an admin, then compare what the server sees with your own public
+address (e.g. from `curl -s https://ifconfig.me`):
+
+```sh
+curl -s -H "Authorization: Bearer $ADMIN_ACCESS_TOKEN" \
+  https://adera.amanuel.work/api/v1/admin/request-info
+```
+
+Pick the source that yields your address and that a caller can't forge:
+
+- `header:CF-Connecting-IP` if that header is present and correct — the edge
+  proxy overwrites it, so a value sent by the caller doesn't survive.
+- otherwise `xff:N`, where N counts from the right of `x_forwarded_for` to
+  your address (1 = the last entry). Entries further left are whatever the
+  caller sent.
+
+Set `CLIENT_IP_SOURCE` to it, redeploy, and call the endpoint again:
+`client_ip` should now be your address. Re-check after any hosting or proxy
+change.
+
 ## Verifying
 
 ```sh
 curl -s https://adera.amanuel.work/health     # liveness
 curl -s https://adera.amanuel.work/ready      # checks the DB connection
-curl -s https://adera.amanuel.work/metrics    # Prometheus metrics
+curl -s -H "Authorization: Bearer $METRICS_TOKEN" \
+  https://adera.amanuel.work/metrics           # Prometheus metrics
 ```
+
+`/metrics` answers 404 in production unless `METRICS_TOKEN` is set (Render
+generates one), and then only to a scrape that sends it as a bearer token.
 
 `/ready` is the one that matters: it returns unhealthy when `DATABASE_URL` is
 wrong or Neon is unreachable, which is how a bad deploy shows up.
+
+## If it won't start
+
+Production refuses settings that are fine locally but unsafe with real users,
+and says which in the deploy log:
+
+- `DATABASE_URL` without `sslmode=require` (or `verify-ca`, `verify-full`);
+- `BASE_URL` that isn't `https://`;
+- `RATE_LIMIT_ENABLED=false`;
+- with storage on, `STORAGE_USE_SSL=false` or an `http://` `STORAGE_PUBLIC_BASE_URL`;
+- any value that doesn't parse, e.g. `ACCESS_TOKEN_TTL=15 minutes` (use
+  `15m`) or `RATE_LIMIT_ENABLED=yes` (use `true`). Elsewhere too: a typo
+  fails at startup rather than silently using the default.
+
+`CORS_ALLOWED_ORIGINS` defaults to none in production. Neither the app nor the
+web pages need it; list an origin only for a browser client on another domain.
 
 ## Notes
 

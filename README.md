@@ -107,7 +107,7 @@ curl -s "localhost:8080/api/v1/targets/$TARGET/stats"
 - `GET /openapi.yaml` — raw OpenAPI contract for tooling/imports
 - `GET /health` — liveness
 - `GET /ready` — readiness (checks database connectivity)
-- `GET /metrics` — Prometheus metrics (restrict at the network layer in production)
+- `GET /metrics` — Prometheus metrics (open in development; in production only with `METRICS_TOKEN` as a bearer token)
 
 ### Environment variables
 

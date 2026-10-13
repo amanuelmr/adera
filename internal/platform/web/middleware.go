@@ -84,9 +84,21 @@ func Logging(next http.Handler) http.Handler {
 }
 
 // SecureHeaders sets conservative security headers appropriate for a JSON API.
-func SecureHeaders(next http.Handler) http.Handler {
+// With hsts set (production, always served over HTTPS) browsers are also told
+// to use HTTPS for a year, so a later plain-HTTP link or a network that strips
+// TLS can't downgrade them. No preload: that is hard to undo.
+func SecureHeaders(hsts bool) Middleware {
+	return func(next http.Handler) http.Handler {
+		return secureHeaders(next, hsts)
+	}
+}
+
+func secureHeaders(next http.Handler, hsts bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
+		if hsts {
+			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "no-referrer")

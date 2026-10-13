@@ -50,8 +50,11 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 		k.Close()
 		return ratelimit.Unlimited{}
 	}
-	loginLimiter := limiter(ratelimit.PerMinute(5))
-	otpLimiter := limiter(ratelimit.PerMinute(5))
+	authLimits := auth.Limits{
+		IP:      limiter(ratelimit.PerMinute(30)),
+		Account: limiter(ratelimit.PerMinute(5)),
+		OTP:     limiter(ratelimit.PerMinute(5)),
+	}
 	reviewLimiter := limiter(ratelimit.PerMinute(10))
 	reportLimiter := limiter(ratelimit.PerMinute(10))
 	// Ten place submissions a day per account, refilling continuously.
@@ -62,7 +65,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	usersRepo := users.NewRepo(pool)
 	notificationSvc := notifications.NewService(pool)
 	privacySvc := privacy.NewService(pool, notificationSvc)
-	authSvc := auth.NewService(pool, usersRepo, hasher, tokens, provider, cfg.RefreshTokenTTL)
+	authSvc := auth.NewService(pool, usersRepo, hasher, tokens, security.NewCodeHasher(cfg.JWTSecret), provider, cfg.RefreshTokenTTL, cfg.SessionMaxLifetime)
 	categoriesRepo := categories.NewRepo(pool)
 	locationsRepo := locations.NewRepo(pool)
 	bizRepo := businesses.NewRepo(pool, notificationSvc)
@@ -76,7 +79,7 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	adminSvc := admin.NewService(pool, usersRepo)
 
 	mux := http.NewServeMux()
-	auth.NewHandler(authSvc, loginLimiter, otpLimiter, cfg.TrustProxyHeaders).Routes(mux)
+	auth.NewHandler(authSvc, authLimits, cfg.ClientIPSource).Routes(mux)
 	users.NewHandler(usersRepo).Routes(mux)
 	notifications.NewHandler(notificationSvc).Routes(mux)
 	privacy.NewHandler(privacySvc).Routes(mux)
@@ -86,15 +89,15 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	targets.NewHandler(targetsRepo, bizRepo, usersRepo, targetSubmitLimiter).Routes(mux)
 	var signalHasher *reviews.SignalHasher
 	if cfg.SignalHashKey != "" {
-		signalHasher = reviews.NewSignalHasher(cfg.SignalHashKey, cfg.TrustProxyHeaders)
+		signalHasher = reviews.NewSignalHasher(cfg.SignalHashKey, cfg.ClientIPSource)
 	}
 	reviews.NewHandler(reviewsRepo, reviewLimiter, signalHasher).Routes(mux)
 	ratings.NewHandler(ratingsRepo).Routes(mux)
-	search.NewHandler(searchRepo, searchLimiter, cfg.TrustProxyHeaders).Routes(mux)
+	search.NewHandler(searchRepo, searchLimiter, cfg.ClientIPSource).Routes(mux)
 	media.NewHandler(mediaSvc, presignLimiter).Routes(mux)
 	claims.NewHandler(claimsSvc).Routes(mux)
 	moderation.NewHandler(moderationSvc, mediaSvc, reportLimiter).Routes(mux)
-	admin.NewHandler(adminSvc).Routes(mux)
+	admin.NewHandler(adminSvc, cfg.ClientIPSource).Routes(mux)
 	appversion.NewHandler(appversion.Policy{
 		Android: appversion.Gate{
 			MinimumSupported: cfg.AndroidMinVersion,
@@ -125,8 +128,8 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 	}
 	webPages.Routes(mux)
 
-	// Operational endpoints (no auth; restrict /metrics at the network layer
-	// in production deployments).
+	// Operational endpoints. /metrics is served by web.MetricsEndpoint, ahead
+	// of user authentication.
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		web.Respond(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
@@ -140,14 +143,14 @@ func BuildAPI(cfg config.Config, pool *pgxpool.Pool, store storage.Store, provid
 		}
 		web.Respond(w, http.StatusOK, map[string]string{"status": "ready"})
 	})
-	mux.Handle("GET /metrics", web.MetricsHandler())
 
 	return web.Chain(mux,
 		web.Recover,
 		web.RequestID,
 		web.Metrics,
 		web.Logging,
-		web.SecureHeaders,
+		web.SecureHeaders(cfg.Env == config.EnvProduction),
+		web.MetricsEndpoint(cfg.MetricsToken, cfg.Env != config.EnvProduction),
 		web.CORS(cfg.CORSAllowedOrigins),
 		timeoutMiddleware(cfg.DatabaseQueryTimeout),
 		web.Authenticate(authSvc.VerifyAccess),

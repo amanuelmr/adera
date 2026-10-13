@@ -22,6 +22,10 @@ const (
 	otpLength     = 6
 	otpTTL        = 15 * time.Minute
 	otpMaxAttempt = 5
+	// Each reset code allows otpMaxAttempt guesses, so capping new codes per
+	// account bounds guessing (25 of a million a day) and stops a stranger
+	// flooding someone's inbox, however many addresses they use.
+	resetRequestsPerDay = 5
 )
 
 // Service implements the authentication domain.
@@ -30,15 +34,21 @@ type Service struct {
 	usersRepo  *users.Repo
 	hasher     *security.Hasher
 	tokens     *security.TokenManager
+	codes      *security.CodeHasher
 	provider   Provider
 	refreshTTL time.Duration
+	// maxLifetime bounds a session from sign-in, however often it is
+	// refreshed; a stolen refresh token can't be kept alive forever.
+	maxLifetime time.Duration
 }
 
 func NewService(pool *pgxpool.Pool, usersRepo *users.Repo, hasher *security.Hasher,
-	tokens *security.TokenManager, provider Provider, refreshTTL time.Duration) *Service {
+	tokens *security.TokenManager, codes *security.CodeHasher, provider Provider,
+	refreshTTL, maxLifetime time.Duration) *Service {
 	return &Service{
 		pool: pool, usersRepo: usersRepo, hasher: hasher,
-		tokens: tokens, provider: provider, refreshTTL: refreshTTL,
+		tokens: tokens, codes: codes, provider: provider,
+		refreshTTL: refreshTTL, maxLifetime: maxLifetime,
 	}
 }
 
@@ -161,12 +171,7 @@ func (s *Service) Register(ctx context.Context, in RegisterInput, deviceInfo str
 // prevent user enumeration; a deactivated account is reactivated on
 // successful login (documented retention behavior).
 func (s *Service) Login(ctx context.Context, identifier, password, deviceInfo string) (users.User, TokenPair, error) {
-	identifier = strings.TrimSpace(identifier)
-	if p := users.NormalizePhone(identifier); p != "" {
-		identifier = p
-	} else {
-		identifier = strings.ToLower(identifier)
-	}
+	identifier = users.NormalizeIdentifier(identifier)
 
 	u, err := s.usersRepo.GetByIdentifier(ctx, identifier)
 	if err != nil {
@@ -221,9 +226,9 @@ func (s *Service) insertSession(ctx context.Context, userID, familyID uuid.UUID,
 		deviceInfo = deviceInfo[:300]
 	}
 	_, err = s.pool.Exec(ctx, `
-		INSERT INTO auth_sessions (id, user_id, family_id, refresh_token_hash, device_info, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6)`,
-		sessionID, userID, familyID, security.HashToken(refresh), deviceInfo, now.Add(s.refreshTTL))
+		INSERT INTO auth_sessions (id, user_id, family_id, family_created_at, refresh_token_hash, device_info, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		sessionID, userID, familyID, now, security.HashToken(refresh), deviceInfo, now.Add(min(s.refreshTTL, s.maxLifetime)))
 	if err != nil {
 		return TokenPair{}, fmt.Errorf("inserting session: %w", err)
 	}
@@ -255,18 +260,18 @@ func (s *Service) Refresh(ctx context.Context, refreshToken, deviceInfo string) 
 	err := database.InTx(ctx, s.pool, func(tx pgx.Tx) error {
 		var (
 			id, userID, familyID uuid.UUID
-			expiresAt            time.Time
+			expiresAt, started   time.Time
 			revokedAt            *time.Time
 			replacedBy           *uuid.UUID
 			oldDevice            string
 			userStatus           string
 		)
 		err := tx.QueryRow(ctx, `
-			SELECT s.id, s.user_id, s.family_id, s.expires_at, s.revoked_at, s.replaced_by_id, s.device_info, u.status
+			SELECT s.id, s.user_id, s.family_id, s.family_created_at, s.expires_at, s.revoked_at, s.replaced_by_id, s.device_info, u.status
 			FROM auth_sessions s JOIN users u ON u.id = s.user_id
 			WHERE s.refresh_token_hash = $1
 			FOR UPDATE OF s`, hash).
-			Scan(&id, &userID, &familyID, &expiresAt, &revokedAt, &replacedBy, &oldDevice, &userStatus)
+			Scan(&id, &userID, &familyID, &started, &expiresAt, &revokedAt, &replacedBy, &oldDevice, &userStatus)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return unauthorized
 		}
@@ -287,7 +292,8 @@ func (s *Service) Refresh(ctx context.Context, refreshToken, deviceInfo string) 
 			}
 			return nil
 		}
-		if time.Now().After(expiresAt) || userStatus != users.StatusActive {
+		ends := started.Add(s.maxLifetime)
+		if time.Now().After(expiresAt) || !time.Now().Before(ends) || userStatus != users.StatusActive {
 			return unauthorized
 		}
 
@@ -304,9 +310,10 @@ func (s *Service) Refresh(ctx context.Context, refreshToken, deviceInfo string) 
 			deviceInfo = deviceInfo[:300]
 		}
 		if _, err := tx.Exec(ctx, `
-			INSERT INTO auth_sessions (id, user_id, family_id, refresh_token_hash, device_info, expires_at)
-			VALUES ($1, $2, $3, $4, $5, $6)`,
-			newID, userID, familyID, security.HashToken(newRefresh), deviceInfo, now.Add(s.refreshTTL)); err != nil {
+			INSERT INTO auth_sessions (id, user_id, family_id, family_created_at, refresh_token_hash, device_info, expires_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+			newID, userID, familyID, started, security.HashToken(newRefresh), deviceInfo,
+			minTime(now.Add(s.refreshTTL), ends)); err != nil {
 			return fmt.Errorf("inserting rotated session: %w", err)
 		}
 		if _, err := tx.Exec(ctx, `
@@ -463,7 +470,7 @@ func (s *Service) sendVerificationCode(ctx context.Context, userID uuid.UUID, ch
 	if _, err := s.pool.Exec(ctx, `
 		INSERT INTO verification_tokens (id, user_id, purpose, code_hash, expires_at)
 		VALUES ($1, $2, $3, $4, $5)`,
-		uuid.New(), userID, purpose, security.HashToken(code), time.Now().UTC().Add(otpTTL)); err != nil {
+		uuid.New(), userID, purpose, s.codes.Hash(userID, purpose, code), time.Now().UTC().Add(otpTTL)); err != nil {
 		return fmt.Errorf("storing verification code: %w", err)
 	}
 	if err := s.provider.SendCode(ctx, channel, destination, purpose, code); err != nil {
@@ -525,7 +532,7 @@ func (s *Service) consumeCode(ctx context.Context, userID uuid.UUID, purpose, co
 		if attempts >= otpMaxAttempt {
 			return invalid
 		}
-		if !security.ConstantTimeEqual(security.HashToken(code), codeHash) {
+		if !security.ConstantTimeEqual(s.codes.Hash(userID, purpose, code), codeHash) {
 			if _, err := tx.Exec(ctx, `UPDATE verification_tokens SET attempts = attempts + 1 WHERE id = $1`, id); err != nil {
 				return fmt.Errorf("recording failed attempt: %w", err)
 			}
@@ -562,18 +569,24 @@ func (s *Service) ConfirmVerification(ctx context.Context, userID uuid.UUID, cha
 // RequestPasswordReset always succeeds from the caller's perspective (no user
 // enumeration); a code is sent only when the account exists.
 func (s *Service) RequestPasswordReset(ctx context.Context, identifier string) error {
-	identifier = strings.TrimSpace(identifier)
-	if p := users.NormalizePhone(identifier); p != "" {
-		identifier = p
-	} else {
-		identifier = strings.ToLower(identifier)
-	}
+	identifier = users.NormalizeIdentifier(identifier)
 	u, err := s.usersRepo.GetByIdentifier(ctx, identifier)
 	if err != nil {
 		if errors.Is(err, users.ErrNotFound) {
 			return nil
 		}
 		return err
+	}
+	var recent int
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(*) FROM verification_tokens
+		WHERE user_id = $1 AND purpose = 'password_reset' AND created_at > now() - interval '1 day'`,
+		u.ID).Scan(&recent); err != nil {
+		return fmt.Errorf("counting reset requests: %w", err)
+	}
+	if recent >= resetRequestsPerDay {
+		// Same answer as a sent code: the cap mustn't reveal the account.
+		return nil
 	}
 	channel, destination := "email", u.Email
 	if identifier == u.Phone {
@@ -591,7 +604,7 @@ func (s *Service) RequestPasswordReset(ctx context.Context, identifier string) e
 	if _, err := s.pool.Exec(ctx, `
 		INSERT INTO verification_tokens (id, user_id, purpose, code_hash, expires_at)
 		VALUES ($1, $2, 'password_reset', $3, $4)`,
-		uuid.New(), u.ID, security.HashToken(code), time.Now().UTC().Add(otpTTL)); err != nil {
+		uuid.New(), u.ID, s.codes.Hash(u.ID, "password_reset", code), time.Now().UTC().Add(otpTTL)); err != nil {
 		return fmt.Errorf("storing reset code: %w", err)
 	}
 	if err := s.provider.SendCode(ctx, channel, destination, "password_reset", code); err != nil {
@@ -610,12 +623,7 @@ func (s *Service) ConfirmPasswordReset(ctx context.Context, identifier, code, ne
 	if err := users.ValidatePassword(newPassword); err != nil {
 		return err
 	}
-	identifier = strings.TrimSpace(identifier)
-	if p := users.NormalizePhone(identifier); p != "" {
-		identifier = p
-	} else {
-		identifier = strings.ToLower(identifier)
-	}
+	identifier = users.NormalizeIdentifier(identifier)
 	u, err := s.usersRepo.GetByIdentifier(ctx, identifier)
 	if err != nil {
 		if errors.Is(err, users.ErrNotFound) {
@@ -681,4 +689,11 @@ func (s *Service) Deactivate(ctx context.Context, userID uuid.UUID) error {
 		return err
 	}
 	return s.LogoutAll(ctx, userID)
+}
+
+func minTime(a, b time.Time) time.Time {
+	if b.Before(a) {
+		return b
+	}
+	return a
 }

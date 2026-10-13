@@ -11,10 +11,13 @@ import (
 // Handler serves administrator endpoints (function-level authorization:
 // admin role required for every route).
 type Handler struct {
-	svc *Service
+	svc      *Service
+	ipSource web.IPSource
 }
 
-func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
+func NewHandler(svc *Service, ipSource web.IPSource) *Handler {
+	return &Handler{svc: svc, ipSource: ipSource}
+}
 
 func (h *Handler) Routes(mux *http.ServeMux) {
 	adm := web.RequireRole(web.RoleAdmin)
@@ -26,6 +29,38 @@ func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("POST /api/v1/admin/categories/{id}/criteria", adm(http.HandlerFunc(h.createCriterion)))
 	mux.Handle("PATCH /api/v1/admin/criteria/{id}", adm(http.HandlerFunc(h.updateCriterion)))
 	mux.Handle("POST /api/v1/admin/targets/{id}/merge", adm(http.HandlerFunc(h.mergeTargets)))
+	mux.Handle("GET /api/v1/admin/request-info", adm(http.HandlerFunc(h.requestInfo)))
+}
+
+// proxyHeaders are the headers hosting proxies commonly use for the caller's
+// address, shown by requestInfo to help choose CLIENT_IP_SOURCE.
+var proxyHeaders = []string{"CF-Connecting-IP", "True-Client-IP", "X-Real-IP", "Fly-Client-IP"}
+
+type requestInfo struct {
+	RemoteAddr     string            `json:"remote_addr"`
+	ForwardedFor   []string          `json:"x_forwarded_for"`
+	ProxyHeaders   map[string]string `json:"proxy_headers"`
+	ClientIPSource string            `json:"client_ip_source"`
+	ClientIP       string            `json:"client_ip"`
+}
+
+// requestInfo shows how the server sees the caller's own request, so the
+// configured client IP source can be checked against a known address once
+// per deployment. It only ever reflects the admin's own request.
+func (h *Handler) requestInfo(w http.ResponseWriter, r *http.Request) {
+	info := requestInfo{
+		RemoteAddr:     r.RemoteAddr,
+		ForwardedFor:   append([]string{}, r.Header.Values("X-Forwarded-For")...),
+		ProxyHeaders:   map[string]string{},
+		ClientIPSource: h.ipSource.String(),
+		ClientIP:       h.ipSource.ClientIP(r),
+	}
+	for _, name := range proxyHeaders {
+		if v := r.Header.Get(name); v != "" {
+			info.ProxyHeaders[name] = v
+		}
+	}
+	web.Respond(w, http.StatusOK, info)
 }
 
 type noteBody struct {
