@@ -418,7 +418,8 @@
     "topRated": "Top rated",
     "trending": "Trending",
     "thisMonth_one": "{{count}} review this month",
-    "thisMonth_other": "{{count}} reviews this month"
+    "thisMonth_other": "{{count}} reviews this month",
+    "tagline": "Honest reviews of places in Ethiopia"
   },
   "activity": {
     "markAllRead": "Mark all read",
@@ -457,7 +458,8 @@
     "submit": "Submit place",
     "submittedTitle": "Thanks — place submitted",
     "submittedBody": "A moderator will check it. We'll notify you when it's live, and you can review it then.",
-    "rateLimited": "You've added a lot of places today — try again tomorrow."
+    "rateLimited": "You've added a lot of places today — try again tomorrow.",
+    "verified": "Verified business"
   },
   "cache": {
     "offline": "You're offline — showing what was saved {{when}}.",

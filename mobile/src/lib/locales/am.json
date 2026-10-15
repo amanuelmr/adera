@@ -418,7 +418,8 @@
     "topRated": "ከፍተኛ ደረጃ",
     "trending": "ተወዳጅ",
     "thisMonth_one": "በዚህ ወር {{count}} ግምገማ",
-    "thisMonth_other": "በዚህ ወር {{count}} ግምገማዎች"
+    "thisMonth_other": "በዚህ ወር {{count}} ግምገማዎች",
+    "tagline": "በኢትዮጵያ ስላሉ ቦታዎች ታማኝ ግምገማዎች"
   },
   "activity": {
     "markAllRead": "ሁሉንም እንደተነበበ ምልክት አድርግ",
@@ -457,7 +458,8 @@
     "submit": "ቦታውን አስገባ",
     "submittedTitle": "እናመሰግናለን — ቦታው ገብቷል",
     "submittedBody": "አወያይ ያረጋግጠዋል። ሲታተም እናሳውቅዎታለን፣ ከዚያም መገምገም ይችላሉ።",
-    "rateLimited": "ዛሬ ብዙ ቦታዎችን ጨምረዋል — ነገ እንደገና ይሞክሩ።"
+    "rateLimited": "ዛሬ ብዙ ቦታዎችን ጨምረዋል — ነገ እንደገና ይሞክሩ።",
+    "verified": "የተረጋገጠ ንግድ"
   },
   "cache": {
     "offline": "ከመስመር ውጭ ነዎት — {{when}} የተቀመጠውን እያሳየን ነው።",
