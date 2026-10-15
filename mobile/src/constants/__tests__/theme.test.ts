@@ -1,6 +1,3 @@
-/* eslint-disable import/first -- the stylesheet import is mocked before the theme loads */
-jest.mock('@/global.css', () => ({}));
-
 import { Colors } from '../theme';
 
 // WCAG 2.1 relative luminance and contrast ratio.
