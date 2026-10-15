@@ -88,7 +88,7 @@ export default function YourDataScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               {t('data.deleteBody')}
             </ThemedText>
-            <Button title={t('data.delete')} variant="secondary" onPress={confirmDelete} loading={deleting} />
+            <Button title={t('data.delete')} variant="destructive" icon="trash" onPress={confirmDelete} loading={deleting} />
           </View>
 
           {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}

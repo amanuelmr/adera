@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react-native';
+import ArrowRightIcon from 'lucide-react-native/icons/arrow-right';
 import BadgeCheckIcon from 'lucide-react-native/icons/badge-check';
 import BellIcon from 'lucide-react-native/icons/bell';
 import BuildingIcon from 'lucide-react-native/icons/building';
@@ -36,6 +37,7 @@ import ShieldCheckIcon from 'lucide-react-native/icons/shield-check';
 import ShoppingBagIcon from 'lucide-react-native/icons/shopping-bag';
 import SlidersHorizontalIcon from 'lucide-react-native/icons/sliders-horizontal';
 import SmartphoneIcon from 'lucide-react-native/icons/smartphone';
+import StarHalfIcon from 'lucide-react-native/icons/star-half';
 import StarIcon from 'lucide-react-native/icons/star';
 import StoreIcon from 'lucide-react-native/icons/store';
 import ThumbsUpIcon from 'lucide-react-native/icons/thumbs-up';
@@ -99,6 +101,8 @@ const ICONS = {
   'shopping-bag': ShoppingBagIcon,
   'wrench': WrenchIcon,
   'store': StoreIcon,
+  'star-half': StarHalfIcon,
+  'arrow-right': ArrowRightIcon,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;
