@@ -86,7 +86,7 @@ function SignedOutAccount() {
   const { t } = useTranslation();
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={[styles.list, styles.settings]}>
           <ThemedText type="small" themeColor="textSecondary">
             {t('auth.signInToContinue')}
@@ -122,7 +122,7 @@ function SignedInAccount() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <FlatList
           data={reviewItems}
           keyExtractor={(item, index) => item.id ?? String(index)}
