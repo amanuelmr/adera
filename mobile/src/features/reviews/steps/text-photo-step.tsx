@@ -116,7 +116,7 @@ export function TextPhotoStep({
         ) : null}
       </View>
       {photoError ? (
-        <ThemedText type="small" style={styles.error}>
+        <ThemedText type="small" themeColor="danger">
           {photoError}
         </ThemedText>
       ) : null}
@@ -170,8 +170,5 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.one,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  error: {
-    color: '#D64545',
   },
 });

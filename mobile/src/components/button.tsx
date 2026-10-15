@@ -22,14 +22,14 @@ export function Button({ title, loading, variant = 'primary', disabled, style, .
       disabled={isDisabled}
       style={(state) => [
         styles.base,
-        { backgroundColor: isPrimary ? theme.text : theme.backgroundElement, opacity: isDisabled ? 0.5 : state.pressed ? 0.8 : 1 },
+        { backgroundColor: isPrimary ? theme.primary : theme.backgroundElement, opacity: isDisabled ? 0.5 : state.pressed ? 0.8 : 1 },
         typeof style === 'function' ? style(state) : style,
       ]}
       {...pressableProps}>
       {loading ? (
-        <ActivityIndicator color={isPrimary ? theme.background : theme.text} />
+        <ActivityIndicator color={isPrimary ? theme.onPrimary : theme.text} />
       ) : (
-        <ThemedText type="smallBold" themeColor={isPrimary ? 'background' : 'text'}>
+        <ThemedText type="smallBold" themeColor={isPrimary ? 'onPrimary' : 'text'}>
           {title}
         </ThemedText>
       )}

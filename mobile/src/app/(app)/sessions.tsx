@@ -44,7 +44,7 @@ export default function SessionsScreen() {
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             // A failed revoke is reported above the list, which stays usable.
-            revoke.error ? <ThemedText style={styles.error}>{friendlyAuthError(revoke.error)}</ThemedText> : null
+            revoke.error ? <ThemedText themeColor="danger" style={styles.error}>{friendlyAuthError(revoke.error)}</ThemedText> : null
           }
           ListEmptyComponent={
             sessions.isPending ? (
@@ -108,7 +108,6 @@ const styles = StyleSheet.create({
     gap: Spacing.half,
   },
   error: {
-    color: '#D64545',
     paddingBottom: Spacing.two,
   },
 });

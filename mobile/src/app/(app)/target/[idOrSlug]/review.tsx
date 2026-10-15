@@ -390,7 +390,7 @@ export default function WriteReviewScreen() {
         </ScrollView>
 
         {submitError ? (
-          <ThemedText type="small" style={styles.error}>
+          <ThemedText type="small" themeColor="danger" style={styles.error}>
             {submitError}
           </ThemedText>
         ) : null}
@@ -466,7 +466,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   error: {
-    color: '#D64545',
     paddingHorizontal: Spacing.four,
     paddingBottom: Spacing.two,
   },

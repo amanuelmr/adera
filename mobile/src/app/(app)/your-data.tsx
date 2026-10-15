@@ -91,7 +91,7 @@ export default function YourDataScreen() {
             <Button title={t('data.delete')} variant="secondary" onPress={confirmDelete} loading={deleting} />
           </View>
 
-          {error ? <ThemedText style={styles.error}>{error}</ThemedText> : null}
+          {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -111,8 +111,5 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.two,
-  },
-  error: {
-    color: '#D64545',
   },
 });

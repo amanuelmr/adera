@@ -7,16 +7,46 @@ import { SplashScreenController } from '@/components/splash-screen-controller';
 import { useVersionGate } from '@/features/app-version/queries';
 import { UpdateRequiredScreen } from '@/features/app-version/update-required-screen';
 import { LanguageChoice } from '@/features/language/language-choice';
+import { Colors } from '@/constants/theme';
 import { useEthiopicFonts } from '@/lib/fonts';
 import i18n, { useI18nReady } from '@/lib/i18n';
 import { persistOptions, queryClient } from '@/lib/query-client';
+
+// Headers, tab bars and screen backgrounds come from the navigation theme;
+// it uses the app's own colours so they match the screens.
+const navigationThemes = {
+  light: {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      primary: Colors.light.primary,
+      background: Colors.light.background,
+      card: Colors.light.surface,
+      text: Colors.light.text,
+      border: Colors.light.border,
+      notification: Colors.light.danger,
+    },
+  },
+  dark: {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      primary: Colors.dark.primary,
+      background: Colors.dark.background,
+      card: Colors.dark.surface,
+      text: Colors.dark.text,
+      border: Colors.dark.border,
+      notification: Colors.dark.danger,
+    },
+  },
+};
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
     <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
       <AuthProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <ThemeProvider value={colorScheme === 'dark' ? navigationThemes.dark : navigationThemes.light}>
           <AppGate />
         </ThemeProvider>
       </AuthProvider>

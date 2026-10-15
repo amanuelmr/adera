@@ -7,11 +7,22 @@ import { ETHIOPIC_FONT_BOLD, ETHIOPIC_FONT_REGULAR } from '@/lib/fonts';
 import { ethiopicLineHeight } from '@/lib/typography';
 
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?:
+    | 'default'
+    | 'title'
+    | 'subtitle'
+    | 'headline'
+    | 'small'
+    | 'smallBold'
+    | 'caption'
+    | 'link'
+    | 'linkPrimary'
+    | 'code';
   themeColor?: ThemeColor;
 };
 
-const BOLD_TYPES = new Set(['title', 'subtitle', 'smallBold']);
+const BOLD_TYPES = new Set(['title', 'subtitle', 'headline', 'smallBold', 'link', 'linkPrimary']);
+const LINK_TYPES = new Set(['link', 'linkPrimary']);
 
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
@@ -23,15 +34,8 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
     i18n.language === 'am' && type !== 'code' ? (BOLD_TYPES.has(type) ? ETHIOPIC_FONT_BOLD : ETHIOPIC_FONT_REGULAR) : undefined;
 
   const composed: StyleProp<TextStyle>[] = [
-    { color: theme[themeColor ?? 'text'] },
-    type === 'default' && styles.default,
-    type === 'title' && styles.title,
-    type === 'small' && styles.small,
-    type === 'smallBold' && styles.smallBold,
-    type === 'subtitle' && styles.subtitle,
-    type === 'link' && styles.link,
-    type === 'linkPrimary' && styles.linkPrimary,
-    type === 'code' && styles.code,
+    { color: theme[themeColor ?? (LINK_TYPES.has(type) ? 'primary' : 'text')] },
+    styles[type === 'linkPrimary' ? 'link' : type],
     ethiopicFontFamily && { fontFamily: ethiopicFontFamily },
     style,
   ];
@@ -47,40 +51,48 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
   return <Text style={[...composed, ethiopicSpacing]} {...rest} />;
 }
 
+// The type scale. Body text is regular weight; hierarchy comes from size and
+// weight steps rather than everything being small and bold.
 const styles = StyleSheet.create({
-  small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
-  },
-  smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
+  title: {
+    fontSize: 30,
+    lineHeight: 36,
     fontWeight: 700,
+  },
+  subtitle: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: 600,
+  },
+  headline: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: 600,
   },
   default: {
     fontSize: 16,
     lineHeight: 24,
+    fontWeight: 400,
+  },
+  small: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: 400,
+  },
+  smallBold: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: 600,
+  },
+  caption: {
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: 500,
   },
-  title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
-  },
-  subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
-  },
   link: {
-    lineHeight: 30,
     fontSize: 14,
-  },
-  linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
+    lineHeight: 20,
+    fontWeight: 600,
   },
   code: {
     fontFamily: Fonts.mono,

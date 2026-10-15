@@ -104,12 +104,12 @@ export default function EvidenceScreen() {
           )}
 
           {pickError ? (
-            <ThemedText type="small" style={styles.error}>
+            <ThemedText type="small" themeColor="danger">
               {pickError}
             </ThemedText>
           ) : null}
           {submitError ? (
-            <ThemedText type="small" style={styles.error}>
+            <ThemedText type="small" themeColor="danger">
               {submitError}
             </ThemedText>
           ) : null}
@@ -155,9 +155,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
-  },
-  error: {
-    color: '#D64545',
   },
   list: {
     gap: Spacing.two,

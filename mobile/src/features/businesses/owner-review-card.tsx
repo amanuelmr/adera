@@ -100,7 +100,7 @@ export function OwnerReviewCard({ review, targetId }: { review: ListedReview; ta
             style={[styles.input, { color: theme.text, backgroundColor: theme.background }]}
           />
           {mutation.error ? (
-            <ThemedText type="small" style={styles.error}>
+            <ThemedText type="small" themeColor="danger">
               {t('owner.saveFailed')}
             </ThemedText>
           ) : null}
@@ -145,8 +145,5 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: Spacing.two,
-  },
-  error: {
-    color: '#D64545',
   },
 });

@@ -23,13 +23,13 @@ export function TextField({ label, error, style, ...inputProps }: TextFieldProps
         placeholderTextColor={theme.textSecondary}
         style={[
           styles.input,
-          { color: theme.text, backgroundColor: theme.backgroundElement, borderColor: error ? '#D64545' : 'transparent' },
+          { color: theme.text, backgroundColor: theme.backgroundElement, borderColor: error ? theme.danger : 'transparent' },
           style,
         ]}
         {...inputProps}
       />
       {error ? (
-        <ThemedText type="small" style={styles.error} accessibilityLiveRegion="polite">
+        <ThemedText type="small" themeColor="danger" accessibilityLiveRegion="polite">
           {error}
         </ThemedText>
       ) : null}
@@ -48,8 +48,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
     fontSize: 16,
-  },
-  error: {
-    color: '#D64545',
   },
 });
