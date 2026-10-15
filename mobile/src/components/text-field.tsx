@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { fontFamilyFor } from '@/lib/fonts';
 import { Spacing } from '@/constants/theme';
 
 export type TextFieldProps = TextInputProps & {
@@ -14,6 +16,7 @@ export type TextFieldProps = TextInputProps & {
 // both fail WCAG 2.1 AA form guidance.
 export function TextField({ label, error, style, ...inputProps }: TextFieldProps) {
   const theme = useTheme();
+  const { i18n } = useTranslation();
 
   return (
     <View style={styles.container}>
@@ -23,7 +26,12 @@ export function TextField({ label, error, style, ...inputProps }: TextFieldProps
         placeholderTextColor={theme.textSecondary}
         style={[
           styles.input,
-          { color: theme.text, backgroundColor: theme.backgroundElement, borderColor: error ? theme.danger : 'transparent' },
+          {
+            color: theme.text,
+            backgroundColor: theme.backgroundElement,
+            borderColor: error ? theme.danger : 'transparent',
+            fontFamily: fontFamilyFor(400, i18n.language === 'am'),
+          },
           style,
         ]}
         {...inputProps}

@@ -8,7 +8,7 @@ import { useVersionGate } from '@/features/app-version/queries';
 import { UpdateRequiredScreen } from '@/features/app-version/update-required-screen';
 import { LanguageChoice } from '@/features/language/language-choice';
 import { Colors } from '@/constants/theme';
-import { useEthiopicFonts } from '@/lib/fonts';
+import { useEthiopicFonts, useLatinFonts } from '@/lib/fonts';
 import i18n, { useI18nReady } from '@/lib/i18n';
 import { persistOptions, queryClient } from '@/lib/query-client';
 
@@ -63,12 +63,18 @@ function AppGate() {
   // needed (i.e. Amharic is the resolved language), per
   // docs/frontend-handoff.md §7's "load only when locale = am".
   const ethiopicFontsLoaded = useEthiopicFonts();
+  const latinFontsLoaded = useLatinFonts();
   const needsEthiopicFonts = i18nReady && i18n.language === 'am';
 
   // A version-check failure (offline on first launch, etc.) shouldn't trap
   // the user on the splash screen forever — only an explicit
   // update_required=true blocks.
-  const ready = status !== 'loading' && !versionGate.isPending && i18nReady && (!needsEthiopicFonts || ethiopicFontsLoaded);
+  const ready =
+    status !== 'loading' &&
+    !versionGate.isPending &&
+    i18nReady &&
+    latinFontsLoaded &&
+    (!needsEthiopicFonts || ethiopicFontsLoaded);
 
   return (
     <>

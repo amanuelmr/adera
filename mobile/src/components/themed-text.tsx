@@ -3,7 +3,7 @@ import { Platform, StyleSheet, Text, type StyleProp, type TextProps, type TextSt
 
 import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { ETHIOPIC_FONT_BOLD, ETHIOPIC_FONT_REGULAR } from '@/lib/fonts';
+import { fontFamilyFor } from '@/lib/fonts';
 import { ethiopicLineHeight } from '@/lib/typography';
 
 export type ThemedTextProps = TextProps & {
@@ -21,34 +21,37 @@ export type ThemedTextProps = TextProps & {
   themeColor?: ThemeColor;
 };
 
-const BOLD_TYPES = new Set(['title', 'subtitle', 'headline', 'smallBold', 'link', 'linkPrimary']);
 const LINK_TYPES = new Set(['link', 'linkPrimary']);
 
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
   const { i18n } = useTranslation();
 
-  // `code` is excluded: it renders literal values (paths, numbers), which
-  // don't appear in Amharic, and should stay monospace regardless of locale.
-  const ethiopicFontFamily =
-    i18n.language === 'am' && type !== 'code' ? (BOLD_TYPES.has(type) ? ETHIOPIC_FONT_BOLD : ETHIOPIC_FONT_REGULAR) : undefined;
-
   const composed: StyleProp<TextStyle>[] = [
     { color: theme[themeColor ?? (LINK_TYPES.has(type) ? 'primary' : 'text')] },
     styles[type === 'linkPrimary' ? 'link' : type],
-    ethiopicFontFamily && { fontFamily: ethiopicFontFamily },
     style,
   ];
 
-  // Applied after the caller's style, so screens that set their own size
-  // (e.g. a large place name) get Ethiopic-safe spacing too.
-  let ethiopicSpacing: { lineHeight: number } | undefined;
-  if (ethiopicFontFamily) {
-    const { fontSize, lineHeight } = StyleSheet.flatten(composed);
-    if (typeof fontSize === 'number') ethiopicSpacing = { lineHeight: ethiopicLineHeight(fontSize, lineHeight) };
+  // `code` keeps its monospace font: it renders literal values (paths,
+  // numbers), which don't appear in Amharic. Everything else gets the app's
+  // font for its weight (including a weight the caller set, such as a large
+  // rating number), in Ethiopic when Amharic is active. Applied after the
+  // caller's style, as is the Ethiopic-safe line height, so screens that set
+  // their own size get both too.
+  let fontStyle: TextStyle | undefined;
+  if (type !== 'code') {
+    const flat = StyleSheet.flatten(composed);
+    if (!flat.fontFamily) {
+      const ethiopic = i18n.language === 'am';
+      fontStyle = { fontFamily: fontFamilyFor(Number(flat.fontWeight ?? 400), ethiopic), fontWeight: 'normal' };
+      if (ethiopic && typeof flat.fontSize === 'number') {
+        fontStyle.lineHeight = ethiopicLineHeight(flat.fontSize, flat.lineHeight);
+      }
+    }
   }
 
-  return <Text style={[...composed, ethiopicSpacing]} {...rest} />;
+  return <Text style={[...composed, fontStyle]} {...rest} />;
 }
 
 // The type scale. Body text is regular weight; hierarchy comes from size and
