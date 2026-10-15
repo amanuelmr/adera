@@ -31,10 +31,13 @@ type Result struct {
 
 // Repo runs search queries.
 type Repo struct {
-	pool *pgxpool.Pool
+	pool         *pgxpool.Pool
+	mediaBaseURL string
 }
 
-func NewRepo(pool *pgxpool.Pool) *Repo { return &Repo{pool: pool} }
+func NewRepo(pool *pgxpool.Pool, mediaBaseURL string) *Repo {
+	return &Repo{pool: pool, mediaBaseURL: mediaBaseURL}
+}
 
 // Search returns published targets matching q, best first. Relevance combines
 // full-text rank (weighted highest), word similarity over name and aliases,
@@ -78,11 +81,7 @@ func (r *Repo) Search(ctx context.Context, q string, f targets.BrowseFilter, lim
 	// The tsvector expression matches the GIN index in migrations/0009 exactly.
 	query := fmt.Sprintf(`
 		WITH qn AS (SELECT am_fold(lower($%d)) AS v)
-		SELECT t.id, t.target_type, t.category_id, t.business_id, t.name, t.slug, t.description,
-			t.city_id, t.area_id, t.address_text, t.latitude, t.longitude, t.online_only, t.phone, t.website,
-			t.social_links, t.verification_status, t.moderation_status, t.created_at, t.updated_at,
-			coalesce(s.review_count, 0),
-			CASE WHEN coalesce(s.review_count, 0) > 0 THEN round(s.rating_sum::numeric / s.review_count, 2)::float8 END,
+		SELECT `+targets.Columns+`,
 			round((
 				2.0 * ts_rank(to_tsvector('simple', am_fold(lower(t.name)) || ' ' || am_fold(lower(t.description))),
 				              websearch_to_tsquery('simple', qn.v))
@@ -115,13 +114,11 @@ func (r *Repo) Search(ctx context.Context, q string, f targets.BrowseFilter, lim
 	var out []Result
 	for rows.Next() {
 		var t Result
-		err := rows.Scan(&t.ID, &t.TargetType, &t.CategoryID, &t.BusinessID, &t.Name, &t.Slug, &t.Description,
-			&t.CityID, &t.AreaID, &t.AddressText, &t.Latitude, &t.Longitude, &t.OnlineOnly, &t.Phone, &t.Website,
-			&t.SocialLinks, &t.VerificationStatus, &t.ModerationStatus, &t.CreatedAt, &t.UpdatedAt,
-			&t.ReviewCount, &t.AverageRating, &t.Score)
+		err := rows.Scan(append(t.ScanFields(), &t.Score)...)
 		if err != nil {
 			return nil, fmt.Errorf("scanning search result: %w", err)
 		}
+		t.ResolveCover(r.mediaBaseURL)
 		out = append(out, t)
 	}
 	if err := rows.Err(); err != nil {

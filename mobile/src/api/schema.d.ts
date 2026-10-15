@@ -4299,6 +4299,10 @@ export interface components {
             review_count?: number;
             /** @description Raw mean, 2 decimals, never adjusted. */
             average_rating?: number | null;
+            /** @description The newest photo on one of the place's published reviews. Absent until there is one. */
+            cover_url?: string;
+            /** @description A smaller version of cover_url, for cards. */
+            cover_thumb_url?: string;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */

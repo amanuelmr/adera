@@ -108,7 +108,7 @@ func seedAt(t *testing.T, repo *Repo, creator uuid.UUID, name string, lat, lng *
 func TestRepoNearby(t *testing.T) {
 	pool := testdb.New(t)
 	creator := seedNearbyUser(t, pool)
-	repo := NewRepo(pool)
+	repo := NewRepo(pool, "")
 
 	at := func(lat, lng float64) (*float64, *float64) { return &lat, &lng }
 

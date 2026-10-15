@@ -55,6 +55,12 @@ type Target struct {
 	// Read-time aggregate summary (full stats via /targets/{id}/stats).
 	ReviewCount   int      `json:"review_count"`
 	AverageRating *float64 `json:"average_rating,omitempty"`
+
+	// A cover photo from the place's reviews (see coverSelect), with a
+	// thumbnail for cards. Absent until a published review has a photo.
+	CoverURL      string `json:"cover_url,omitempty"`
+	CoverThumbURL string `json:"cover_thumb_url,omitempty"`
+	coverKeys     []string
 }
 
 // socialDomains maps social_links keys to their allowed host suffixes.

@@ -28,30 +28,69 @@ const (
 // Repo provides target persistence.
 type Repo struct {
 	pool *pgxpool.Pool
+	// mediaBaseURL turns stored photo keys into public links for covers.
+	mediaBaseURL string
 }
 
-func NewRepo(pool *pgxpool.Pool) *Repo { return &Repo{pool: pool} }
+func NewRepo(pool *pgxpool.Pool, mediaBaseURL string) *Repo {
+	return &Repo{pool: pool, mediaBaseURL: mediaBaseURL}
+}
+
+// coverSelect picks a place's cover: the newest photo on one of its
+// published reviews, as [full, thumbnail] keys, never a photo withheld with
+// a review that left public view.
+const coverSelect = `(SELECT ARRAY[m.object_key, coalesce(m.thumb_key, m.object_key)]
+		FROM review_media m JOIN reviews rv ON rv.id = m.review_id
+		WHERE rv.target_id = t.id AND rv.moderation_status = 'published'
+		  AND m.status = 'ready' AND NOT m.withheld
+		ORDER BY m.created_at DESC LIMIT 1)`
 
 const targetColumns = `t.id, t.target_type, t.category_id, t.business_id, t.name, t.slug, t.description,
 	t.city_id, t.area_id, t.address_text, t.latitude, t.longitude, t.online_only, t.phone, t.website,
 	t.social_links, t.verification_status, t.moderation_status, t.created_at, t.updated_at,
 	coalesce(s.review_count, 0),
-	CASE WHEN coalesce(s.review_count, 0) > 0 THEN round(s.rating_sum::numeric / s.review_count, 2)::float8 END`
+	CASE WHEN coalesce(s.review_count, 0) > 0 THEN round(s.rating_sum::numeric / s.review_count, 2)::float8 END,
+	` + coverSelect
+
+// Columns selects a Target, with a "t" alias for review_targets and "s" for
+// its target_rating_stats row; scan it with Target.ScanFields.
+const Columns = targetColumns
 
 const targetFrom = ` FROM review_targets t LEFT JOIN target_rating_stats s ON s.target_id = t.id `
 
-func scanTarget(row pgx.Row) (Target, error) {
-	var t Target
-	err := row.Scan(&t.ID, &t.TargetType, &t.CategoryID, &t.BusinessID, &t.Name, &t.Slug, &t.Description,
+// ScanFields are the scan destinations for Columns, in order; a query that
+// selects more columns after them appends its own.
+func (t *Target) ScanFields() []any {
+	return []any{&t.ID, &t.TargetType, &t.CategoryID, &t.BusinessID, &t.Name, &t.Slug, &t.Description,
 		&t.CityID, &t.AreaID, &t.AddressText, &t.Latitude, &t.Longitude, &t.OnlineOnly, &t.Phone, &t.Website,
 		&t.SocialLinks, &t.VerificationStatus, &t.ModerationStatus, &t.CreatedAt, &t.UpdatedAt,
-		&t.ReviewCount, &t.AverageRating)
+		&t.ReviewCount, &t.AverageRating, &t.coverKeys}
+}
+
+// ResolveCover turns the scanned cover keys into public links.
+func (t *Target) ResolveCover(mediaBaseURL string) {
+	if len(t.coverKeys) != 2 {
+		return
+	}
+	link := func(key string) string {
+		if mediaBaseURL == "" {
+			return key
+		}
+		return strings.TrimRight(mediaBaseURL, "/") + "/" + key
+	}
+	t.CoverURL, t.CoverThumbURL = link(t.coverKeys[0]), link(t.coverKeys[1])
+}
+
+func (r *Repo) scanTarget(row pgx.Row) (Target, error) {
+	var t Target
+	err := row.Scan(t.ScanFields()...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Target{}, web.ErrNotFound("target")
 	}
 	if err != nil {
 		return Target{}, fmt.Errorf("scanning target: %w", err)
 	}
+	t.ResolveCover(r.mediaBaseURL)
 	return t, nil
 }
 
@@ -165,7 +204,7 @@ func (r *Repo) Create(ctx context.Context, in CreateInput) (Target, error) {
 			in.CityID, in.AreaID, in.AddressText, in.Latitude, in.Longitude, in.OnlineOnly,
 			in.Phone, in.Website, in.SocialLinks, status, in.CreatedBy)
 		var err error
-		t, err = scanTarget(row)
+		t, err = r.scanTarget(row)
 		if err != nil {
 			return err
 		}
@@ -212,9 +251,9 @@ func (r *Repo) GetByIDOrSlug(ctx context.Context, idOrSlug string) (Target, erro
 		err error
 	)
 	if id, parseErr := uuid.Parse(idOrSlug); parseErr == nil {
-		t, err = scanTarget(r.pool.QueryRow(ctx, `SELECT `+targetColumns+targetFrom+`WHERE t.id = $1`, id))
+		t, err = r.scanTarget(r.pool.QueryRow(ctx, `SELECT `+targetColumns+targetFrom+`WHERE t.id = $1`, id))
 	} else {
-		t, err = scanTarget(r.pool.QueryRow(ctx, `SELECT `+targetColumns+targetFrom+`WHERE t.slug = $1`, idOrSlug))
+		t, err = r.scanTarget(r.pool.QueryRow(ctx, `SELECT `+targetColumns+targetFrom+`WHERE t.slug = $1`, idOrSlug))
 	}
 	if err != nil {
 		return Target{}, err
@@ -394,7 +433,7 @@ func (r *Repo) Browse(ctx context.Context, f BrowseFilter, cursor *web.Cursor, l
 	defer rows.Close()
 	var out []Target
 	for rows.Next() {
-		t, err := scanTarget(rows)
+		t, err := r.scanTarget(rows)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -474,13 +513,11 @@ func (r *Repo) TopRated(ctx context.Context, f BrowseFilter, limit int) ([]Ranke
 	var out []RankedTarget
 	for rows.Next() {
 		var t RankedTarget
-		err := rows.Scan(&t.ID, &t.TargetType, &t.CategoryID, &t.BusinessID, &t.Name, &t.Slug, &t.Description,
-			&t.CityID, &t.AreaID, &t.AddressText, &t.Latitude, &t.Longitude, &t.OnlineOnly, &t.Phone, &t.Website,
-			&t.SocialLinks, &t.VerificationStatus, &t.ModerationStatus, &t.CreatedAt, &t.UpdatedAt,
-			&t.ReviewCount, &t.AverageRating, &t.RankingScore)
+		err := rows.Scan(append(t.ScanFields(), &t.RankingScore)...)
 		if err != nil {
 			return nil, fmt.Errorf("scanning ranked target: %w", err)
 		}
+		t.ResolveCover(r.mediaBaseURL)
 		out = append(out, t)
 	}
 	if err := rows.Err(); err != nil {
@@ -523,13 +560,11 @@ func (r *Repo) Trending(ctx context.Context, f BrowseFilter, limit int) ([]Trend
 	var out []TrendingTarget
 	for rows.Next() {
 		var t TrendingTarget
-		err := rows.Scan(&t.ID, &t.TargetType, &t.CategoryID, &t.BusinessID, &t.Name, &t.Slug, &t.Description,
-			&t.CityID, &t.AreaID, &t.AddressText, &t.Latitude, &t.Longitude, &t.OnlineOnly, &t.Phone, &t.Website,
-			&t.SocialLinks, &t.VerificationStatus, &t.ModerationStatus, &t.CreatedAt, &t.UpdatedAt,
-			&t.ReviewCount, &t.AverageRating, &t.RecentReviewCount, &t.RecentAverage)
+		err := rows.Scan(append(t.ScanFields(), &t.RecentReviewCount, &t.RecentAverage)...)
 		if err != nil {
 			return nil, fmt.Errorf("scanning trending target: %w", err)
 		}
+		t.ResolveCover(r.mediaBaseURL)
 		out = append(out, t)
 	}
 	if err := rows.Err(); err != nil {
@@ -625,13 +660,11 @@ func (r *Repo) Nearby(ctx context.Context, f BrowseFilter, lat, lng, radiusKm fl
 	var out []NearbyTarget
 	for rows.Next() {
 		var t NearbyTarget
-		err := rows.Scan(&t.ID, &t.TargetType, &t.CategoryID, &t.BusinessID, &t.Name, &t.Slug, &t.Description,
-			&t.CityID, &t.AreaID, &t.AddressText, &t.Latitude, &t.Longitude, &t.OnlineOnly, &t.Phone, &t.Website,
-			&t.SocialLinks, &t.VerificationStatus, &t.ModerationStatus, &t.CreatedAt, &t.UpdatedAt,
-			&t.ReviewCount, &t.AverageRating, &t.DistanceKm)
+		err := rows.Scan(append(t.ScanFields(), &t.DistanceKm)...)
 		if err != nil {
 			return nil, fmt.Errorf("scanning nearby target: %w", err)
 		}
+		t.ResolveCover(r.mediaBaseURL)
 		out = append(out, t)
 	}
 	if err := rows.Err(); err != nil {

@@ -46,8 +46,8 @@ func seedPublishedTarget(t *testing.T, targetsRepo *targets.Repo, creatorID uuid
 func TestRepoSearchMatchesByName(t *testing.T) {
 	pool := testdb.New(t)
 	creatorID := seedTestUser(t, pool)
-	targetsRepo := targets.NewRepo(pool)
-	repo := NewRepo(pool)
+	targetsRepo := targets.NewRepo(pool, "")
+	repo := NewRepo(pool, "")
 
 	seedPublishedTarget(t, targetsRepo, creatorID, "Sheger Fish and Kitfo", nil)
 
@@ -61,8 +61,8 @@ func TestRepoSearchMatchesByName(t *testing.T) {
 func TestRepoSearchMatchesByAlias(t *testing.T) {
 	pool := testdb.New(t)
 	creatorID := seedTestUser(t, pool)
-	targetsRepo := targets.NewRepo(pool)
-	repo := NewRepo(pool)
+	targetsRepo := targets.NewRepo(pool, "")
+	repo := NewRepo(pool, "")
 
 	seedPublishedTarget(t, targetsRepo, creatorID, "Kategna Traditional Restaurant", []string{"Kategna"})
 
@@ -76,8 +76,8 @@ func TestRepoSearchMatchesByAlias(t *testing.T) {
 func TestRepoSearchFiltersByCategory(t *testing.T) {
 	pool := testdb.New(t)
 	creatorID := seedTestUser(t, pool)
-	targetsRepo := targets.NewRepo(pool)
-	repo := NewRepo(pool)
+	targetsRepo := targets.NewRepo(pool, "")
+	repo := NewRepo(pool, "")
 
 	seedPublishedTarget(t, targetsRepo, creatorID, "Unique Zylophone Cafe", nil)
 	otherCat := uuid.MustParse("11111111-1111-4111-8111-111111111101") // electronics_repair
@@ -91,8 +91,8 @@ func TestRepoSearchFiltersByCategory(t *testing.T) {
 func TestRepoSearchExcludesUnpublishedTargets(t *testing.T) {
 	pool := testdb.New(t)
 	creatorID := seedTestUser(t, pool)
-	targetsRepo := targets.NewRepo(pool)
-	repo := NewRepo(pool)
+	targetsRepo := targets.NewRepo(pool, "")
+	repo := NewRepo(pool, "")
 
 	catID := uuid.MustParse(catRestaurantID)
 	_, err := targetsRepo.Create(context.Background(), targets.CreateInput{
