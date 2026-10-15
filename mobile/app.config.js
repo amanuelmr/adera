@@ -28,6 +28,9 @@ module.exports = ({ config }) => {
   return {
     ...config,
     android: { ...config.android, ...(googleServicesFile ? { googleServicesFile } : {}) },
+    // Local device builds sign with the developer's own Apple team; EAS
+    // manages signing itself, so the ID stays out of the repo.
+    ios: { ...config.ios, ...(process.env.APPLE_TEAM_ID ? { appleTeamId: process.env.APPLE_TEAM_ID } : {}) },
     plugins: withReleaseArchs(config.plugins),
   };
 };
