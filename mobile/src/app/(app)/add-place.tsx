@@ -185,7 +185,7 @@ export default function AddPlaceScreen() {
           ) : null}
 
           {error ? (
-            <ThemedText type="small" style={styles.error}>
+            <ThemedText type="small" themeColor="danger">
               {error}
             </ThemedText>
           ) : null}
@@ -222,8 +222,5 @@ const styles = StyleSheet.create({
   },
   center: {
     textAlign: 'center',
-  },
-  error: {
-    color: '#D64545',
   },
 });

@@ -2258,6 +2258,8 @@ components:
         moderation_status: {type: string, enum: [pending, published, hidden, removed, merged]}
         review_count: {type: integer}
         average_rating: {type: number, nullable: true, description: "Raw mean, 2 decimals, never adjusted."}
+        cover_url: {type: string, description: "The newest photo on one of the place's published reviews. Absent until there is one."}
+        cover_thumb_url: {type: string, description: "A smaller version of cover_url, for cards."}
         created_at: {type: string, format: date-time}
         updated_at: {type: string, format: date-time}
     TargetCreate:

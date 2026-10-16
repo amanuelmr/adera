@@ -29,12 +29,7 @@ export default function CategoryScreen() {
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
           renderItem={({ item }) => (
-            <TargetCard
-              name={item.name ?? ''}
-              averageRating={item.average_rating ?? null}
-              reviewCount={item.review_count ?? 0}
-              onPress={() => router.push(`/target/${item.slug ?? item.id}`)}
-            />
+            <TargetCard target={item} layout="list" onPress={() => router.push(`/target/${item.slug ?? item.id}`)} />
           )}
           ListEmptyComponent={
             targets.isPending ? (

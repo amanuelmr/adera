@@ -86,7 +86,7 @@ export default function VerifyScreen() {
           ) : (
             <Button title={t('common.sendCode')} onPress={requestCode} loading={submitting} />
           )}
-          {!codeRequested && error ? <ThemedText style={styles.error}>{error}</ThemedText> : null}
+          {!codeRequested && error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -105,8 +105,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.four,
     gap: Spacing.three,
-  },
-  error: {
-    color: '#D64545',
   },
 });

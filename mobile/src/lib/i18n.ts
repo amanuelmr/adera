@@ -60,21 +60,25 @@ export async function setAppLanguage(language: AppLanguage): Promise<void> {
   setLanguageChosen(true);
 }
 
+// Initialized synchronously when this module loads, in English: the
+// navigator mounts under the splash screen before the stored language has
+// been read, and its screens need an instance from the first render.
+// initI18n then switches to the language the user chose (or the device's).
+// eslint-disable-next-line import/no-named-as-default-member -- see above
+void i18next.use(initReactI18next).init({
+  resources: { en: { translation: en }, am: { translation: am } },
+  lng: 'en',
+  fallbackLng: 'en',
+  interpolation: { escapeValue: false },
+  initAsync: false,
+});
+
 let initialized: Promise<unknown> | undefined;
 
 /** Idempotent — safe to call from more than one place (e.g. app start and tests). */
 export function initI18n(): Promise<unknown> {
-  if (!initialized) {
-    initialized = detectInitialLanguage().then((lng) =>
-      // eslint-disable-next-line import/no-named-as-default-member -- see above
-      i18next.use(initReactI18next).init({
-        resources: { en: { translation: en }, am: { translation: am } },
-        lng,
-        fallbackLng: 'en',
-        interpolation: { escapeValue: false },
-      })
-    );
-  }
+  // eslint-disable-next-line import/no-named-as-default-member -- see above
+  initialized ??= detectInitialLanguage().then((lng) => i18next.changeLanguage(lng));
   return initialized;
 }
 

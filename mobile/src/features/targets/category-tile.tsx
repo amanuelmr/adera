@@ -1,38 +1,58 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
+import { categoryIcon } from '@/features/categories/category-style';
+import { useTheme } from '@/hooks/use-theme';
 
 export type CategoryTileProps = {
   name: string;
+  code?: string;
   onPress: () => void;
 };
 
-export function CategoryTile({ name, onPress }: CategoryTileProps) {
+/** A category as an icon-led pill, in a horizontal row on Discover. */
+export function CategoryTile({ name, code, onPress }: CategoryTileProps) {
+  const theme = useTheme();
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={name}>
-      {({ pressed }) => (
-        <ThemedView type="backgroundElement" style={[styles.tile, { opacity: pressed ? 0.8 : 1 }]}>
-          <ThemedText type="smallBold" style={styles.text} numberOfLines={2}>
-            {name}
-          </ThemedText>
-        </ThemedView>
-      )}
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={name}
+      style={({ pressed }) => [
+        styles.tile,
+        { backgroundColor: theme.surface, borderColor: theme.border, opacity: pressed ? 0.8 : 1 },
+      ]}>
+      <View style={[styles.iconWrap, { backgroundColor: theme.primaryContainer }]}>
+        <Icon name={categoryIcon(code)} size={18} color="onPrimaryContainer" />
+      </View>
+      <ThemedText type="smallBold" numberOfLines={1} style={styles.label}>
+        {name}
+      </ThemedText>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   tile: {
-    width: 120,
-    minHeight: 64,
-    borderRadius: Spacing.two,
-    padding: Spacing.three,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    minHeight: 48,
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingLeft: Spacing.one + Spacing.half,
+    paddingRight: Spacing.three,
+  },
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: {
-    textAlign: 'center',
+  label: {
+    maxWidth: 200,
   },
 });

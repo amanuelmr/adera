@@ -7,6 +7,10 @@
     "icon": "./assets/images/icon.png",
     "scheme": "adera",
     "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "work.amanuel.adera",
+      "supportsTablet": false
+    },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -64,7 +68,8 @@
       [
         "expo-notifications",
         {
-          "defaultChannel": "default"
+          "defaultChannel": "default",
+          "enableBackgroundRemoteNotifications": true
         }
       ],
       "expo-localization",

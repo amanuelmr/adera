@@ -59,7 +59,7 @@ export function MyReviewCard({ review }: { review: ListedReview }) {
             onPress={() => router.push(`/review/${review.id}/evidence`)}
           />
         ) : null}
-        <Button title={t('common.delete')} variant="secondary" onPress={confirmDelete} loading={deleteReview.isPending} />
+        <Button title={t('common.delete')} variant="destructive" onPress={confirmDelete} loading={deleteReview.isPending} />
       </View>
     </ThemedView>
   );

@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { withEntitlementsPlist } = require('expo/config-plugins');
 
 // Push needs google-services.json on Android, but it identifies the Firebase
 // project and stays out of git. On EAS it arrives as the GOOGLE_SERVICES_JSON
@@ -22,12 +23,31 @@ function withReleaseArchs(plugins = []) {
   );
 }
 
+// A free (personal) Apple developer team can't sign the Push Notifications
+// capability, so a local device build signed with one fails. With
+// IOS_PERSONAL_TEAM=1 the push entitlement is left out: the app runs, without
+// remote notifications. Never set for EAS or store builds.
+function withoutPushEntitlement(config) {
+  return withEntitlementsPlist(config, (mod) => {
+    delete mod.modResults['aps-environment'];
+    return mod;
+  });
+}
+
 module.exports = ({ config }) => {
   const googleServicesFile =
     process.env.GOOGLE_SERVICES_JSON ?? (fs.existsSync(LOCAL_GOOGLE_SERVICES) ? LOCAL_GOOGLE_SERVICES : undefined);
   return {
     ...config,
     android: { ...config.android, ...(googleServicesFile ? { googleServicesFile } : {}) },
-    plugins: withReleaseArchs(config.plugins),
+    // Local device builds sign with the developer's own Apple team; EAS
+    // manages signing itself, so the ID stays out of the repo.
+    ios: { ...config.ios, ...(process.env.APPLE_TEAM_ID ? { appleTeamId: process.env.APPLE_TEAM_ID } : {}) },
+    // Mods run in reverse order of the plugins list, so this comes first to
+    // run after expo-notifications has added the entitlement.
+    plugins: [
+      ...(process.env.IOS_PERSONAL_TEAM === '1' ? [withoutPushEntitlement] : []),
+      ...withReleaseArchs(config.plugins),
+    ],
   };
 };

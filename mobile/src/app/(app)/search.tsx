@@ -118,11 +118,9 @@ export default function SearchScreen() {
             contentContainerStyle={styles.list}
             renderItem={({ item }) => (
               <TargetCard
-                name={item.name ?? t('common.unnamed')}
-                averageRating={item.average_rating ?? null}
-                reviewCount={item.review_count ?? 0}
+                target={item}
+                layout="list"
                 onPress={() => router.push(`/target/${item.slug ?? item.id}`)}
-                style={styles.resultCard}
               />
             )}
           />
@@ -181,9 +179,6 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: Spacing.four,
-    gap: Spacing.three,
-  },
-  resultCard: {
-    width: '100%',
+    gap: Spacing.twoHalf,
   },
 });

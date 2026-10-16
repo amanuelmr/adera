@@ -43,7 +43,7 @@ func seed(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) error {
 		Parallelism: cfg.ArgonParallelism,
 	})
 	usersRepo := users.NewRepo(pool)
-	targetsRepo := targets.NewRepo(pool)
+	targetsRepo := targets.NewRepo(pool, cfg.StoragePublicBaseURL)
 	reviewsRepo := reviews.NewRepo(pool, cfg.StoragePublicBaseURL, nil)
 	bizRepo := businesses.NewRepo(pool, nil)
 

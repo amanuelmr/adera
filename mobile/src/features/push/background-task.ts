@@ -25,4 +25,7 @@ TaskManager.defineTask<Notifications.NotificationTaskPayload>(BACKGROUND_NOTIFIC
 // Fire-and-forget, unconditional (not gated to signed-in state like
 // PushRegistration's token registration) — this only builds a visible
 // notification from whatever arrives; it makes no network calls itself.
-Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+// On iOS this needs remote-notification in UIBackgroundModes (the
+// enableBackgroundRemoteNotifications plugin option); a build without it
+// rejects, which must not surface as an unhandled error at startup.
+Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK).catch(() => undefined);

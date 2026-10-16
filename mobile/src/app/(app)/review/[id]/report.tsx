@@ -71,7 +71,7 @@ export default function ReportReviewScreen() {
           />
 
           {error ? (
-            <ThemedText type="small" style={styles.error}>
+            <ThemedText type="small" themeColor="danger">
               {error}
             </ThemedText>
           ) : null}
@@ -117,8 +117,5 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     fontSize: 16,
     textAlignVertical: 'top',
-  },
-  error: {
-    color: '#D64545',
   },
 });

@@ -88,10 +88,10 @@ export default function YourDataScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               {t('data.deleteBody')}
             </ThemedText>
-            <Button title={t('data.delete')} variant="secondary" onPress={confirmDelete} loading={deleting} />
+            <Button title={t('data.delete')} variant="destructive" icon="trash" onPress={confirmDelete} loading={deleting} />
           </View>
 
-          {error ? <ThemedText style={styles.error}>{error}</ThemedText> : null}
+          {error ? <ThemedText themeColor="danger">{error}</ThemedText> : null}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -111,8 +111,5 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.two,
-  },
-  error: {
-    color: '#D64545',
   },
 });

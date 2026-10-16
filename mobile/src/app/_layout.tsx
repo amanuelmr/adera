@@ -7,16 +7,46 @@ import { SplashScreenController } from '@/components/splash-screen-controller';
 import { useVersionGate } from '@/features/app-version/queries';
 import { UpdateRequiredScreen } from '@/features/app-version/update-required-screen';
 import { LanguageChoice } from '@/features/language/language-choice';
-import { useEthiopicFonts } from '@/lib/fonts';
+import { Colors } from '@/constants/theme';
+import { useEthiopicFonts, useLatinFonts } from '@/lib/fonts';
 import i18n, { useI18nReady } from '@/lib/i18n';
 import { persistOptions, queryClient } from '@/lib/query-client';
+
+// Headers, tab bars and screen backgrounds come from the navigation theme;
+// it uses the app's own colours so they match the screens.
+const navigationThemes = {
+  light: {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      primary: Colors.light.primary,
+      background: Colors.light.background,
+      card: Colors.light.surface,
+      text: Colors.light.text,
+      border: Colors.light.border,
+      notification: Colors.light.danger,
+    },
+  },
+  dark: {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      primary: Colors.dark.primary,
+      background: Colors.dark.background,
+      card: Colors.dark.surface,
+      text: Colors.dark.text,
+      border: Colors.dark.border,
+      notification: Colors.dark.danger,
+    },
+  },
+};
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
     <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
       <AuthProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <ThemeProvider value={colorScheme === 'dark' ? navigationThemes.dark : navigationThemes.light}>
           <AppGate />
         </ThemeProvider>
       </AuthProvider>
@@ -33,12 +63,18 @@ function AppGate() {
   // needed (i.e. Amharic is the resolved language), per
   // docs/frontend-handoff.md §7's "load only when locale = am".
   const ethiopicFontsLoaded = useEthiopicFonts();
+  const latinFontsLoaded = useLatinFonts();
   const needsEthiopicFonts = i18nReady && i18n.language === 'am';
 
   // A version-check failure (offline on first launch, etc.) shouldn't trap
   // the user on the splash screen forever — only an explicit
   // update_required=true blocks.
-  const ready = status !== 'loading' && !versionGate.isPending && i18nReady && (!needsEthiopicFonts || ethiopicFontsLoaded);
+  const ready =
+    status !== 'loading' &&
+    !versionGate.isPending &&
+    i18nReady &&
+    latinFontsLoaded &&
+    (!needsEthiopicFonts || ethiopicFontsLoaded);
 
   return (
     <>

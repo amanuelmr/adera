@@ -78,7 +78,7 @@ export function ContextStep({
           />
         ) : null}
         {dateError ? (
-          <ThemedText type="small" style={styles.error}>
+          <ThemedText type="small" themeColor="danger">
             {t(dateError === 'future' ? 'review.dateFuture' : 'review.dateFormat')}
           </ThemedText>
         ) : null}
@@ -115,7 +115,7 @@ export function ContextStep({
           style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
         />
         {priceError ? (
-          <ThemedText type="small" style={styles.error}>
+          <ThemedText type="small" themeColor="danger">
             {t('review.priceInvalid')}
           </ThemedText>
         ) : null}
@@ -130,9 +130,6 @@ const styles = StyleSheet.create({
   },
   field: {
     gap: Spacing.two,
-  },
-  error: {
-    color: '#D64545',
   },
   input: {
     minHeight: 44,
